@@ -21,3 +21,7 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+
+# Local files
+AGENTS.md
+Installer/

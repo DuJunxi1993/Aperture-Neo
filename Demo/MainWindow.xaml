@@ -308,7 +308,7 @@
                         </StackPanel>
                     </Button>
                     <Button x:Name="BtnFullscreen" Style="{StaticResource LinearButton}" Click="BtnFullscreen_Click" Margin="4,0,0,0" ToolTip="全屏 (Ctrl+F)">
-                        <ui:SymbolIcon Symbol="FullScreen24" FontSize="14"/>
+                        <ui:SymbolIcon Symbol="FullScreenMaximize24" FontSize="14"/>
                     </Button>
                 </StackPanel>
             </Grid>

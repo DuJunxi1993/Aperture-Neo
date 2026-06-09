@@ -398,7 +398,7 @@ public partial class MainWindow : FluentWindow
     private void UpdateSlideshowButton()
     {
         if (_slideshow.IsRunning) { SlideshowIcon.Symbol = Wpf.Ui.Controls.SymbolRegular.Pause24; SlideshowText.Text = "暂停"; }
-        else { SlideshowIcon.Symbol = Wpf.Ui.Controls.SymbolRegular.Play24; SlideshowText.Text = "幻灯片"; }
+        else { SlideshowIcon.Symbol = Wpf.Ui.Controls.SymbolRegular.Play20; SlideshowText.Text = "幻灯片"; }
     }
 
     private void ToggleFullscreen()

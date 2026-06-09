@@ -7,15 +7,13 @@
             <ResourceDictionary.MergedDictionaries>
                 <ui:ThemesDictionary Theme="Dark" />
                 <ui:ControlsDictionary />
-                <ResourceDictionary Source="Demo\DesignTokens.xaml"/>
-                <ResourceDictionary Source="Demo\Styles\Buttons.xaml"/>
-                <ResourceDictionary Source="Demo\Styles\Splitter.xaml"/>
-                <ResourceDictionary Source="Demo\Styles\Text.xaml"/>
-                <ResourceDictionary Source="Demo\Styles\TreeView.xaml"/>
-                <ResourceDictionary Source="Demo\Styles\Thumbnail.xaml"/>
-                <ResourceDictionary Source="Demo\Styles\ContextMenu.xaml"/>
-                <!-- Keep main theme dictionaries so legacy ThumbnailItem lookups succeed -->
-                <ResourceDictionary Source="..\Resources\Themes\Dark.xaml"/>
+                <ResourceDictionary Source="/Demo/DesignTokens.xaml"/>
+                <ResourceDictionary Source="/Demo/Styles/Buttons.xaml"/>
+                <ResourceDictionary Source="/Demo/Styles/Splitter.xaml"/>
+                <ResourceDictionary Source="/Demo/Styles/Text.xaml"/>
+                <ResourceDictionary Source="/Demo/Styles/TreeView.xaml"/>
+                <ResourceDictionary Source="/Demo/Styles/Thumbnail.xaml"/>
+                <ResourceDictionary Source="/Demo/Styles/ContextMenu.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
             <!-- Global default font -->

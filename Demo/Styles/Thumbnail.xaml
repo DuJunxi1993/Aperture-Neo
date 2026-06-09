@@ -1,0 +1,46 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Linear-themed override for ThumbnailItem (used by Controls\ThumbnailGrid.cs via Application.Current.Resources) -->
+    <SolidColorBrush x:Key="ThumbnailSelectedBg" Color="#FF191a1b"/>
+    <SolidColorBrush x:Key="ThumbnailHoverBg"    Color="#FF28282c"/>
+    <SolidColorBrush x:Key="ThumbnailBorder"     Color="#FF7170ff"/>
+    <SolidColorBrush x:Key="TreeItemHoverBg"        Color="#FF28282c"/>
+    <SolidColorBrush x:Key="TreeItemSelectedBg"     Color="#FF191a1b"/>
+    <SolidColorBrush x:Key="TreeItemSelectedHoverBg" Color="#FF191a1b"/>
+    <SolidColorBrush x:Key="TreeItemSelectedFg"     Color="#FFf7f8f8"/>
+    <SolidColorBrush x:Key="WindowButtonHoverBg"   Color="#0DFFFFFF"/>
+    <SolidColorBrush x:Key="WindowButtonPressedBg" Color="#0DFFFFFF"/>
+    <SolidColorBrush x:Key="HoverBg"    Color="#0DFFFFFF"/>
+    <SolidColorBrush x:Key="PressedBg"  Color="#0AFFFFFF"/>
+    <SolidColorBrush x:Key="SelectionBg" Color="#FF191a1b"/>
+    <SolidColorBrush x:Key="SelectionBorder" Color="#FF7170ff"/>
+
+    <!-- Linear-styled thumbnail card (used inline in MainWindow.xaml ItemTemplate) -->
+    <Style x:Key="LinearThumbnailCard" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource BtnBgGhost}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderStandard}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusCard}"/>
+        <Setter Property="Margin" Value="3"/>
+        <Setter Property="ClipToBounds" Value="True"/>
+    </Style>
+
+    <Style x:Key="LinearThumbnailSelectedCard" TargetType="Border" BasedOn="{StaticResource LinearThumbnailCard}">
+        <Setter Property="Background" Value="{StaticResource SurfaceElevated}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BrandAccent}"/>
+        <Setter Property="BorderThickness" Value="1.5"/>
+    </Style>
+
+    <!-- File name label below thumbnail -->
+    <Style x:Key="LinearThumbnailName" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="500"/>
+        <Setter Property="Foreground" Value="{StaticResource TextTertiary}"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        <Setter Property="Margin" Value="0,6,0,0"/>
+    </Style>
+
+</ResourceDictionary>

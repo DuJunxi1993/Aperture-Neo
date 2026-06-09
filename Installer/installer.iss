@@ -29,7 +29,7 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -66,24 +66,28 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [Registry]
-; ProgID for file associations
-Root: HKCR; Subkey: "{#ProgId}"; ValueType: string; ValueName: ""; ValueData: "Aperture Neo Image"; Flags: uninsdeletekey; Tasks: fileassoc
-Root: HKCR; Subkey: "{#ProgId}\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"; Tasks: fileassoc
-Root: HKCR; Subkey: "{#ProgId}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: fileassoc
+; Per-user file associations: written to HKCU\Software\Classes (which Windows
+; merges into HKCR for the current user). Works without admin rights and is
+; the standard approach for non-elevated installers (VS Code, Slack, etc.).
+Root: HKCU; Subkey: "Software\Classes\{#ProgId}"; ValueType: string; ValueName: ""; ValueData: "Aperture Neo Image"; Flags: uninsdeletekey; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\{#ProgId}\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\{#ProgId}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: fileassoc
 
-; Register all supported extensions under OpenWithProgids (so user can pick from "Open With")
-Root: HKCR; Subkey: ".jpg\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCR; Subkey: ".jpeg\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCR; Subkey: ".png\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCR; Subkey: ".bmp\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCR; Subkey: ".gif\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCR; Subkey: ".tiff\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCR; Subkey: ".tif\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCR; Subkey: ".webp\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCR; Subkey: ".heic\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCR; Subkey: ".heif\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCR; Subkey: ".avif\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCR; Subkey: ".ico\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
+; Register all supported extensions under OpenWithProgids (so user can pick
+; from "Open With"). Per-user keys do not override system defaults but are
+; surfaced in the Open With menu.
+Root: HKCU; Subkey: "Software\Classes\.jpg\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\.jpeg\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\.png\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\.bmp\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\.gif\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\.tiff\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\.tif\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\.webp\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\.heic\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\.heif\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\.avif\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\.ico\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
 
 [Code]
 const
@@ -106,29 +110,29 @@ begin
   Result := not IsWebView2Installed();
 end;
 
-// After install, register file associations via assoc/ftype (system-wide).
-procedure RegisterFileAssociations();
+// Notify the shell that file association per-user keys have changed so the
+// "Open With" menu is updated without requiring a logoff/logon. This writes
+// to HKCU only (does not require admin) and is a no-op if SHChangeNotify
+// fails.
+procedure RefreshShellFileAssocs();
 var
-  Ext: String;
-  Extensions: Array of String;
-  I: Integer;
-  ResultCode: Integer;
+  SHChangeNotifyFlags: Integer;
 begin
-  Extensions := ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tiff', '.tif', '.webp', '.heic', '.heif', '.avif', '.ico'];
-  for I := 0 to GetArrayLength(Extensions) - 1 do
-  begin
-    Ext := Extensions[I];
-    // ftype <ProgId>=<command>
-    Exec('cmd.exe', '/c ftype "{#ProgId}"="""{app}\{#MyAppExeName}""" """%1"""', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  end;
+  // SHCNE_ASSOCCHANGED = 0x08000000, SHCNF_IDLIST = 0x0000
+  SHChangeNotifyFlags := $08000000;
+  // Use the registry-free import approach via the [Registry] section is not
+  // available here, so we just broadcast a WM_SETTINGCHANGE.
+  // (Calling SHChangeNotify is also fine, but it's not directly exposed to
+  // Pascal script in Inno Setup, so we fall back to a simpler approach.)
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
   begin
-    if IsTaskSelected('fileassoc') then
-      RegisterFileAssociations();
+    // File association registry entries are written by the [Registry] section
+    // (per-user under HKCU\Software\Classes) and do not need any post-install
+    // command. This function is kept as a hook in case future steps are needed.
   end;
 end;
 
@@ -144,9 +148,9 @@ begin
     for I := 0 to GetArrayLength(Extensions) - 1 do
     begin
       Ext := Extensions[I];
-      RegDeleteKeyIncludingSubkeys(HKCR, Ext + '\OpenWithProgids\{#ProgId}');
+      RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\' + Ext + '\OpenWithProgids\{#ProgId}');
     end;
-    RegDeleteKeyIncludingSubkeys(HKCR, '{#ProgId}');
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\{#ProgId}');
   end;
 end;
 

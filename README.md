@@ -1,4 +1,4 @@
-# HighSpeed Image Viewer
+# Aperture Neo
 
 A fast, lightweight WPF image viewer with SkiaSharp rendering, thumbnail sidebar, slideshow, and fullscreen support.
 

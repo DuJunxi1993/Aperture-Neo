@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace HighSpeedImageViewer.Helpers;
+namespace ApertureNeo.Helpers;
 
 public static class FormatHelper
 {
@@ -20,6 +20,18 @@ public static class FormatHelper
         Directory.EnumerateFiles(folderPath)
                  .Where(IsSupported)
                  .ToArray();
+
+    public static bool FolderHasImages(string folderPath)
+    {
+        try
+        {
+            if (!Directory.Exists(folderPath)) return false;
+            foreach (var f in Directory.EnumerateFiles(folderPath))
+                if (IsSupported(f)) return true;
+        }
+        catch { }
+        return false;
+    }
 
     public static string Filter => "图片文件|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tiff;*.tif;*.webp;*.heic;*.heif;*.avif|所有文件|*.*";
 }

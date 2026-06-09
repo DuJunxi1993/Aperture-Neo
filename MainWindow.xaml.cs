@@ -1,33 +1,33 @@
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
-using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using HighSpeedImageViewer.Controls;
-using HighSpeedImageViewer.Helpers;
-using HighSpeedImageViewer.Models;
-using HighSpeedImageViewer.Services;
+using ApertureNeo.Controls;
+using ApertureNeo.Controls.FolderTree;
+using ApertureNeo.Helpers;
+using ApertureNeo.Models;
+using ApertureNeo.Services;
 using Wpf.Ui.Controls;
 
-namespace HighSpeedImageViewer;
+namespace ApertureNeo;
 
 public partial class MainWindow : FluentWindow
 {
-    private const int WM_KEYDOWN = 0x0100;
-    private const int WM_SYSKEYDOWN = 0x0104;
-
     private readonly NavigationService _navigation = new();
     private readonly SlideshowService _slideshow = new();
-    private readonly ThumbnailCache _thumbnailCache;
-    private bool _showSidePanel;
-    private bool _isFullscreen;
-    private WindowState _prevWindowState;
-    private IntPtr _hwnd;
+    private readonly ThumbnailLoadCoordinator _thumbCoordinator = new();
 
+    private bool _isFullscreen;
+    private bool _isTreeVisible = true;
+    private bool _isThumbVisible = true;
+    private WindowState _prevWindowState;
     private DispatcherTimer? _toolbarHideTimer;
     private bool _isToolbarVisible = true;
     private Point _lastMousePosition;
@@ -36,53 +36,53 @@ public partial class MainWindow : FluentWindow
     {
         InitializeComponent();
 
-        var cacheDir = Path.Combine(Path.GetTempPath(), "ImageViewerNeo", "thumbs");
-        Directory.CreateDirectory(cacheDir);
-        _thumbnailCache = new ThumbnailCache(Path.Combine(cacheDir, "cache.db"));
-
         _navigation.CollectionChanged += OnCollectionChanged;
         _navigation.CurrentImageChanged += OnCurrentImageChanged;
         _slideshow.NextRequested += () => Dispatcher.Invoke(() => _navigation.MoveNext());
 
         ImageViewer.ZoomChanged += zoom =>
-            Dispatcher.Invoke(() =>
-            {
-                ZoomTextBlock.Text = $"{zoom * 100:F0}%";
-            });
-
+            Dispatcher.Invoke(() => ZoomTextBlock.Text = $"{zoom * 100:F0}%");
         ImageViewer.StatusChanged += msg =>
-            Dispatcher.Invoke(() => StatusText.Text = msg);
+            Dispatcher.Invoke(() => SetStatus(msg, false));
 
-        SetupSidePanel();
+        FolderTree.FolderSelected += OnFolderSelected;
+        FolderTree.DrillModeChanged += UpdateReturnToRootVisibility;
+        ThumbGrid.ItemClicked += OnThumbClicked;
 
         _toolbarHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
         _toolbarHideTimer.Tick += (s, e) =>
         {
-            if (_isFullscreen && _isToolbarVisible)
-            {
-                HideToolbar();
-            }
+            if (_isFullscreen && _isToolbarVisible) HideToolbar();
             _toolbarHideTimer?.Stop();
         };
 
         Loaded += (_, _) =>
         {
-            _hwnd = new WindowInteropHelper(this).Handle;
-            ComponentDispatcher.ThreadFilterMessage += OnThreadFilterMessage;
             Focus();
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var recent = App.SettingsStore.Recent;
+                if (recent.Count > 0 && Directory.Exists(recent[0].Path))
+                {
+                    _navigation.LoadFolder(recent[0].Path);
+                }
+            }), DispatcherPriority.Loaded);
         };
 
         Closed += (_, _) =>
         {
-            ComponentDispatcher.ThreadFilterMessage -= OnThreadFilterMessage;
+            _thumbCoordinator.Dispose();
             _slideshow.Dispose();
-            _thumbnailCache.Dispose();
             _navigation.Dispose();
             _toolbarHideTimer?.Stop();
         };
 
+        PreviewKeyDown += (_, e) => { if (HandleKey(e.Key)) e.Handled = true; };
         MouseMove += OnWindowMouseMove;
         Drop += OnWindowDrop;
+
+        UpdateThemeMenuChecks();
     }
 
     public MainWindow(string filePath) : this()
@@ -90,8 +90,10 @@ public partial class MainWindow : FluentWindow
         if (File.Exists(filePath))
         {
             var folder = Path.GetDirectoryName(filePath);
-            if (folder != null)
+            if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
             {
+                if (FormatHelper.FolderHasImages(folder))
+                    App.SettingsStore.AddRecent(folder);
                 _navigation.LoadFolder(folder);
                 _navigation.NavigateTo(filePath);
             }
@@ -101,79 +103,66 @@ public partial class MainWindow : FluentWindow
     private void OnWindowMouseMove(object sender, MouseEventArgs e)
     {
         if (!_isFullscreen) return;
-
         var pos = e.GetPosition(this);
         if (Math.Abs(pos.X - _lastMousePosition.X) > 5 || Math.Abs(pos.Y - _lastMousePosition.Y) > 5)
         {
             _lastMousePosition = pos;
-            if (!_isToolbarVisible)
-            {
-                ShowToolbar();
-            }
+            if (!_isToolbarVisible) ShowToolbar();
             ResetToolbarHideTimer();
         }
     }
 
     private void OnWindowDrop(object sender, DragEventArgs e)
     {
-        if (e.Data.GetDataPresent(DataFormats.FileDrop))
-        {
-            var files = (string[])e.Data.GetData(DataFormats.FileDrop);
-            if (files != null && files.Length > 0)
-            {
-                var file = files[0];
-                if (File.Exists(file) && FormatHelper.IsSupported(file))
-                {
-                    var folder = Path.GetDirectoryName(file);
-                    if (folder != null)
-                    {
-                        _navigation.LoadFolder(folder);
-                        _navigation.NavigateTo(file);
-                    }
-                }
-            }
-        }
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+        var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+        if (files == null || files.Length == 0) return;
+        var file = files[0];
+        if (!File.Exists(file) || !FormatHelper.IsSupported(file)) return;
+        var folder = Path.GetDirectoryName(file);
+        if (string.IsNullOrEmpty(folder)) return;
+        if (FormatHelper.FolderHasImages(folder))
+            App.SettingsStore.AddRecent(folder);
+        _navigation.LoadFolder(folder);
+        _navigation.NavigateTo(file);
+    }
+
+    private void BtnReturnToRoot_Click(object sender, RoutedEventArgs e)
+    {
+        FolderTree.ReturnToRoot();
+    }
+
+    private void UpdateReturnToRootVisibility()
+    {
+        BtnReturnToRoot.Visibility = FolderTree.IsInDrillMode ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ClickCount == 2)
-        {
-            ToggleMaximize();
-        }
+        if (e.ClickCount == 2) { ToggleMaximize(); }
         else
         {
             if (WindowState == WindowState.Maximized)
             {
                 var point = e.GetPosition(this);
                 var screenPoint = PointToScreen(point);
-
                 ResizeMode = ResizeMode.NoResize;
                 WindowState = WindowState.Normal;
-                MaximizeIcon.Text = "□";
-
+                MaximizeIcon.Text = "\u25A1";
                 Left = screenPoint.X - point.X;
                 Top = screenPoint.Y - point.Y;
                 Width = RestoreBounds.Width;
                 Height = RestoreBounds.Height;
-
                 ResizeMode = ResizeMode.CanResize;
             }
-
-            if (WindowState == WindowState.Normal)
-            {
-                DragMove();
-            }
+            if (WindowState == WindowState.Normal) DragMove();
         }
     }
 
     private void ShowToolbar()
     {
         _isToolbarVisible = true;
-        if (_isFullscreen)
-        {
-            TitleBarRow.Height = new GridLength(48);
-        }
+        TitleBarRow.Height = new GridLength(48);
         TitleBarArea.Visibility = Visibility.Visible;
         BottomBar.Visibility = Visibility.Visible;
     }
@@ -181,160 +170,201 @@ public partial class MainWindow : FluentWindow
     private void HideToolbar()
     {
         _isToolbarVisible = false;
-        if (_isFullscreen)
-        {
-            TitleBarRow.Height = new GridLength(0);
-        }
+        if (_isFullscreen) TitleBarRow.Height = new GridLength(0);
         TitleBarArea.Visibility = Visibility.Collapsed;
         BottomBar.Visibility = Visibility.Collapsed;
     }
 
-    private void ResetToolbarHideTimer()
-    {
-        _toolbarHideTimer?.Stop();
-        _toolbarHideTimer?.Start();
-    }
-
-    private void OnThreadFilterMessage(ref MSG msg, ref bool handled)
-    {
-        if (handled) return;
-        if (msg.message != WM_KEYDOWN && msg.message != WM_SYSKEYDOWN) return;
-        if (msg.hwnd != _hwnd) return;
-
-        var key = KeyInterop.KeyFromVirtualKey((int)msg.wParam);
-        if (HandleKey(key))
-            handled = true;
-    }
+    private void ResetToolbarHideTimer() { _toolbarHideTimer?.Stop(); _toolbarHideTimer?.Start(); }
 
     private bool HandleKey(Key key)
     {
         var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
-        var ctrlShift = ctrl && Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
-
-        if (ctrlShift)
-        {
-            switch (key)
-            {
-                case Key.P:
-                    ToggleSidePanel(); return true;
-                default:
-                    break;
-            }
-        }
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) return false;
 
         if (ctrl)
         {
             switch (key)
             {
-                case Key.F:
-                    ToggleFullscreen(); return true;
-                case Key.O:
-                    BtnOpen_Click(this, new RoutedEventArgs()); return true;
-                case Key.OemPlus:
-                case Key.Add:
-                    ImageViewer.ZoomIn(); return true;
-                case Key.OemMinus:
-                case Key.Subtract:
-                    ImageViewer.ZoomOut(); return true;
-                case Key.D0:
-                    ImageViewer.FitToScreen(); return true;
-                default:
-                    break;
+                case Key.F: ToggleFullscreen(); return true;
+                case Key.O: BtnOpen_Click(this, new RoutedEventArgs()); return true;
+                case Key.OemPlus: case Key.Add: ImageViewer.ZoomIn(); return true;
+                case Key.OemMinus: case Key.Subtract: ImageViewer.ZoomOut(); return true;
+                case Key.D0: ImageViewer.FitToScreen(); return true;
+                case Key.Left: case Key.Right: return LinearNavigate(key);
             }
         }
 
+        if (TryGridNavigate(key)) return true;
+
         switch (key)
         {
-            case Key.Left:
-            case Key.Up:
-                _navigation.MovePrevious(); return true;
-            case Key.Right:
-            case Key.Down:
-                _navigation.MoveNext(); return true;
+            case Key.Left: case Key.Up: return LinearNavigate(Key.Up);
+            case Key.Right: case Key.Down: return LinearNavigate(Key.Down);
             case Key.Escape:
-                if (_slideshow.IsRunning) { _slideshow.Stop(); UpdateSlideshowButton(); }
                 if (_isFullscreen) ToggleFullscreen();
+                else if (_slideshow.IsRunning) { _slideshow.Stop(); UpdateSlideshowButton(); }
                 return true;
-            case Key.F5:
-                ToggleSlideshow(); return true;
-            default:
-                return false;
+            case Key.F5: ToggleSlideshow(); return true;
+            case Key.PageUp:
+                FolderTree.NavigateToAdjacentFolder(_navigation.CurrentFolder, forward: false);
+                return true;
+            case Key.PageDown:
+                FolderTree.NavigateToAdjacentFolder(_navigation.CurrentFolder, forward: true);
+                return true;
+        }
+        return false;
+    }
+
+    private bool LinearNavigate(Key key)
+    {
+        if (key == Key.Up || key == Key.Left) { _navigation.MovePrevious(); return true; }
+        if (key == Key.Down || key == Key.Right) { _navigation.MoveNext(); return true; }
+        return false;
+    }
+
+    private int GetThumbnailColumnCount()
+    {
+        double width = ThumbColumn.ActualWidth;
+        if (width <= 0) return 1;
+        return Math.Max(1, (int)(width / 156.0));
+    }
+
+    private bool TryGridNavigate(Key key)
+    {
+        if (_isFullscreen) return false;
+        if (!_isThumbVisible) return false;
+        int cols = GetThumbnailColumnCount();
+        if (cols < 2) return false;
+        int total = _navigation.Count;
+        if (total <= 0) return false;
+        int currentIdx = _navigation.CurrentIndex;
+        if (currentIdx < 0) return false;
+
+        int row = currentIdx / cols, col = currentIdx % cols;
+        int lastRow = (total - 1) / cols, targetIdx = -1;
+
+        switch (key)
+        {
+            case Key.Left: if (col > 0) targetIdx = currentIdx - 1; else if (row > 0) targetIdx = currentIdx - cols; break;
+            case Key.Right: if (col < cols - 1 && currentIdx + 1 < total) targetIdx = currentIdx + 1; else if (row < lastRow) targetIdx = currentIdx + cols; break;
+            case Key.Up: if (row > 0) targetIdx = currentIdx - cols; break;
+            case Key.Down: if (row < lastRow) targetIdx = Math.Min(currentIdx + cols, total - 1); break;
+            default: return false;
+        }
+
+        if (targetIdx >= 0 && targetIdx < total) { _navigation.MoveTo(targetIdx); return true; }
+        return false;
+    }
+
+    private void OnFolderSelected(FolderSource source, string path)
+    {
+        _navigation.LoadFolder(path);
+        if (source != FolderSource.Favorite && source != FolderSource.Recent
+            && _navigation.Count > 0)
+        {
+            App.SettingsStore.AddRecent(path);
         }
     }
 
-    private void SetupSidePanel()
-    {
-        SidePanel.ItemClicked += idx => _navigation.MoveTo(idx);
-    }
+    private void OnThumbClicked(ImageItem item) { _navigation.NavigateTo(item.FilePath); }
 
     private void OnCollectionChanged()
     {
-        SidePanel.ItemsSource = _navigation.Items;
+        ThumbGrid.ItemsSource = _navigation.Items;
+        _thumbCoordinator.LoadForFolder(_navigation.Items, _navigation.CurrentIndex,
+            msg => SetStatus(msg, true));
     }
 
     private void OnCurrentImageChanged(ImageItem item)
     {
-        Title = $"HighSpeed Image Viewer - {item.FileName} ({_navigation.CurrentIndex + 1}/{_navigation.Count})";
+        if (item == null) return;
+        Title = $"Aperture Neo - {item.FileName} ({_navigation.CurrentIndex + 1}/{_navigation.Count})";
         ImageViewer.LoadImage(item.FilePath);
-        StatusText.Text = item.FileName;
-        ImageInfo.Text = $"{item.Width}×{item.Height}  |  {item.FileSizeKB} KB";
+        ImageInfo.Text = $"{item.Width}×{item.Height}  |  {FormatFileSize(item.FileSize)}";
         ImageIndexInfo.Text = $"{_navigation.CurrentIndex + 1}/{_navigation.Count}";
-        SidePanel.SelectedIndex = _navigation.CurrentIndex;
-        UpdateSidebarIndicator();
-        Dispatcher.BeginInvoke(() => SidePanel.ScrollIntoView(_navigation.CurrentIndex), System.Windows.Threading.DispatcherPriority.Loaded);
-        if (ImageViewer.ContextMenu != null)
-            ImageViewer.ContextMenu.IsOpen = false;
+        ThumbGrid.SelectedItem = item;
+        ThumbGrid.ScrollSelectedIntoView();
+        if (ImageViewer.ContextMenu != null) ImageViewer.ContextMenu.IsOpen = false;
     }
 
-    private void UpdateSidebarIndicator()
+    private static string FormatFileSize(long bytes)
     {
-        SidePanel.UpdateSelectionIndicator();
+        if (bytes >= 1024L * 1024 * 1024) return $"{bytes / (1024.0 * 1024 * 1024):F1} GB";
+        if (bytes >= 1024 * 1024) return $"{bytes / (1024.0 * 1024):F1} MB";
+        if (bytes >= 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes} B";
+    }
+
+    private void SetStatus(string text, bool isError) { StatusText.Text = text; StatusText.Tag = isError ? "error" : null; }
+
+    private void BtnClearRecent_Click(object sender, RoutedEventArgs e)
+    {
+        App.SettingsStore.ClearRecent();
+    }
+
+    private async void BtnClearCache_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            SetStatus("正在清除缓存…", false);
+            await App.ThumbnailCache.ClearAsync();
+            foreach (var item in _navigation.Items) { item.Thumbnail = null; item.HasThumbnailError = false; item.ThumbnailErrorMessage = null; }
+            _thumbCoordinator.LoadForFolder(_navigation.Items, _navigation.CurrentIndex,
+                msg => SetStatus(msg, true));
+            SetStatus("缓存已清除", false);
+        }
+        catch (Exception ex) { DebugLog.Write("Cache", "clear fail", ex); SetStatus($"清除失败: {ex.Message}", true); }
+    }
+
+    private void BtnMenu_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button b && b.ContextMenu != null) { b.ContextMenu.PlacementTarget = b; b.ContextMenu.Placement = PlacementMode.Bottom; b.ContextMenu.IsOpen = true; }
+    }
+
+    private void Theme_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.MenuItem mi && mi.Tag is string tag)
+        {
+            var theme = tag switch { "dark" => AppTheme.Dark, "light" => AppTheme.Light, _ => AppTheme.System };
+            App.SettingsStore.Theme = theme;
+            ApertureNeo.Services.ThemeService.Apply(theme);
+            UpdateThemeMenuChecks();
+        }
+    }
+
+    private void UpdateThemeMenuChecks()
+    {
+        ThemeDark.IsChecked = App.SettingsStore.Theme == AppTheme.Dark;
+        ThemeLight.IsChecked = App.SettingsStore.Theme == AppTheme.Light;
+        ThemeSystem.IsChecked = App.SettingsStore.Theme == AppTheme.System;
+    }
+
+    private void About_Click(object sender, RoutedEventArgs e)
+    {
+        new AboutWindow(this).ShowDialog();
     }
 
     private void BtnOpen_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new Microsoft.Win32.OpenFileDialog
-        {
-            Filter = Helpers.FormatHelper.Filter,
-            Multiselect = false,
-            RestoreDirectory = true
-        };
-
-        if (dialog.ShowDialog() == true)
-        {
-            var folder = Path.GetDirectoryName(dialog.FileName)!;
-            _navigation.LoadFolder(folder);
-            _navigation.NavigateTo(dialog.FileName);
-        }
+        var dialog = new Microsoft.Win32.OpenFileDialog { Filter = FormatHelper.Filter, Multiselect = false, RestoreDirectory = true };
+        if (dialog.ShowDialog() != true) return;
+        var folder = Path.GetDirectoryName(dialog.FileName);
+        if (string.IsNullOrEmpty(folder)) return;
+        if (FormatHelper.FolderHasImages(folder))
+            App.SettingsStore.AddRecent(folder);
+        _navigation.LoadFolder(folder);
+        _navigation.NavigateTo(dialog.FileName);
     }
 
-    private void BtnMinimize_Click(object sender, RoutedEventArgs e)
-    {
-        WindowState = WindowState.Minimized;
-    }
-
-    private void BtnMaximize_Click(object sender, RoutedEventArgs e)
-    {
-        ToggleMaximize();
-    }
-
-    private void BtnClose_Click(object sender, RoutedEventArgs e)
-    {
-        Close();
-    }
+    private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    private void BtnMaximize_Click(object sender, RoutedEventArgs e) => ToggleMaximize();
+    private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
 
     private void ToggleMaximize()
     {
-        if (WindowState == WindowState.Maximized)
-        {
-            WindowState = WindowState.Normal;
-            MaximizeIcon.Text = "□";
-        }
-        else
-        {
-            WindowState = WindowState.Maximized;
-            MaximizeIcon.Text = "❐";
-        }
+        if (WindowState == WindowState.Maximized) { WindowState = WindowState.Normal; MaximizeIcon.Text = "\u25A1"; }
+        else { WindowState = WindowState.Maximized; MaximizeIcon.Text = "❐"; }
     }
 
     private void BtnPrev_Click(object sender, RoutedEventArgs e) => _navigation.MovePrevious();
@@ -342,114 +372,82 @@ public partial class MainWindow : FluentWindow
     private void BtnFit_Click(object sender, RoutedEventArgs e) => ImageViewer.FitToScreen();
     private void BtnSlideshow_Click(object sender, RoutedEventArgs e) => ToggleSlideshow();
     private void BtnFullscreen_Click(object sender, RoutedEventArgs e) => ToggleFullscreen();
-    private void BtnSidePanel_Click(object sender, RoutedEventArgs e) => ToggleSidePanel();
+    private void BtnToggleTree_Click(object sender, RoutedEventArgs e) => ToggleTreeColumn();
+    private void BtnToggleThumb_Click(object sender, RoutedEventArgs e) => ToggleThumbColumn();
 
-    private void ToggleSlideshow()
+    private void ToggleTreeColumn()
     {
-        _slideshow.Toggle();
-        UpdateSlideshowButton();
+        if (_isFullscreen) return;
+        _isTreeVisible = !_isTreeVisible;
+        ApplyColumnVisibility();
     }
+
+    private void ToggleThumbColumn()
+    {
+        if (_isFullscreen) return;
+        _isThumbVisible = !_isThumbVisible;
+        ApplyColumnVisibility();
+    }
+
+    private void ApplyColumnVisibility()
+    {
+        TreeColumn.Width = _isTreeVisible ? new GridLength(200) : new GridLength(0);
+        TreeColumn.MinWidth = _isTreeVisible ? 180 : 0;
+        TreeSplitter.Visibility = _isTreeVisible ? Visibility.Visible : Visibility.Collapsed;
+        ThumbColumn.Width = _isThumbVisible ? new GridLength(400) : new GridLength(0);
+        ThumbColumn.MinWidth = _isThumbVisible ? 200 : 0;
+        ThumbSplitter.Visibility = _isThumbVisible ? Visibility.Visible : Visibility.Collapsed;
+        TreeIcon.Opacity = _isTreeVisible ? 1.0 : 0.4;
+        ThumbIcon.Opacity = _isThumbVisible ? 1.0 : 0.4;
+    }
+
+    private void ToggleSlideshow() { _slideshow.Toggle(); UpdateSlideshowButton(); }
 
     private void UpdateSlideshowButton()
     {
-        if (_slideshow.IsRunning)
-        {
-            SlideshowIcon.Text = "⏸";
-            SlideshowText.Text = "暂停";
-        }
-        else
-        {
-            SlideshowIcon.Text = "▶";
-            SlideshowText.Text = "幻灯片";
-        }
+        if (_slideshow.IsRunning) { SlideshowIcon.Text = "⏸"; SlideshowText.Text = "暂停"; }
+        else { SlideshowIcon.Text = "▶"; SlideshowText.Text = "幻灯片"; }
     }
 
     private void ToggleFullscreen()
     {
         _isFullscreen = !_isFullscreen;
-
         if (_isFullscreen)
         {
             _prevWindowState = WindowState;
             WindowStyle = WindowStyle.None;
             WindowState = WindowState.Maximized;
+            TreeColumn.Width = new GridLength(0); TreeColumn.MinWidth = 0; TreeSplitter.Visibility = Visibility.Collapsed;
+            ThumbColumn.Width = new GridLength(0); ThumbColumn.MinWidth = 0; ThumbSplitter.Visibility = Visibility.Collapsed;
             HideToolbar();
-            TitleBarRow.Height = new GridLength(0);
             ResetToolbarHideTimer();
         }
         else
         {
             WindowStyle = WindowStyle.SingleBorderWindow;
             WindowState = _prevWindowState;
-            TitleBarRow.Height = new GridLength(48);
+            ApplyColumnVisibility();
             ShowToolbar();
             _toolbarHideTimer?.Stop();
         }
-
-        Dispatcher.BeginInvoke(() =>
-        {
-            UpdateLayout();
-            ImageViewer.FitToScreen();
-            Focus();
-        }, System.Windows.Threading.DispatcherPriority.Loaded);
-    }
-    private void ZoomTextBlock_Click(object sender, MouseButtonEventArgs e)
-    {
-        ImageViewer.ZoomToOriginal();
+        Dispatcher.BeginInvoke(() => { UpdateLayout(); ImageViewer.FitToScreen(); Focus(); }, DispatcherPriority.Loaded);
     }
 
-    private void ToggleSidePanel()
-    {
-        _showSidePanel = !_showSidePanel;
-        if (_showSidePanel)
-        {
-            SideColumn.Width = new GridLength(280);
-            SidePanelBorder.Visibility = Visibility.Visible;
-        }
-        else
-        {
-            SideColumn.Width = new GridLength(0);
-            SidePanelBorder.Visibility = Visibility.Collapsed;
-        }
-    }
+    private void ZoomTextBlock_Click(object sender, MouseButtonEventArgs e) => ImageViewer.ZoomToOriginal();
 
     private void CtxCopyPath_Click(object sender, RoutedEventArgs e)
-    {
-        if (_navigation.Current == null) return;
-        Clipboard.SetText(_navigation.Current.FilePath);
-    }
+    { if (_navigation.Current == null) return; try { Clipboard.SetText(_navigation.Current.FilePath); } catch { } }
 
     private void CtxOpenInExplorer_Click(object sender, RoutedEventArgs e)
-    {
-        if (_navigation.Current == null) return;
-        System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{_navigation.Current.FilePath}\"");
-    }
+    { if (_navigation.Current == null) return; try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{_navigation.Current.FilePath}\""); } catch { } }
 
     private void CtxPrint_Click(object sender, RoutedEventArgs e)
     {
         if (_navigation.Current == null) return;
-        var dialog = new System.Windows.Controls.PrintDialog();
-        if (dialog.ShowDialog() == true)
-        {
-            dialog.PrintVisual(ImageViewer, _navigation.Current.FileName);
-        }
+        var dialog = new PrintDialog();
+        if (dialog.ShowDialog() == true) dialog.PrintVisual(ImageViewer, _navigation.Current.FileName);
     }
 
     private void CtxSetWallpaper_Click(object sender, RoutedEventArgs e)
-    {
-        if (_navigation.Current == null) return;
-        SetWallpaper(_navigation.Current.FilePath);
-    }
-
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    private static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
-
-    private const int SPI_SETDESKWALLPAPER = 0x0014;
-    private const int SPIF_UPDATEINIFILE = 0x01;
-    private const int SPIF_SENDCHANGE = 0x02;
-
-    private void SetWallpaper(string path)
-    {
-        SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, path, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
-    }
+    { if (_navigation.Current != null) WallpaperService.TrySetDesktop(_navigation.Current.FilePath); }
 }

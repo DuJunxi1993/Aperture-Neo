@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <clipPath id="round">
+      <rect x="0" y="0" width="256" height="256" rx="46" ry="46"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#round)">
+    <rect x="0" y="0" width="256" height="256" fill="#1E1E2E"/>
+    <g fill="#89B4FA">
+      <polygon points="128,33 202,40 142,128"/>
+      <polygon points="223,84 230,158 128,142"/>
+      <polygon points="223,172 174,233 128,128"/>
+      <polygon points="128,223 82,230 128,128"/>
+      <polygon points="33,223 23,164 128,128"/>
+      <polygon points="23,156 26,82 128,128"/>
+      <polygon points="33,33 82,23 128,128"/>
+      <polygon points="128,23 174,23 128,128"/>
+    </g>
+    <circle cx="128" cy="128" r="18" fill="#1E1E2E"/>
+  </g>
+</svg>

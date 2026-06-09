@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <rect width="256" height="256" rx="40" fill="#0067C0"/>
-  <text x="40" y="135" font-family="Segoe UI, Arial, sans-serif" font-size="100" font-weight="bold" fill="white">H</text>
-  <text x="148" y="135" font-family="Segoe UI, Arial, sans-serif" font-size="100" font-weight="bold" fill="white">S</text>
-  <text x="40" y="245" font-family="Segoe UI, Arial, sans-serif" font-size="100" font-weight="bold" fill="white">I</text>
-  <text x="148" y="245" font-family="Segoe UI, Arial, sans-serif" font-size="100" font-weight="bold" fill="white">V</text>
-</svg>

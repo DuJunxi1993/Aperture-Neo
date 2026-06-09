@@ -5,14 +5,16 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using HighSpeedImageViewer.Services;
+using ApertureNeo.Services;
 using SkiaSharp;
 
-namespace HighSpeedImageViewer.Controls;
+namespace ApertureNeo.Controls;
 
 public class SkiaImageViewer : FrameworkElement
 {
     private SKBitmap? _bitmap;
+    private SKBitmap? _oldBitmap;
+    private float _oldZoom, _oldOffX, _oldOffY;
     private float _zoom = 1f;
     private float _targetZoom = 1f;
     private float _offsetX, _offsetY;
@@ -96,11 +98,24 @@ public class SkiaImageViewer : FrameworkElement
         InvalidateVisual();
     }
 
+    private EventHandler? _activeCrossFade;
+
     public void LoadImage(string path)
     {
-        _loadCts?.Cancel();
+        var oldCts = _loadCts;
+        if (oldCts != null)
+        {
+            oldCts.Cancel();
+            oldCts.Dispose();
+        }
         _loadCts = new CancellationTokenSource();
         var ct = _loadCts.Token;
+
+        if (_activeCrossFade != null)
+        {
+            CompositionTarget.Rendering -= _activeCrossFade;
+            _activeCrossFade = null;
+        }
 
         StatusChanged?.Invoke("加载中...");
 
@@ -113,7 +128,11 @@ public class SkiaImageViewer : FrameworkElement
             {
                 if (ct.IsCancellationRequested) return;
 
-                _bitmap?.Dispose();
+                _oldBitmap?.Dispose();
+                _oldBitmap = _bitmap;
+                _oldZoom = _zoom;
+                _oldOffX = _offsetX;
+                _oldOffY = _offsetY;
                 _wbmp = null;
                 _bitmap = null;
 
@@ -122,22 +141,43 @@ public class SkiaImageViewer : FrameworkElement
                     _bitmap = result.Bitmap;
                     _dirty = true;
                     _animOpacity = 0f;
+
                     FitToScreen();
 
-                    var fadeStart = DateTime.UtcNow;
-                    CompositionTarget.Rendering += FadeIn;
-                    void FadeIn(object? s, EventArgs e)
+                    if (_oldBitmap != null && _targetZoom > 0.1f)
                     {
-                        var ft = (float)(DateTime.UtcNow - fadeStart).TotalSeconds / 0.2f;
+                        float pulseZoom = _targetZoom * 0.96f;
+                        _zoom = pulseZoom;
+                        _offsetX = _targetOffsetX + (_bitmap.Width * (_targetZoom - pulseZoom)) / 2f;
+                        _offsetY = _targetOffsetY + (_bitmap.Height * (_targetZoom - pulseZoom)) / 2f;
+                        StartZoomAnim();
+                    }
+
+                    var fadeStart = DateTime.UtcNow;
+                    EventHandler? handler = null;
+                    handler = (s, e) =>
+                    {
+                        if (ct.IsCancellationRequested)
+                        {
+                            if (handler != null) CompositionTarget.Rendering -= handler;
+                            _activeCrossFade = null;
+                            return;
+                        }
+                        var ft = (float)(DateTime.UtcNow - fadeStart).TotalSeconds / 0.25f;
                         _animOpacity = Math.Clamp(ft, 0f, 1f);
                         _dirty = true;
                         InvalidateVisual();
                         if (_animOpacity >= 1f)
                         {
-                            CompositionTarget.Rendering -= FadeIn;
+                            CompositionTarget.Rendering -= handler;
+                            _activeCrossFade = null;
                             _animOpacity = 1f;
+                            _oldBitmap?.Dispose();
+                            _oldBitmap = null;
                         }
-                    }
+                    };
+                    _activeCrossFade = handler;
+                    CompositionTarget.Rendering += handler;
 
                     StatusChanged?.Invoke($"{result.Bitmap.Width}x{result.Bitmap.Height}");
                 }
@@ -210,7 +250,7 @@ public class SkiaImageViewer : FrameworkElement
 
     private void RenderToWriteableBitmap()
     {
-        if (_bitmap == null) return;
+        if (_bitmap == null && _oldBitmap == null) return;
 
         var w = Math.Max(1, (int)RenderSize.Width);
         var h = Math.Max(1, (int)RenderSize.Height);
@@ -222,21 +262,27 @@ public class SkiaImageViewer : FrameworkElement
         var canvas = surface.Canvas;
         canvas.Clear(SKColors.Transparent);
 
-        if (_animOpacity < 1f)
+        // Draw old bitmap (fades out, using its original zoom/offset)
+        if (_oldBitmap != null)
         {
-            using var paint = new SKPaint { Color = new SKColor(255, 255, 255, (byte)(255 * _animOpacity)) };
+            byte oldAlpha = (byte)(255 * (1f - _animOpacity));
+            using var oldPaint = new SKPaint { Color = new SKColor(255, 255, 255, oldAlpha) };
+            canvas.Save();
+            canvas.Translate(_oldOffX, _oldOffY);
+            canvas.Scale(_oldZoom);
+            canvas.DrawBitmap(_oldBitmap, 0, 0, oldPaint);
+            canvas.Restore();
+        }
+
+        // Draw new bitmap (fades in)
+        if (_bitmap != null)
+        {
+            byte alpha = (byte)(255 * _animOpacity);
+            using var paint = new SKPaint { Color = new SKColor(255, 255, 255, alpha) };
             canvas.Save();
             canvas.Translate(_offsetX, _offsetY);
             canvas.Scale(_zoom);
             canvas.DrawBitmap(_bitmap, 0, 0, paint);
-            canvas.Restore();
-        }
-        else
-        {
-            canvas.Save();
-            canvas.Translate(_offsetX, _offsetY);
-            canvas.Scale(_zoom);
-            canvas.DrawBitmap(_bitmap, 0, 0);
             canvas.Restore();
         }
 

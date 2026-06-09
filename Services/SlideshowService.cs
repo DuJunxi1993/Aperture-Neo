@@ -2,7 +2,7 @@ using System;
 using System.Timers;
 using Timer = System.Timers.Timer;
 
-namespace HighSpeedImageViewer.Services;
+namespace ApertureNeo.Services;
 
 public class SlideshowService : IDisposable
 {

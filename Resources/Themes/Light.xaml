@@ -1,0 +1,34 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SolidColorBrush x:Key="WindowBg" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="PanelBg" Color="#FAFAFA"/>
+    <SolidColorBrush x:Key="TitleBarBg" Color="#FAFAFA"/>
+    <SolidColorBrush x:Key="BottomBarBg" Color="#FAFAFA"/>
+    <SolidColorBrush x:Key="ImageBg" Color="#E8E8E8"/>
+    <SolidColorBrush x:Key="TextPrimary" Color="#1A1A1A"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="#666666"/>
+    <SolidColorBrush x:Key="TextTertiary" Color="#888888"/>
+    <SolidColorBrush x:Key="SplitterBg" Color="#E0E0E0"/>
+    <SolidColorBrush x:Key="SplitterLine" Color="#00000000"/>
+    <SolidColorBrush x:Key="BorderColor" Color="#D0D0D0"/>
+    <SolidColorBrush x:Key="HoverBg" Color="#E5E5E5"/>
+    <SolidColorBrush x:Key="PressedBg" Color="#D5D5D5"/>
+    <SolidColorBrush x:Key="WindowButtonHoverBg" Color="#E5E5E5"/>
+    <SolidColorBrush x:Key="WindowButtonPressedBg" Color="#D0D0D0"/>
+    <SolidColorBrush x:Key="SelectionBorder" Color="#0078D4"/>
+    <SolidColorBrush x:Key="SelectionBg" Color="#DDEBF9"/>
+    <SolidColorBrush x:Key="ErrorText" Color="#D32F2F"/>
+    <SolidColorBrush x:Key="CloseHover" Color="#E81123"/>
+    <SolidColorBrush x:Key="ClosePressed" Color="#C42B1C"/>
+    <SolidColorBrush x:Key="AccentBlue" Color="#0067C0"/>
+    <SolidColorBrush x:Key="AccentBlueHover" Color="#0078D4"/>
+    <SolidColorBrush x:Key="AccentBluePressed" Color="#005A9E"/>
+    <SolidColorBrush x:Key="WindowFg" Color="#1A1A1A"/>
+    <SolidColorBrush x:Key="TreeItemHoverBg" Color="#F0F0F0"/>
+    <SolidColorBrush x:Key="TreeItemSelectedBg" Color="#DCDCDC"/>
+    <SolidColorBrush x:Key="TreeItemSelectedHoverBg" Color="#CCE4F7"/>
+    <SolidColorBrush x:Key="TreeItemSelectedFg" Color="#1A1A1A"/>
+    <SolidColorBrush x:Key="ThumbnailHoverBg" Color="#F0F0F0"/>
+    <SolidColorBrush x:Key="ThumbnailSelectedBg" Color="#DCDCDC"/>
+    <DropShadowEffect x:Key="ImageShadow" Color="Black" BlurRadius="20" ShadowDepth="0" Opacity="0.3"/>
+</ResourceDictionary>

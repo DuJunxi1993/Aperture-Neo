@@ -2,12 +2,12 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using HighSpeedImageViewer.Models;
+using ApertureNeo.Models;
 using SkiaSharp;
 
-namespace HighSpeedImageViewer.Services;
+namespace ApertureNeo.Services;
 
-public class ImageLoader : IDisposable
+public class ImageLoader
 {
     private int _maxDecodeDimension = 7680;
 
@@ -58,36 +58,5 @@ public class ImageLoader : IDisposable
                 return ImageLoadResult.Failed(path, ex.Message);
             }
         }, ct);
-    }
-
-    public SKBitmap? LoadFullBitmap(string path)
-    {
-        try
-        {
-            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.SequentialScan);
-            using var codec = SKCodec.Create(stream);
-            if (codec == null) return null;
-
-            var info = codec.Info;
-            var maxDim = Math.Max(info.Width, info.Height);
-            if (maxDim > _maxDecodeDimension)
-            {
-                var scale = (float)_maxDecodeDimension / maxDim;
-                var decodeW = (int)(info.Width * scale);
-                var decodeH = (int)(info.Height * scale);
-                return SKBitmap.Decode(codec, new SKImageInfo(decodeW, decodeH, SKColorType.Rgba8888));
-            }
-
-            return SKBitmap.Decode(codec, new SKImageInfo(info.Width, info.Height, SKColorType.Rgba8888));
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    public void Dispose()
-    {
-        GC.SuppressFinalize(this);
     }
 }

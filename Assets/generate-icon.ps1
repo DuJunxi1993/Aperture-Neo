@@ -1,75 +1,69 @@
 Add-Type -AssemblyName System.Drawing
 
-$outPath = Join-Path $PSScriptRoot "hsiv.ico"
-$sizes = @(16, 32, 48, 256)
-$blue = [System.Drawing.Color]::FromArgb(0, 103, 192)
-$white = [System.Drawing.Color]::White
+$outPath = Join-Path $PSScriptRoot "apertureneo.ico"
+$svgOutPath = Join-Path $PSScriptRoot "apertureneo.svg"
+$sizes = @(16, 32, 48, 64, 128, 256)
 
-function Draw-HSIVIcon {
+$bgColor = [System.Drawing.Color]::FromArgb(30, 30, 46)
+$bladeColor = [System.Drawing.Color]::FromArgb(137, 180, 250)
+$centerColor = [System.Drawing.Color]::FromArgb(30, 30, 46)
+$bladeCount = 8
+
+function Draw-ApertureIcon {
     param([int]$size)
 
     $bmp = New-Object System.Drawing.Bitmap($size, $size)
     $g = [System.Drawing.Graphics]::FromImage($bmp)
-    $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
-    $g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+    $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
 
-    # Background rounded rectangle
-    $radius = [int]($size * 0.156)
+    $radius = [int]($size * 0.18)
     $path = New-Object System.Drawing.Drawing2D.GraphicsPath
     $path.AddArc(0, 0, $radius * 2, $radius * 2, 180, 90)
     $path.AddArc($size - $radius * 2, 0, $radius * 2, $radius * 2, 270, 90)
     $path.AddArc($size - $radius * 2, $size - $radius * 2, $radius * 2, $radius * 2, 0, 90)
     $path.AddArc(0, $size - $radius * 2, $radius * 2, $radius * 2, 90, 90)
     $path.CloseFigure()
-    $g.FillPath((New-Object System.Drawing.SolidBrush($blue)), $path)
+    $g.FillPath((New-Object System.Drawing.SolidBrush($bgColor)), $path)
 
-    # Font
-    $fontSize = [int]($size * 0.42)
-    $font = New-Object System.Drawing.Font("Segoe UI", $fontSize, [System.Drawing.FontStyle]::Bold)
+    $cx = $size / 2.0
+    $cy = $size / 2.0
+    $outerR = $size * 0.38
+    $innerR = $size * 0.10
+    $bladeBrush = New-Object System.Drawing.SolidBrush($bladeColor)
 
-    # Calculate cell dimensions
-    $hm = [int]($size * 0.12)
-    $vm = [int]($size * 0.08)
-    $cellW = [int](($size - $hm * 3) / 2)
-    $cellH = [int](($size - $vm * 3) / 2)
+    for ($i = 0; $i -lt $bladeCount; $i++) {
+        $angle1 = ($i * 2.0 * [Math]::PI / $bladeCount) - ([Math]::PI / 2.0)
+        $angle2 = (($i + 1) * 2.0 * [Math]::PI / $bladeCount) - ([Math]::PI / 2.0)
+        $angleMid = (($i + 0.5) * 2.0 * [Math]::PI / $bladeCount) - ([Math]::PI / 2.0)
 
-    $brush = New-Object System.Drawing.SolidBrush($white)
-    $format = New-Object System.Drawing.StringFormat
-    $format.Alignment = [System.Drawing.StringAlignment]::Center
-    $format.LineAlignment = [System.Drawing.StringAlignment]::Center
+        $p1x = $cx + $outerR * [Math]::Cos($angle1)
+        $p1y = $cy + $outerR * [Math]::Sin($angle1)
+        $p2x = $cx + $outerR * [Math]::Cos($angle2)
+        $p2y = $cy + $outerR * [Math]::Sin($angle2)
+        $p3x = $cx + $innerR * [Math]::Cos($angleMid)
+        $p3y = $cy + $innerR * [Math]::Sin($angleMid)
 
-    # Positions
-    $x1 = $hm
-    $x2 = $hm * 2 + $cellW
-    $y1 = $vm
-    $y2 = $vm * 2 + $cellH
+        $blade = New-Object System.Drawing.Drawing2D.GraphicsPath
+        $blade.AddLine([int]$p1x, [int]$p1y, [int]$p2x, [int]$p2y)
+        $blade.AddLine([int]$p2x, [int]$p2y, [int]$p3x, [int]$p3y)
+        $blade.AddLine([int]$p3x, [int]$p3y, [int]$p1x, [int]$p1y)
+        $blade.CloseFigure()
+        $g.FillPath($bladeBrush, $blade)
+    }
 
-    # Draw H
-    $rect1 = New-Object System.Drawing.RectangleF($x1, $y1, $cellW, $cellH)
-    $g.DrawString("H", $font, $brush, $rect1, $format)
-
-    # Draw S
-    $rect2 = New-Object System.Drawing.RectangleF($x2, $y1, $cellW, $cellH)
-    $g.DrawString("S", $font, $brush, $rect2, $format)
-
-    # Draw I
-    $rect3 = New-Object System.Drawing.RectangleF($x1, $y2, $cellW, $cellH)
-    $g.DrawString("I", $font, $brush, $rect3, $format)
-
-    # Draw V
-    $rect4 = New-Object System.Drawing.RectangleF($x2, $y2, $cellW, $cellH)
-    $g.DrawString("V", $font, $brush, $rect4, $format)
+    $centerBrush = New-Object System.Drawing.SolidBrush($centerColor)
+    $centerR = $size * 0.07
+    $g.FillEllipse($centerBrush, $cx - $centerR, $cy - $centerR, $centerR * 2, $centerR * 2)
 
     $g.Dispose()
     return $bmp
 }
 
-# Create ICO file
 $ms = New-Object System.IO.MemoryStream
 $bw = New-Object System.IO.BinaryWriter($ms)
 
-# ICO header
 $bw.Write([UInt16]0)
 $bw.Write([UInt16]1)
 $bw.Write([UInt16]$sizes.Count)
@@ -78,7 +72,7 @@ $imageData = @()
 $offset = 6 + (16 * $sizes.Count)
 
 foreach ($size in $sizes) {
-    $bmp = Draw-HSIVIcon $size
+    $bmp = Draw-ApertureIcon $size
     $pngMs = New-Object System.IO.MemoryStream
     $bmp.Save($pngMs, [System.Drawing.Imaging.ImageFormat]::Png)
     $pngBytes = $pngMs.ToArray()

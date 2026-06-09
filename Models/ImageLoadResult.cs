@@ -1,6 +1,6 @@
 using SkiaSharp;
 
-namespace HighSpeedImageViewer.Models;
+namespace ApertureNeo.Models;
 
 public class ImageLoadResult
 {

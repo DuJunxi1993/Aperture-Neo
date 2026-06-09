@@ -1,0 +1,101 @@
+<ui:FluentWindow x:Class="ApertureNeo.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="关于 Aperture Neo"
+        Width="460" Height="360"
+        MinWidth="380" MinHeight="320"
+        WindowStartupLocation="CenterOwner"
+        Foreground="{DynamicResource WindowFg}"
+        Background="{DynamicResource WindowBg}"
+        WindowBackdropType="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+
+    <Grid Margin="0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{DynamicResource TitleBarBg}" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid>
+                <TextBlock Text="关于" VerticalAlignment="Center" HorizontalAlignment="Center"
+                           Foreground="{DynamicResource TextSecondary}" FontSize="13"/>
+                <Button HorizontalAlignment="Right" Width="46" Height="48" Cursor="Hand"
+                        Background="Transparent" BorderThickness="0" Click="BtnClose_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="0">
+                                <TextBlock Text="&#x2715;" FontSize="13" Foreground="{DynamicResource TextPrimary}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="{DynamicResource CloseHover}"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="{DynamicResource ClosePressed}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </Grid>
+        </Border>
+
+        <StackPanel Grid.Row="1" Margin="32,24,32,0">
+            <TextBlock Text="📷" FontSize="48" HorizontalAlignment="Left" Margin="0,0,0,12"/>
+            <TextBlock Text="Aperture Neo" FontSize="24" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,4"/>
+            <TextBlock Text="A fast, lightweight WPF image viewer."
+                       FontSize="13" Foreground="{DynamicResource TextSecondary}"
+                       TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+            <Border Background="{DynamicResource PanelBg}" CornerRadius="8" Padding="14,10" Margin="0,0,0,14">
+                <StackPanel>
+                    <TextBlock Text="Developed by DJx" FontSize="12" FontWeight="SemiBold"
+                               Foreground="{DynamicResource AccentBlue}" Margin="0,0,0,4"/>
+                    <TextBlock Text="Powered by" FontSize="11"
+                               Foreground="{DynamicResource TextTertiary}" Margin="0,0,0,2"/>
+                    <TextBlock Text="SkiaSharp 3.116.1  ·  WPF-UI 3.0.5  ·  Microsoft.Data.Sqlite 8.0.10"
+                               FontSize="11" Foreground="{DynamicResource TextSecondary}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <Border Grid.Row="2" Background="{DynamicResource BottomBarBg}" Padding="20,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="© 2026 DJx" FontSize="11"
+                           Foreground="{DynamicResource TextTertiary}" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" x:Name="BtnOk" Content="确定" Click="BtnOk_Click"
+                        MinWidth="84" Padding="14,6" Cursor="Hand" FontSize="12"
+                        Background="{DynamicResource AccentBlue}"
+                        Foreground="White" BorderThickness="0" IsDefault="True">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="border" Background="{TemplateBinding Background}"
+                                    CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentBlueHover}"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentBluePressed}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</ui:FluentWindow>

@@ -62,10 +62,12 @@ AllowDrop="True">
                            Foreground="{StaticResource TextTertiary}" FontSize="13" FontWeight="600"
                            IsHitTestVisible="False"/>
 
-<!-- Right: overflow menu + window controls -->
+<!-- Right: overflow menu + window controls.
+         Wider spacing between ⋮ menu and the window controls (min/max/close)
+         so they feel like two distinct groups instead of being crammed. -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0">
                     <Button x:Name="BtnMenu" Style="{StaticResource LinearWindowButton}" Click="BtnMenu_Click"
-                            ToolTip="更多选项" Margin="0,0,4,0">
+                            ToolTip="更多选项" Margin="0,0,2,0">
                         <ui:SymbolIcon Symbol="MoreHorizontal24" FontSize="16"/>
                         <Button.ContextMenu>
                             <ContextMenu>
@@ -78,7 +80,9 @@ AllowDrop="True">
                             </ContextMenu>
                         </Button.ContextMenu>
                     </Button>
-                    <Rectangle Width="1" Height="16" Fill="#14FFFFFF" Margin="4,0"/>
+                    <!-- Visual separator between menu and window controls. Larger margin
+                         gives the ⋮ menu its own breathing room. -->
+                    <Rectangle Width="1" Height="16" Fill="#14FFFFFF" Margin="10,0,10,0"/>
                     <Button Style="{StaticResource LinearWindowButton}" Click="BtnMinimize_Click" ToolTip="最小化">
                         <ui:SymbolIcon Symbol="Subtract24" FontSize="14"/>
                     </Button>

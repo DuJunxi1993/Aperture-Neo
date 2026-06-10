@@ -14,7 +14,11 @@
     <CornerRadius x:Key="RadiusCard">8</CornerRadius>
     <CornerRadius x:Key="RadiusPanel">12</CornerRadius>
     <CornerRadius x:Key="RadiusLarge">22</CornerRadius>
-    <CornerRadius x:Key="RadiusPill">9999</CornerRadius>
+    <!-- Pills are small rounded rectangles, not full ellipses. Linear's
+         design uses consistent moderate radii (8px) for status/info pills
+         rather than the WPF default "9999 = full ellipse" convention,
+         which produces visually heavy oval shapes on wide content. -->
+    <CornerRadius x:Key="RadiusPill">8</CornerRadius>
 
     <!-- Spacing -->
     <Thickness x:Key="PadXs">2,2,2,2</Thickness>

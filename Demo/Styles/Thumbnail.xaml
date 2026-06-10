@@ -181,7 +181,7 @@
                                 <Setter Property="Background" Value="{StaticResource CardBgHover}"/>
                                 <Setter Property="BorderBrush" Value="{StaticResource CardBorderHover}"/>
                             </DataTrigger>
-                            <!-- Selected state -->
+                            <!-- Selected state — softer 1.5px indigo + subtle glow -->
                             <DataTrigger Value="True">
                                 <DataTrigger.Binding>
                                     <Binding Path="IsSelected"
@@ -189,7 +189,12 @@
                                 </DataTrigger.Binding>
                                 <Setter Property="Background" Value="{StaticResource CardBgSelected}"/>
                                 <Setter Property="BorderBrush" Value="{StaticResource CardBorderSelected}"/>
-                                <Setter Property="BorderThickness" Value="2"/>
+                                <Setter Property="BorderThickness" Value="1.5"/>
+                                <Setter Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect BlurRadius="8" ShadowDepth="0" Opacity="0.4" Color="#5e6ad2"/>
+                                    </Setter.Value>
+                                </Setter>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>

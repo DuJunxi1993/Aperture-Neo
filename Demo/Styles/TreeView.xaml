@@ -11,7 +11,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="tree:FolderItemContainer">
-                    <Grid Margin="6,1">
+                    <Grid Margin="8,2">
                         <Border x:Name="Row"
                                 Background="{TemplateBinding Background}"
                                 CornerRadius="{StaticResource RadiusStd}">
@@ -23,7 +23,7 @@
                                         Background="{StaticResource BrandAccent}"
                                         Opacity="0"
                                         CornerRadius="1"/>
-                                <ContentPresenter Margin="14,5,8,5" VerticalAlignment="Center"/>
+                                <ContentPresenter Margin="18,8,12,8" VerticalAlignment="Center"/>
                             </Grid>
                         </Border>
                     </Grid>
@@ -88,9 +88,9 @@
     <Style x:Key="LinearSectionHeader" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="FontSize" Value="11"/>
-        <Setter Property="FontWeight" Value="600"/>
+        <Setter Property="FontWeight" Value="700"/>
         <Setter Property="Foreground" Value="{StaticResource TextQuat}"/>
-        <Setter Property="Margin" Value="14,14,0,6"/>
+        <Setter Property="Margin" Value="18,20,0,10"/>
         <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
     </Style>
 

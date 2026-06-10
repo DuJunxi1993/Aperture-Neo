@@ -26,6 +26,12 @@ public class SkiaImageViewer : FrameworkElement
     private CancellationTokenSource? _loadCts;
     private WriteableBitmap? _wbmp;
     private bool _dirty = true;
+    // Cached SK surface + paints — reallocated only when size changes (Fix#3: per-frame alloc)
+    private SKSurface? _surface;
+    private SKPaint? _paintOld;
+    private SKPaint? _paintNew;
+    private int _cachedWidth;
+    private int _cachedHeight;
     private bool _isPanning;
 
     private float _animOpacity = 1f;
@@ -41,6 +47,9 @@ public class SkiaImageViewer : FrameworkElement
 
     public SkiaImageViewer()
     {
+        // Set bitmap scaling mode once (Fix#3: avoid per-paint DP walk)
+        RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.HighQuality);
+
         Loaded += (_, _) =>
         {
             var parent = VisualTreeHelper.GetParent(this) as FrameworkElement;
@@ -255,11 +264,23 @@ public class SkiaImageViewer : FrameworkElement
         var w = Math.Max(1, (int)RenderSize.Width);
         var h = Math.Max(1, (int)RenderSize.Height);
 
+        // Allocate WriteableBitmap and SKSurface only when size changes (Fix#3)
         if (_wbmp == null || _wbmp.PixelWidth != w || _wbmp.PixelHeight != h)
             _wbmp = new WriteableBitmap(w, h, 96, 96, PixelFormats.Pbgra32, null);
 
-        using var surface = SKSurface.Create(new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul));
-        var canvas = surface.Canvas;
+        if (_surface == null || _cachedWidth != w || _cachedHeight != h)
+        {
+            _surface?.Dispose();
+            _surface = SKSurface.Create(new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul));
+            _cachedWidth = w;
+            _cachedHeight = h;
+        }
+
+        // Lazy-init paints (Fix#3: avoid per-frame allocation)
+        _paintOld ??= new SKPaint { FilterQuality = SKFilterQuality.High, IsAntialias = true };
+        _paintNew ??= new SKPaint { FilterQuality = SKFilterQuality.High, IsAntialias = true };
+
+        var canvas = _surface.Canvas;
         // Clear to fully transparent. Skia draws the image with pre-multiplied alpha;
         // we write that pre-multiplied data into a Pbgra32 WriteableBitmap so WPF's
         // compositor respects the alpha channel and lets siblings (FloatingBar) show
@@ -270,16 +291,11 @@ public class SkiaImageViewer : FrameworkElement
         if (_oldBitmap != null)
         {
             byte oldAlpha = (byte)(255 * (1f - _animOpacity));
-            using var oldPaint = new SKPaint
-            {
-                Color = new SKColor(255, 255, 255, oldAlpha),
-                FilterQuality = SKFilterQuality.High,
-                IsAntialias = true
-            };
+            _paintOld.Color = new SKColor(255, 255, 255, oldAlpha);
             canvas.Save();
             canvas.Translate(_oldOffX, _oldOffY);
             canvas.Scale(_oldZoom);
-            canvas.DrawBitmap(_oldBitmap, 0, 0, oldPaint);
+            canvas.DrawBitmap(_oldBitmap, 0, 0, _paintOld);
             canvas.Restore();
         }
 
@@ -287,20 +303,15 @@ public class SkiaImageViewer : FrameworkElement
         if (_bitmap != null)
         {
             byte alpha = (byte)(255 * _animOpacity);
-            using var paint = new SKPaint
-            {
-                Color = new SKColor(255, 255, 255, alpha),
-                FilterQuality = SKFilterQuality.High,
-                IsAntialias = true
-            };
+            _paintNew.Color = new SKColor(255, 255, 255, alpha);
             canvas.Save();
             canvas.Translate(_offsetX, _offsetY);
             canvas.Scale(_zoom);
-            canvas.DrawBitmap(_bitmap, 0, 0, paint);
+            canvas.DrawBitmap(_bitmap, 0, 0, _paintNew);
             canvas.Restore();
         }
 
-        using var image = surface.Snapshot();
+        using var image = _surface.Snapshot();
         using var pixmap = image.PeekPixels();
         if (pixmap == null) return;
 
@@ -328,12 +339,9 @@ public class SkiaImageViewer : FrameworkElement
         if (_dirty || _wbmp == null)
             RenderToWriteableBitmap();
 
+        // Short-circuit: skip if no writeable bitmap (Fix#3: avoid DC.DrawImage null op)
         if (_wbmp != null)
-        {
-            // Enable high-quality bitmap scaling for smoother preview
-            RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.HighQuality);
             dc.DrawImage(_wbmp, new Rect(RenderSize));
-        }
     }
 
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)

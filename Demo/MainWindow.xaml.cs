@@ -28,6 +28,7 @@ public partial class MainWindow : FluentWindow
     private bool _isFullscreen;
     private bool _isTreeVisible = true;
     private bool _isThumbVisible = true;
+    private bool _isFloatingBarOpen;  // de-dupe IsOpen setter (Fix#5)
     private WindowState _prevWindowState;
     private DispatcherTimer? _statusHideTimer;
     private Point _lastMousePosition;
@@ -64,6 +65,18 @@ public partial class MainWindow : FluentWindow
             Focus();
             Dispatcher.BeginInvoke(new Action(() =>
             {
+                // Set PlacementTarget in code (more reliable than XAML ElementName binding
+                // for layered/AllowsTransparency popups). CustomPopupPlacementCallback
+                // then re-positions whenever PlacementTarget moves or resizes.
+                FloatingBarPopup.PlacementTarget = ImageViewer;
+                StatusPillPopup.PlacementTarget = ImageViewer;
+                InfoPillPopup.PlacementTarget = ImageViewer;
+                // Set CustomPopupPlacementCallback in code — XAML attribute binding for
+                // delegate properties is unreliable with this delegate type.
+                FloatingBarPopup.CustomPopupPlacementCallback = PlaceFloatingBar;
+                StatusPillPopup.CustomPopupPlacementCallback = PlaceStatusPill;
+                InfoPillPopup.CustomPopupPlacementCallback = PlaceInfoPill;
+
                 PositionOverlayPopups();
                 UpdateOverlayPopupsVisibility();
                 var recent = App.SettingsStore.Recent;
@@ -74,10 +87,11 @@ public partial class MainWindow : FluentWindow
             }), DispatcherPriority.Loaded);
         };
 
-        // Re-position floating popups whenever window/viewer size or window position changes
+        // Re-position floating popups whenever window/viewer size changes.
+// NOTE: LayoutUpdated was removed — it fires 60+ times per second and forms a
+// self-reinforcing feedback loop with the popup HorizontalOffset setter.
         SizeChanged += (_, _) => PositionOverlayPopups();
         ImageViewer.SizeChanged += (_, _) => PositionOverlayPopups();
-        ImageViewer.LayoutUpdated += (_, _) => PositionOverlayPopups();
         LocationChanged += (_, _) => PositionOverlayPopups();
 
         Closed += (_, _) =>
@@ -120,9 +134,10 @@ public partial class MainWindow : FluentWindow
             if (TitleBarArea.Visibility != Visibility.Visible) ShowToolbar();
             ResetToolbarHideTimer();
         }
-        // Also show floating bar on mouse move in fullscreen
-        if (!FloatingBarPopup.IsOpen)
+        // Also show floating bar on mouse move in fullscreen (de-duped via flag, Fix#5)
+        if (!_isFloatingBarOpen)
         {
+            _isFloatingBarOpen = true;
             FloatingBarPopup.IsOpen = true;
         }
     }
@@ -306,30 +321,63 @@ public partial class MainWindow : FluentWindow
     }
 
     /// <summary>
-    /// Position the floating Popup overlays. 
-    /// FloatingBarPopup and StatusPillPopup use PlacementTarget and auto-follow.
-    /// InfoPillPopup uses Absolute placement and needs manual repositioning.
+    /// Position the floating Popup overlays.
+    /// All three popups use Placement=Custom with a CustomPopupPlacementCallback,
+    /// so WPF re-invokes the callback every time the PlacementTarget moves/resizes.
+    /// This method is kept as a no-op for backward compatibility with existing call sites.
     /// </summary>
     private void PositionOverlayPopups()
     {
-        try
-        {
-            if (ImageViewer.ActualWidth <= 0 || ImageViewer.ActualHeight <= 0) return;
-            var topLeft = ImageViewer.PointToScreen(new Point(0, 0));
-            var w = ImageViewer.ActualWidth;
-
-            // InfoPill: top-right (Absolute mode, manual positioning)
-            const float IP_MARGIN = 14;
-            double ipWidth = InfoPill.ActualWidth > 0 ? InfoPill.ActualWidth : 160;
-            InfoPillPopup.HorizontalOffset = topLeft.X + w - ipWidth - IP_MARGIN;
-            InfoPillPopup.VerticalOffset = topLeft.Y + IP_MARGIN;
-        }
-        catch { }
     }
 
     private void UpdateOverlayPopupsVisibility()
     {
-        FloatingBarPopup.IsOpen = !_isFullscreen;
+        bool wantOpen = !_isFullscreen;
+        if (_isFloatingBarOpen != wantOpen)
+        {
+            _isFloatingBarOpen = wantOpen;
+            FloatingBarPopup.IsOpen = wantOpen;
+        }
+    }
+
+    /// <summary>
+    /// FloatingBar popup placement callback: bottom-center, 18px above the target's bottom edge.
+    /// Signature MUST match CustomPopupPlacementCallback: (Size popupSize, Size targetSize, Point offset).
+    /// </summary>
+    public static CustomPopupPlacement[] PlaceFloatingBar(Size popupSize, Size targetSize, Point offset)
+    {
+        return new[]
+        {
+            new CustomPopupPlacement(
+                new Point((targetSize.Width - popupSize.Width) / 2, targetSize.Height - popupSize.Height - 18),
+                PopupPrimaryAxis.Horizontal)
+        };
+    }
+
+    /// <summary>
+    /// StatusPill popup placement callback: top-left, 14px margin from target edges.
+    /// </summary>
+    public static CustomPopupPlacement[] PlaceStatusPill(Size popupSize, Size targetSize, Point offset)
+    {
+        return new[]
+        {
+            new CustomPopupPlacement(
+                new Point(14, 14),
+                PopupPrimaryAxis.Horizontal)
+        };
+    }
+
+    /// <summary>
+    /// InfoPill popup placement callback: top-right, 14px margin from target's right edge.
+    /// </summary>
+    public static CustomPopupPlacement[] PlaceInfoPill(Size popupSize, Size targetSize, Point offset)
+    {
+        return new[]
+        {
+            new CustomPopupPlacement(
+                new Point(targetSize.Width - popupSize.Width - 14, 14),
+                PopupPrimaryAxis.Horizontal)
+        };
     }
 
     private static string FormatFileSize(long bytes)
@@ -475,6 +523,7 @@ public partial class MainWindow : FluentWindow
             WindowState = WindowState.Maximized;
             TreeColumn.Width = new GridLength(0); TreeColumn.MinWidth = 0; TreeSplitter.Visibility = Visibility.Collapsed;
             ThumbColumn.Width = new GridLength(0); ThumbColumn.MinWidth = 0; ThumbSplitter.Visibility = Visibility.Collapsed;
+            _isFloatingBarOpen = false;
             FloatingBarPopup.IsOpen = false;
             InfoPillPopup.IsOpen = false;
             StatusPillPopup.IsOpen = false;
@@ -485,6 +534,7 @@ public partial class MainWindow : FluentWindow
             WindowStyle = WindowStyle.SingleBorderWindow;
             WindowState = _prevWindowState;
             ApplyColumnVisibility();
+            _isFloatingBarOpen = true;
             FloatingBarPopup.IsOpen = true;
             InfoPillPopup.IsOpen = true;
             ShowToolbar();

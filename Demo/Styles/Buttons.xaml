@@ -156,7 +156,8 @@
                                         <ColorAnimation Storyboard.TargetName="border"
                                                         Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
                                                         To="#0DFFFFFF" Duration="{StaticResource MotionMicro}"/>
-                                        <ColorAnimation Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
+                                        <ColorAnimation Storyboard.TargetName="border"
+                                                        Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
                                                         To="#FFf7f8f8" Duration="{StaticResource MotionMicro}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
@@ -167,7 +168,8 @@
                                         <ColorAnimation Storyboard.TargetName="border"
                                                         Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
                                                         To="#00000000" Duration="{StaticResource MotionMicro}"/>
-                                        <ColorAnimation Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
+                                        <ColorAnimation Storyboard.TargetName="border"
+                                                        Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
                                                         To="#FFd0d6e0" Duration="{StaticResource MotionMicro}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
@@ -199,7 +201,8 @@
                                         <ColorAnimation Storyboard.TargetName="border"
                                                         Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
                                                         To="#26E81123" Duration="{StaticResource MotionMicro}"/>
-                                        <ColorAnimation Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
+                                        <ColorAnimation Storyboard.TargetName="border"
+                                                        Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
                                                         To="#FFef4444" Duration="{StaticResource MotionMicro}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
@@ -210,7 +213,8 @@
                                         <ColorAnimation Storyboard.TargetName="border"
                                                         Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
                                                         To="#00000000" Duration="{StaticResource MotionMicro}"/>
-                                        <ColorAnimation Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
+                                        <ColorAnimation Storyboard.TargetName="border"
+                                                        Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
                                                         To="#FFd0d6e0" Duration="{StaticResource MotionMicro}"/>
                                     </Storyboard>
                                 </BeginStoryboard>

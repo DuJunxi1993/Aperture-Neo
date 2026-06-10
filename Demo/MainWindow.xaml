@@ -37,12 +37,13 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Left: open + sidebar toggles -->
+<!-- Left: open + sidebar toggles -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
                     <Button Style="{StaticResource LinearPrimaryButton}" Click="BtnOpen_Click" ToolTip="打开文件 (Ctrl+O)">
-                        <StackPanel Orientation="Horizontal">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <ui:SymbolIcon Symbol="FolderOpen24" FontSize="14"/>
-                            <TextBlock Text="打开" Margin="6,0,0,0" FontSize="13" FontWeight="500"/>
+                            <TextBlock Text="打开" Margin="6,0,0,0" FontSize="13" FontWeight="500"
+                                       VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <Button x:Name="BtnToggleTree" Style="{StaticResource LinearWindowButton}" Click="BtnToggleTree_Click"
@@ -61,10 +62,10 @@
                            Foreground="{StaticResource TextTertiary}" FontSize="13" FontWeight="600"
                            IsHitTestVisible="False"/>
 
-                <!-- Right: overflow menu + window controls -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+<!-- Right: overflow menu + window controls -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0">
                     <Button x:Name="BtnMenu" Style="{StaticResource LinearWindowButton}" Click="BtnMenu_Click"
-                            ToolTip="更多选项" Margin="0,0,2,0">
+                            ToolTip="更多选项" Margin="0,0,4,0">
                         <ui:SymbolIcon Symbol="MoreHorizontal24" FontSize="16"/>
                         <Button.ContextMenu>
                             <ContextMenu>
@@ -77,13 +78,14 @@
                             </ContextMenu>
                         </Button.ContextMenu>
                     </Button>
+                    <Rectangle Width="1" Height="16" Fill="#14FFFFFF" Margin="4,0"/>
                     <Button Style="{StaticResource LinearWindowButton}" Click="BtnMinimize_Click" ToolTip="最小化">
                         <ui:SymbolIcon Symbol="Subtract24" FontSize="14"/>
                     </Button>
                     <Button x:Name="BtnMaximize" Style="{StaticResource LinearWindowButton}" Click="BtnMaximize_Click" ToolTip="最大化">
                         <ui:SymbolIcon x:Name="MaximizeIcon" Symbol="Square24" FontSize="14"/>
                     </Button>
-                    <Button Style="{StaticResource LinearCloseButton}" Click="BtnClose_Click" ToolTip="关闭" Margin="0,0,6,0">
+                    <Button Style="{StaticResource LinearCloseButton}" Click="BtnClose_Click" ToolTip="关闭">
                         <ui:SymbolIcon Symbol="Dismiss24" FontSize="14"/>
                     </Button>
                 </StackPanel>

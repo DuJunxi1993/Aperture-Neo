@@ -32,6 +32,13 @@
     <SolidColorBrush x:Key="SurfaceHover"    Color="#FF1f2024"/>
     <SolidColorBrush x:Key="SurfaceOverlay"  Color="#D9000000"/>
 
+    <!-- Selection — multi-signal activation (Linear-style, 10% indigo tint) -->
+    <SolidColorBrush x:Key="SelectionBg"      Color="#1A5e6ad2"/>
+    <SolidColorBrush x:Key="SelectionBgHover" Color="#245e6ad2"/>
+    <SolidColorBrush x:Key="SelectionFg"      Color="#FFa5b0ff"/>
+    <SolidColorBrush x:Key="SelectionBar"     Color="#FF8a93ff"/>
+    <DropShadowEffect  x:Key="ShadowSelectionGlow" BlurRadius="14" ShadowDepth="0" Opacity="0.45" Color="#FF5e6ad2"/>
+
     <!-- Text -->
     <SolidColorBrush x:Key="TextPrimary"   Color="#FFf7f8f8"/>
     <SolidColorBrush x:Key="TextSecondary" Color="#FFd0d6e0"/>

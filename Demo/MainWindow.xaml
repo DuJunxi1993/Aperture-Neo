@@ -129,11 +129,17 @@
                                                         <DataTrigger Binding="{Binding IsSectionHeader}" Value="True">
                                                             <Setter Property="Visibility" Value="Collapsed"/>
                                                         </DataTrigger>
+                                                        <DataTrigger Value="True">
+                                                            <DataTrigger.Binding>
+                                                                <Binding Path="IsSelected" RelativeSource="{RelativeSource AncestorType=tree:FolderItemContainer}"/>
+                                                            </DataTrigger.Binding>
+                                                            <Setter Property="Foreground" Value="{StaticResource SelectionFg}"/>
+                                                        </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </TextBlock.Style>
                                         </TextBlock>
-                                        <TextBlock Text="{Binding DisplayName}">
+<TextBlock Text="{Binding DisplayName}">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
@@ -147,6 +153,13 @@
                                                             <Setter Property="FontSize" Value="11"/>
                                                             <Setter Property="FontWeight" Value="700"/>
                                                             <Setter Property="Foreground" Value="{StaticResource TextQuat}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Value="True">
+                                                            <DataTrigger.Binding>
+                                                                <Binding Path="IsSelected" RelativeSource="{RelativeSource AncestorType=tree:FolderItemContainer}"/>
+                                                            </DataTrigger.Binding>
+                                                            <Setter Property="Foreground" Value="{StaticResource SelectionFg}"/>
+                                                            <Setter Property="FontWeight" Value="510"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -236,7 +249,9 @@
                 </Border>
 
                 <!-- Floating toolbar (bottom center) — Linear glass card via Popup -->
-                <Popup x:Name="FloatingBarPopup" Placement="Absolute"
+                <Popup x:Name="FloatingBarPopup" Placement="Bottom"
+                       PlacementTarget="{Binding ElementName=ImageViewer}"
+                       VerticalOffset="-18"
                        AllowsTransparency="True" IsOpen="False" StaysOpen="True">
                     <Border x:Name="FloatingBar"
                             Background="#E60f1011"
@@ -286,7 +301,9 @@
                 </Popup>
 
                 <!-- Status pill (top-left of viewer) — via Popup -->
-                <Popup x:Name="StatusPillPopup" Placement="Absolute"
+                <Popup x:Name="StatusPillPopup" Placement="Top"
+                       PlacementTarget="{Binding ElementName=ImageViewer}"
+                       HorizontalOffset="14" VerticalOffset="14"
                        AllowsTransparency="True" IsOpen="False" StaysOpen="True">
                     <Border x:Name="StatusPill"
                             Background="#CC0f1011"
@@ -298,7 +315,7 @@
                     </Border>
                 </Popup>
 
-                <!-- Info pill (top-right of viewer) — via Popup -->
+                <!-- Info pill (top-right of viewer) — via Popup, Absolute to right-align precisely -->
                 <Popup x:Name="InfoPillPopup" Placement="Absolute"
                        AllowsTransparency="True" IsOpen="True" StaysOpen="True">
                     <Border x:Name="InfoPill"

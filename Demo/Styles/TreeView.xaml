@@ -16,11 +16,13 @@
                                 Background="{TemplateBinding Background}"
                                 CornerRadius="{StaticResource RadiusStd}">
                             <Grid>
+                                <!-- Selection bar: 2.5px brand indigo, flush-left, no indent -->
                                 <Border x:Name="SelectionBar"
-                                        Width="2"
+                                        Width="2.5"
                                         HorizontalAlignment="Left"
-                                        Margin="2,4,0,4"
-                                        Background="{StaticResource BrandAccent}"
+                                        VerticalAlignment="Stretch"
+                                        Margin="0,6,0,6"
+                                        Background="{StaticResource SelectionBar}"
                                         Opacity="0"
                                         CornerRadius="1"/>
                                 <ContentPresenter Margin="18,8,12,8" VerticalAlignment="Center"/>
@@ -32,13 +34,14 @@
                             <Setter Property="Cursor" Value="Arrow"/>
                             <Setter Property="IsHitTestVisible" Value="False"/>
                         </DataTrigger>
+                        <!-- Hover (non-selected): subtle white wash -->
                         <Trigger Property="IsMouseOver" Value="True">
                             <Trigger.EnterActions>
                                 <BeginStoryboard>
                                     <Storyboard>
                                         <ColorAnimation Storyboard.TargetName="Row"
                                                         Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                        To="#FF28282c" Duration="{StaticResource MotionMicro}"/>
+                                                        To="#0DFFFFFF" Duration="{StaticResource MotionMicro}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.EnterActions>
@@ -52,13 +55,14 @@
                                 </BeginStoryboard>
                             </Trigger.ExitActions>
                         </Trigger>
+                        <!-- Selected: multi-signal activation - indigo tint bg + accent glow + bar -->
                         <Trigger Property="IsSelected" Value="True">
                             <Trigger.EnterActions>
                                 <BeginStoryboard>
                                     <Storyboard>
                                         <ColorAnimation Storyboard.TargetName="Row"
                                                         Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                        To="#FF191a1b" Duration="{StaticResource MotionStandard}"/>
+                                                        To="#1A5e6ad2" Duration="{StaticResource MotionStandard}"/>
                                         <DoubleAnimation Storyboard.TargetName="SelectionBar"
                                                          Storyboard.TargetProperty="Opacity"
                                                          To="1" Duration="{StaticResource MotionStandard}"/>
@@ -77,6 +81,12 @@
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.ExitActions>
+                            <!-- Indigo outer glow to lift the row out of the dark canvas -->
+                            <Setter Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="14" ShadowDepth="0" Opacity="0.45" Color="#FF5e6ad2"/>
+                                </Setter.Value>
+                            </Setter>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

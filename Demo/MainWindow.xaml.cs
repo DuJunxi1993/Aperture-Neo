@@ -9,7 +9,6 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
-using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
 using ApertureNeo.Controls;
 using ApertureNeo.Controls.FolderTree;
@@ -75,10 +74,11 @@ public partial class MainWindow : FluentWindow
             }), DispatcherPriority.Loaded);
         };
 
-        // Re-position floating popups whenever window/viewer size changes
+        // Re-position floating popups whenever window/viewer size or window position changes
         SizeChanged += (_, _) => PositionOverlayPopups();
         ImageViewer.SizeChanged += (_, _) => PositionOverlayPopups();
         ImageViewer.LayoutUpdated += (_, _) => PositionOverlayPopups();
+        LocationChanged += (_, _) => PositionOverlayPopups();
 
         Closed += (_, _) =>
         {
@@ -306,10 +306,9 @@ public partial class MainWindow : FluentWindow
     }
 
     /// <summary>
-    /// Position the floating Popup overlays (FloatingBar, StatusPill, InfoPill)
-    /// to align with the ImageViewer's screen coordinates.
-    /// Popups are used because the SkiaImageViewer's WriteableBitmap render
-    /// occludes sibling Borders in the same Grid cell.
+    /// Position the floating Popup overlays. 
+    /// FloatingBarPopup and StatusPillPopup use PlacementTarget and auto-follow.
+    /// InfoPillPopup uses Absolute placement and needs manual repositioning.
     /// </summary>
     private void PositionOverlayPopups()
     {
@@ -318,22 +317,12 @@ public partial class MainWindow : FluentWindow
             if (ImageViewer.ActualWidth <= 0 || ImageViewer.ActualHeight <= 0) return;
             var topLeft = ImageViewer.PointToScreen(new Point(0, 0));
             var w = ImageViewer.ActualWidth;
-            var h = ImageViewer.ActualHeight;
 
-            // FloatingBar: bottom-center
-            const float FB_W = 320, FB_H = 44, FB_MARGIN = 18;
-            FloatingBarPopup.HorizontalOffset = topLeft.X + (w - FB_W) / 2;
-            FloatingBarPopup.VerticalOffset = topLeft.Y + h - FB_H - FB_MARGIN;
-
-            // InfoPill: top-right
+            // InfoPill: top-right (Absolute mode, manual positioning)
             const float IP_MARGIN = 14;
-            // Measure to position right-aligned
-            InfoPillPopup.HorizontalOffset = topLeft.X + w - InfoPill.ActualWidth - IP_MARGIN;
+            double ipWidth = InfoPill.ActualWidth > 0 ? InfoPill.ActualWidth : 160;
+            InfoPillPopup.HorizontalOffset = topLeft.X + w - ipWidth - IP_MARGIN;
             InfoPillPopup.VerticalOffset = topLeft.Y + IP_MARGIN;
-
-            // StatusPill: top-left
-            StatusPillPopup.HorizontalOffset = topLeft.X + IP_MARGIN;
-            StatusPillPopup.VerticalOffset = topLeft.Y + IP_MARGIN;
         }
         catch { }
     }
@@ -400,7 +389,11 @@ public partial class MainWindow : FluentWindow
 
     private void BtnMenu_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is System.Windows.Controls.Button b && b.ContextMenu != null) { b.ContextMenu.PlacementTarget = b; b.ContextMenu.Placement = PlacementMode.Bottom; b.ContextMenu.IsOpen = true; }
+        if (sender is System.Windows.Controls.Button b && b.ContextMenu != null)
+        {
+            b.ContextMenu.Placement = PlacementMode.Bottom;
+            b.ContextMenu.IsOpen = true;
+        }
     }
 
     private void UpdateThemeMenuChecks() { /* locked dark */ }

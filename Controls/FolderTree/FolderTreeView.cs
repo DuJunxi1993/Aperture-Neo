@@ -389,6 +389,20 @@ public class FolderTreeView : ItemsControl
         Items.Add(pc);
 
         _ = LoadDrivesAsync(gen);
+
+        // Auto-select first non-header item so the selection visual is visible
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            for (int i = 0; i < Items.Count; i++)
+            {
+                if (Items[i] is FolderItemNode || Items[i] is RecentNode || Items[i] is DriveItemNode)
+                {
+                    SelectedNode = Items[i];
+                    ScrollSelectedIntoView();
+                    return;
+                }
+            }
+        }), System.Windows.Threading.DispatcherPriority.Background);
     }
 
     private async Task LoadDrivesAsync(int gen)

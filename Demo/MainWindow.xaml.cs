@@ -4,13 +4,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ApertureNeo.Controls;
+using ApertureNeo.Demo;
 using ApertureNeo.Controls.FolderTree;
 using ApertureNeo.Helpers;
 using ApertureNeo.Models;
@@ -28,10 +29,16 @@ public partial class MainWindow : FluentWindow
     private bool _isFullscreen;
     private bool _isTreeVisible = true;
     private bool _isThumbVisible = true;
-    private bool _isFloatingBarOpen;  // de-dupe IsOpen setter (Fix#5)
     private WindowState _prevWindowState;
     private DispatcherTimer? _statusHideTimer;
     private Point _lastMousePosition;
+
+    // Floating overlay adorners (replaces 3 Popups). They live in the AdornerLayer
+    // over ImageViewer, so they automatically follow window move/resize without any
+    // manual coordinate tracking.
+    private FloatingBarAdorner? _floatingBarAdorner;
+    private StatusPillAdorner? _statusPillAdorner;
+    private InfoPillAdorner? _infoPillAdorner;
 
     public MainWindow()
     {
@@ -42,7 +49,11 @@ public partial class MainWindow : FluentWindow
         _slideshow.NextRequested += () => Dispatcher.Invoke(() => _navigation.MoveNext());
 
         ImageViewer.ZoomChanged += zoom =>
-            Dispatcher.Invoke(() => ZoomTextBlock.Text = $"{zoom * 100:F0}%");
+            Dispatcher.Invoke(() =>
+            {
+                if (_floatingBarAdorner != null)
+                    _floatingBarAdorner.ZoomTextBlock.Text = $"{zoom * 100:F0}%";
+            });
         ImageViewer.StatusChanged += msg =>
             Dispatcher.Invoke(() => SetStatus(msg, false));
 
@@ -53,7 +64,7 @@ public partial class MainWindow : FluentWindow
         _statusHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
         _statusHideTimer.Tick += (s, e) =>
         {
-            if (!string.IsNullOrEmpty(StatusText.Text))
+            if (_statusPillAdorner != null && !string.IsNullOrEmpty(_statusPillAdorner.StatusText.Text))
             {
                 FadeOutStatus();
             }
@@ -65,20 +76,24 @@ public partial class MainWindow : FluentWindow
             Focus();
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                // Set PlacementTarget in code (more reliable than XAML ElementName binding
-                // for layered/AllowsTransparency popups). CustomPopupPlacementCallback
-                // then re-positions whenever PlacementTarget moves or resizes.
-                FloatingBarPopup.PlacementTarget = ImageViewer;
-                StatusPillPopup.PlacementTarget = ImageViewer;
-                InfoPillPopup.PlacementTarget = ImageViewer;
-                // Set CustomPopupPlacementCallback in code — XAML attribute binding for
-                // delegate properties is unreliable with this delegate type.
-                FloatingBarPopup.CustomPopupPlacementCallback = PlaceFloatingBar;
-                StatusPillPopup.CustomPopupPlacementCallback = PlaceStatusPill;
-                InfoPillPopup.CustomPopupPlacementCallback = PlaceInfoPill;
+                // Build floating overlays as Adorners attached to ImageViewer.
+                // Adorners live in the AdornerLayer, which is part of the main
+                // window's visual tree — so they automatically follow window
+                // move/resize without any manual LocationChanged handling.
+                _floatingBarAdorner = new FloatingBarAdorner(ImageViewer);
+                _statusPillAdorner = new StatusPillAdorner(ImageViewer);
+                _infoPillAdorner = new InfoPillAdorner(ImageViewer);
 
-                PositionOverlayPopups();
-                UpdateOverlayPopupsVisibility();
+                // Wire up click handlers for floating bar buttons.
+                _floatingBarAdorner.BtnPrev.Click += (_, _) => _navigation.MovePrevious();
+                _floatingBarAdorner.BtnNext.Click += (_, _) => _navigation.MoveNext();
+                _floatingBarAdorner.BtnFit.Click += (_, _) => ImageViewer.FitToScreen();
+                _floatingBarAdorner.BtnSlideshow.Click += (_, _) => ToggleSlideshow();
+                _floatingBarAdorner.BtnFullscreen.Click += (_, _) => ToggleFullscreen();
+                _floatingBarAdorner.ZoomTextBlock.MouseLeftButtonUp += ZoomTextBlock_Click;
+
+                UpdateOverlayVisibility();
+
                 var recent = App.SettingsStore.Recent;
                 if (recent.Count > 0 && Directory.Exists(recent[0].Path))
                 {
@@ -87,15 +102,13 @@ public partial class MainWindow : FluentWindow
             }), DispatcherPriority.Loaded);
         };
 
-        // Re-position floating popups whenever window/viewer size changes.
-// NOTE: LayoutUpdated was removed — it fires 60+ times per second and forms a
-// self-reinforcing feedback loop with the popup HorizontalOffset setter.
-        SizeChanged += (_, _) => PositionOverlayPopups();
-        ImageViewer.SizeChanged += (_, _) => PositionOverlayPopups();
-        LocationChanged += (_, _) => PositionOverlayPopups();
+        // Adorners auto-follow the window via the visual tree — no event handlers needed.
 
         Closed += (_, _) =>
         {
+            _floatingBarAdorner?.Detach();
+            _statusPillAdorner?.Detach();
+            _infoPillAdorner?.Detach();
             _thumbCoordinator.Dispose();
             _slideshow.Dispose();
             _navigation.Dispose();
@@ -134,12 +147,7 @@ public partial class MainWindow : FluentWindow
             if (TitleBarArea.Visibility != Visibility.Visible) ShowToolbar();
             ResetToolbarHideTimer();
         }
-        // Also show floating bar on mouse move in fullscreen (de-duped via flag, Fix#5)
-        if (!_isFloatingBarOpen)
-        {
-            _isFloatingBarOpen = true;
-            FloatingBarPopup.IsOpen = true;
-        }
+        // Floating bar is now an Adorner (always attached) — no IsOpen toggle needed.
     }
 
     private void OnWindowDrop(object sender, DragEventArgs e)
@@ -312,73 +320,28 @@ public partial class MainWindow : FluentWindow
         if (item == null) return;
         Title = $"Aperture Neo · {item.FileName} ({_navigation.CurrentIndex + 1}/{_navigation.Count})";
         ImageViewer.LoadImage(item.FilePath);
-        ImageInfo.Text = $"{item.Width}×{item.Height}  ·  {FormatFileSize(item.FileSize)}";
-        ImageIndexInfo.Text = $"{_navigation.CurrentIndex + 1}/{_navigation.Count}";
+        if (_infoPillAdorner != null)
+            _infoPillAdorner.ImageInfo.Text = $"{item.Width}×{item.Height}  ·  {FormatFileSize(item.FileSize)}";
+        if (_floatingBarAdorner != null)
+            _floatingBarAdorner.ImageIndexInfo.Text = $"{_navigation.CurrentIndex + 1}/{_navigation.Count}";
         ThumbGrid.SelectedItem = item;
         ThumbGrid.ScrollSelectedIntoView();
         if (ImageViewer.ContextMenu != null) ImageViewer.ContextMenu.IsOpen = false;
-        PositionOverlayPopups();
+        // Adorners auto-follow ImageViewer size changes — no manual reposition needed.
     }
 
     /// <summary>
-    /// Position the floating Popup overlays.
-    /// All three popups use Placement=Custom with a CustomPopupPlacementCallback,
-    /// so WPF re-invokes the callback every time the PlacementTarget moves/resizes.
-    /// This method is kept as a no-op for backward compatibility with existing call sites.
-    /// </summary>
-    private void PositionOverlayPopups()
-    {
-    }
-
-    private void UpdateOverlayPopupsVisibility()
-    {
-        bool wantOpen = !_isFullscreen;
-        if (_isFloatingBarOpen != wantOpen)
-        {
-            _isFloatingBarOpen = wantOpen;
-            FloatingBarPopup.IsOpen = wantOpen;
-        }
-    }
-
-    /// <summary>
-    /// FloatingBar popup placement callback: bottom-center, 18px above the target's bottom edge.
-    /// Signature MUST match CustomPopupPlacementCallback: (Size popupSize, Size targetSize, Point offset).
-    /// </summary>
-    public static CustomPopupPlacement[] PlaceFloatingBar(Size popupSize, Size targetSize, Point offset)
-    {
-        return new[]
-        {
-            new CustomPopupPlacement(
-                new Point((targetSize.Width - popupSize.Width) / 2, targetSize.Height - popupSize.Height - 18),
-                PopupPrimaryAxis.Horizontal)
-        };
-    }
-
-    /// <summary>
-    /// StatusPill popup placement callback: top-left, 14px margin from target edges.
-    /// </summary>
-    public static CustomPopupPlacement[] PlaceStatusPill(Size popupSize, Size targetSize, Point offset)
-    {
-        return new[]
-        {
-            new CustomPopupPlacement(
-                new Point(14, 14),
-                PopupPrimaryAxis.Horizontal)
-        };
-    }
-
-    /// <summary>
-    /// InfoPill popup placement callback: top-right, 14px margin from target's right edge.
-    /// </summary>
-    public static CustomPopupPlacement[] PlaceInfoPill(Size popupSize, Size targetSize, Point offset)
-    {
-        return new[]
-        {
-            new CustomPopupPlacement(
-                new Point(targetSize.Width - popupSize.Width - 14, 14),
-                PopupPrimaryAxis.Horizontal)
-        };
-    }
+/// Show/hide the floating bar adorner based on fullscreen state.
+/// All overlays are always attached as Adorners (so they auto-follow the window);
+/// we only hide the floating bar in fullscreen where the user has the alternative toolbar.
+/// </summary>
+private void UpdateOverlayVisibility()
+{
+    if (_floatingBarAdorner != null)
+        _floatingBarAdorner.Visibility = _isFullscreen ? Visibility.Collapsed : Visibility.Visible;
+    if (_infoPillAdorner != null)
+        _infoPillAdorner.Visibility = Visibility.Visible;
+}
 
     private static string FormatFileSize(long bytes)
     {
@@ -390,18 +353,21 @@ public partial class MainWindow : FluentWindow
 
     private void SetStatus(string text, bool isError)
     {
-        StatusText.Text = text;
-        StatusText.Foreground = isError
-            ? (Brush)FindResource("StatusRed")
-            : (Brush)FindResource("TextTertiary");
-        StatusPillPopup.IsOpen = true;
-        StatusPill.Opacity = 1;
-        PositionOverlayPopups();
+        if (_statusPillAdorner != null)
+        {
+            _statusPillAdorner.StatusText.Text = text;
+            _statusPillAdorner.StatusText.Foreground = isError
+                ? (Brush)FindResource("StatusRed")
+                : (Brush)FindResource("TextTertiary");
+            _statusPillAdorner.Visibility = Visibility.Visible;
+            _statusPillAdorner.Opacity = 1;
+        }
         if (!isError) ResetToolbarHideTimer();
     }
 
     private void FadeOutStatus()
     {
+        if (_statusPillAdorner == null) return;
         var anim = new DoubleAnimation
         {
             To = 0,
@@ -410,10 +376,13 @@ public partial class MainWindow : FluentWindow
         };
         anim.Completed += (_, _) =>
         {
-            StatusPillPopup.IsOpen = false;
-            StatusPill.Opacity = 1;
+            if (_statusPillAdorner != null)
+            {
+                _statusPillAdorner.Visibility = Visibility.Collapsed;
+                _statusPillAdorner.Opacity = 1;
+            }
         };
-        StatusPill.BeginAnimation(UIElement.OpacityProperty, anim);
+        _statusPillAdorner.BeginAnimation(UIElement.OpacityProperty, anim);
     }
 
     private void BtnClearRecent_Click(object sender, RoutedEventArgs e)
@@ -439,7 +408,7 @@ public partial class MainWindow : FluentWindow
     {
         if (sender is System.Windows.Controls.Button b && b.ContextMenu != null)
         {
-            b.ContextMenu.Placement = PlacementMode.Bottom;
+            b.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
             b.ContextMenu.IsOpen = true;
         }
     }
@@ -509,8 +478,10 @@ public partial class MainWindow : FluentWindow
 
     private void UpdateSlideshowButton()
     {
-        if (_slideshow.IsRunning) { SlideshowIcon.Symbol = Wpf.Ui.Controls.SymbolRegular.Pause24; }
-        else { SlideshowIcon.Symbol = Wpf.Ui.Controls.SymbolRegular.Play20; }
+        if (_floatingBarAdorner == null) return;
+        _floatingBarAdorner.SlideshowIcon.Symbol = _slideshow.IsRunning
+            ? Wpf.Ui.Controls.SymbolRegular.Pause24
+            : Wpf.Ui.Controls.SymbolRegular.Play20;
     }
 
     private void ToggleFullscreen()
@@ -523,10 +494,7 @@ public partial class MainWindow : FluentWindow
             WindowState = WindowState.Maximized;
             TreeColumn.Width = new GridLength(0); TreeColumn.MinWidth = 0; TreeSplitter.Visibility = Visibility.Collapsed;
             ThumbColumn.Width = new GridLength(0); ThumbColumn.MinWidth = 0; ThumbSplitter.Visibility = Visibility.Collapsed;
-            _isFloatingBarOpen = false;
-            FloatingBarPopup.IsOpen = false;
-            InfoPillPopup.IsOpen = false;
-            StatusPillPopup.IsOpen = false;
+            UpdateOverlayVisibility();
             HideToolbar();
         }
         else
@@ -534,9 +502,7 @@ public partial class MainWindow : FluentWindow
             WindowStyle = WindowStyle.SingleBorderWindow;
             WindowState = _prevWindowState;
             ApplyColumnVisibility();
-            _isFloatingBarOpen = true;
-            FloatingBarPopup.IsOpen = true;
-            InfoPillPopup.IsOpen = true;
+            UpdateOverlayVisibility();
             ShowToolbar();
             _statusHideTimer?.Stop();
         }
@@ -545,7 +511,6 @@ public partial class MainWindow : FluentWindow
             UpdateLayout();
             ImageViewer.FitToScreen();
             Focus();
-            PositionOverlayPopups();
         }, DispatcherPriority.Loaded);
     }
 

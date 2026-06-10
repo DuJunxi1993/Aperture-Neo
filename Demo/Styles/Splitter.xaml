@@ -16,31 +16,24 @@
                                    SnapsToDevicePixels="True"/>
                     </Grid>
                     <ControlTemplate.Triggers>
+                        <!-- IsMouseOver: animate width (DoubleAnimation is fine on a
+                             double property), swap Fill via Setter (ColorAnimation
+                             would crash on the frozen resource brush). -->
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Trigger.EnterActions>
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="Line"
-                                                         Storyboard.TargetProperty="Width"
-                                                         To="2" Duration="{StaticResource MotionMicro}"/>
-                                        <ColorAnimation Storyboard.TargetName="Line"
-                                                        Storyboard.TargetProperty="(Rectangle.Fill).(SolidColorBrush.Color)"
-                                                        To="#14FFFFFF" Duration="{StaticResource MotionMicro}"/>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </Trigger.EnterActions>
-                            <Trigger.ExitActions>
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="Line"
-                                                         Storyboard.TargetProperty="Width"
-                                                         To="1" Duration="{StaticResource MotionMicro}"/>
-                                        <ColorAnimation Storyboard.TargetName="Line"
-                                                        Storyboard.TargetProperty="(Rectangle.Fill).(SolidColorBrush.Color)"
-                                                        To="#0DFFFFFF" Duration="{StaticResource MotionMicro}"/>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </Trigger.ExitActions>
+                            <Setter TargetName="Line" Property="Width" Value="2"/>
+                            <Setter TargetName="Line" Property="Fill">
+                                <Setter.Value>
+                                    <SolidColorBrush Color="#14FFFFFF"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="False">
+                            <Setter TargetName="Line" Property="Width" Value="1"/>
+                            <Setter TargetName="Line" Property="Fill">
+                                <Setter.Value>
+                                    <SolidColorBrush Color="#0DFFFFFF"/>
+                                </Setter.Value>
+                            </Setter>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

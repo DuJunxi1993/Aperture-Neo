@@ -200,20 +200,27 @@ AllowDrop="True">
             <GridSplitter Grid.Column="1" x:Name="TreeSplitter" HorizontalAlignment="Stretch"
                           Background="Transparent" ShowsPreview="False"/>
 
-<!-- Thumbnail panel -->
+<!-- Thumbnail panel. Wrapped in a ScrollViewer so the AutoFitPanel
+                 can grow vertically beyond the panel bounds and become
+                 scrollable when there are many thumbnails. The
+                 LinearScrollViewer style (Thumbnail.xaml) supplies the
+                 thin Linear-themed scrollbar automatically. -->
             <Border Grid.Column="2" Background="{StaticResource SurfacePanel}"
                     BorderBrush="#08FFFFFF" BorderThickness="0,0,1,0"
                     x:Name="ThumbPanel">
                 <Grid>
-                    <controls:ThumbnailGrid x:Name="ThumbGrid" FocusVisualStyle="{x:Null}"
-                                            ItemTemplate="{StaticResource LinearThumbnailTemplate}"
-                                            Padding="4,8">
-                        <controls:ThumbnailGrid.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <controls:AutoFitPanel MinItemSize="140" Spacing="4" IsItemsHost="True"/>
-                            </ItemsPanelTemplate>
-                        </controls:ThumbnailGrid.ItemsPanel>
-                    </controls:ThumbnailGrid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <controls:ThumbnailGrid x:Name="ThumbGrid" FocusVisualStyle="{x:Null}"
+                                                ItemTemplate="{StaticResource LinearThumbnailTemplate}"
+                                                Padding="4,8">
+                            <controls:ThumbnailGrid.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <controls:AutoFitPanel MinItemSize="140" Spacing="4" IsItemsHost="True"/>
+                                </ItemsPanelTemplate>
+                            </controls:ThumbnailGrid.ItemsPanel>
+                        </controls:ThumbnailGrid>
+                    </ScrollViewer>
 <!-- Empty state -->
                     <StackPanel x:Name="ThumbEmpty" HorizontalAlignment="Center" VerticalAlignment="Center"
                                 Visibility="Collapsed">

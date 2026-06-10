@@ -255,8 +255,20 @@ public partial class MainWindow : FluentWindow
 
         switch (key)
         {
-            case Key.Left: if (col > 0) targetIdx = currentIdx - 1; else if (row > 0) targetIdx = currentIdx - cols; break;
-            case Key.Right: if (col < cols - 1 && currentIdx + 1 < total) targetIdx = currentIdx + 1; else if (row < lastRow) targetIdx = currentIdx + cols; break;
+            // Left: prefer same-row predecessor; if at column 0, wrap up to
+            //       the previous row's LAST column (visually: from the left
+            //       edge of row N, move to the right edge of row N-1).
+            // Right: prefer same-row successor; if at last column, wrap down
+            //        to the next row's FIRST column (visually: from the right
+            //        edge of row N, move to the left edge of row N+1).
+            case Key.Left:
+                if (col > 0) targetIdx = currentIdx - 1;
+                else if (row > 0) targetIdx = currentIdx - (col + 1);
+                break;
+            case Key.Right:
+                if (col < cols - 1 && currentIdx + 1 < total) targetIdx = currentIdx + 1;
+                else if (row < lastRow) targetIdx = currentIdx + (cols - col);
+                break;
             case Key.Up: if (row > 0) targetIdx = currentIdx - cols; break;
             case Key.Down: if (row < lastRow) targetIdx = Math.Min(currentIdx + cols, total - 1); break;
             default: return false;
@@ -291,7 +303,7 @@ public partial class MainWindow : FluentWindow
         if (item == null) return;
         Title = $"Aperture Neo · {item.FileName} ({_navigation.CurrentIndex + 1}/{_navigation.Count})";
         ImageViewer.LoadImage(item.FilePath);
-        ImageInfo.Text = $"{item.Width}×{item.Height}  ·  {FormatFileSize(item.FileSize)}";
+        ImageInfo.Text = $"{item.Width} × {item.Height}    ·    {FormatFileSize(item.FileSize)}";
         ImageIndexInfo.Text = $"{_navigation.CurrentIndex + 1}/{_navigation.Count}";
         ThumbGrid.SelectedItem = item;
         ThumbGrid.ScrollSelectedIntoView();

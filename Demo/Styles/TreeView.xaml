@@ -34,53 +34,23 @@
                             <Setter Property="Cursor" Value="Arrow"/>
                             <Setter Property="IsHitTestVisible" Value="False"/>
                         </DataTrigger>
-                        <!-- Hover (non-selected): subtle white wash -->
+                        <!-- Hover (non-selected): subtle white wash. Setter directly,
+                             not ColorAnimation — the brush is a frozen resource lookup
+                             and WPF can't animate frozen instances. -->
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Trigger.EnterActions>
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <ColorAnimation Storyboard.TargetName="Row"
-                                                        Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                        To="#0DFFFFFF" Duration="{StaticResource MotionMicro}"/>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </Trigger.EnterActions>
-                            <Trigger.ExitActions>
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <ColorAnimation Storyboard.TargetName="Row"
-                                                        Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                        To="#00000000" Duration="{StaticResource MotionMicro}"/>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </Trigger.ExitActions>
+                            <Setter TargetName="Row" Property="Background" Value="#0DFFFFFF"/>
                         </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="False"/>
+                                <Condition Property="IsSelected" Value="False"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Row" Property="Background" Value="Transparent"/>
+                        </MultiTrigger>
                         <!-- Selected: multi-signal activation - indigo tint bg + accent glow + bar -->
                         <Trigger Property="IsSelected" Value="True">
-                            <Trigger.EnterActions>
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <ColorAnimation Storyboard.TargetName="Row"
-                                                        Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                        To="#1A5e6ad2" Duration="{StaticResource MotionStandard}"/>
-                                        <DoubleAnimation Storyboard.TargetName="SelectionBar"
-                                                         Storyboard.TargetProperty="Opacity"
-                                                         To="1" Duration="{StaticResource MotionStandard}"/>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </Trigger.EnterActions>
-                            <Trigger.ExitActions>
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <ColorAnimation Storyboard.TargetName="Row"
-                                                        Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                        To="#00000000" Duration="{StaticResource MotionStandard}"/>
-                                        <DoubleAnimation Storyboard.TargetName="SelectionBar"
-                                                         Storyboard.TargetProperty="Opacity"
-                                                         To="0" Duration="{StaticResource MotionStandard}"/>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </Trigger.ExitActions>
+                            <Setter TargetName="Row" Property="Background" Value="#1A5e6ad2"/>
+                            <Setter TargetName="SelectionBar" Property="Opacity" Value="1"/>
                             <!-- Indigo outer glow to lift the row out of the dark canvas -->
                             <Setter Property="Effect">
                                 <Setter.Value>

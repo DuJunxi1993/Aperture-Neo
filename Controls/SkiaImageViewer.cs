@@ -270,7 +270,12 @@ public class SkiaImageViewer : FrameworkElement
         if (_oldBitmap != null)
         {
             byte oldAlpha = (byte)(255 * (1f - _animOpacity));
-            using var oldPaint = new SKPaint { Color = new SKColor(255, 255, 255, oldAlpha) };
+            using var oldPaint = new SKPaint
+            {
+                Color = new SKColor(255, 255, 255, oldAlpha),
+                FilterQuality = SKFilterQuality.High,
+                IsAntialias = true
+            };
             canvas.Save();
             canvas.Translate(_oldOffX, _oldOffY);
             canvas.Scale(_oldZoom);
@@ -282,7 +287,12 @@ public class SkiaImageViewer : FrameworkElement
         if (_bitmap != null)
         {
             byte alpha = (byte)(255 * _animOpacity);
-            using var paint = new SKPaint { Color = new SKColor(255, 255, 255, alpha) };
+            using var paint = new SKPaint
+            {
+                Color = new SKColor(255, 255, 255, alpha),
+                FilterQuality = SKFilterQuality.High,
+                IsAntialias = true
+            };
             canvas.Save();
             canvas.Translate(_offsetX, _offsetY);
             canvas.Scale(_zoom);
@@ -319,7 +329,11 @@ public class SkiaImageViewer : FrameworkElement
             RenderToWriteableBitmap();
 
         if (_wbmp != null)
+        {
+            // Enable high-quality bitmap scaling for smoother preview
+            RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.HighQuality);
             dc.DrawImage(_wbmp, new Rect(RenderSize));
+        }
     }
 
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)

@@ -193,13 +193,20 @@
                             </ItemsPanelTemplate>
                         </controls:ThumbnailGrid.ItemsPanel>
                     </controls:ThumbnailGrid>
-                    <!-- Empty state -->
+<!-- Empty state -->
                     <StackPanel x:Name="ThumbEmpty" HorizontalAlignment="Center" VerticalAlignment="Center"
                                 Visibility="Collapsed">
-                        <ui:SymbolIcon Symbol="Image32" FontSize="36" Foreground="{StaticResource TextQuat}"/>
-                        <TextBlock Text="此文件夹没有图片" FontSize="13" FontWeight="500"
-                                   Foreground="{StaticResource TextTertiary}" Margin="0,12,0,0"
+                        <Border Width="56" Height="56" CornerRadius="12"
+                                Background="#0DFFFFFF"
+                                HorizontalAlignment="Center">
+                            <ui:SymbolIcon Symbol="Image32" FontSize="24" Foreground="{StaticResource TextQuat}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="此文件夹没有图片" FontSize="13" FontWeight="600"
+                                   Foreground="{StaticResource TextSecondary}" Margin="0,14,0,2"
                                    HorizontalAlignment="Center"/>
+                        <TextBlock Text="支持 JPG、PNG、GIF、WEBP、BMP、ICO" FontSize="11" FontWeight="400"
+                                   Foreground="{StaticResource TextQuat}" HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Grid>
             </Border>

@@ -52,10 +52,12 @@ public partial class MainWindow : FluentWindow
         _statusHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
         _statusHideTimer.Tick += (s, e) =>
         {
+            // Hide toolbar in fullscreen (it auto-showed when mouse moved near top)
+            if (_isFullscreen && TitleBarArea.Visibility == Visibility.Visible)
+                HideToolbar();
+            // Fade out any active status message
             if (!string.IsNullOrEmpty(StatusText.Text))
-            {
                 FadeOutStatus();
-            }
             _statusHideTimer?.Stop();
         };
 
@@ -298,15 +300,15 @@ public partial class MainWindow : FluentWindow
 
     /// <summary>
     /// Show/hide the floating overlays based on fullscreen state.
-    /// The overlays live in the FloatingOverlayHost Grid above ImageViewer
-    /// and use HorizontalAlignment + Margin to anchor to corners — they
-    /// automatically follow the window because they're in the main window's
-    /// visual tree.
+    /// All overlays stay visible in fullscreen — they're useful precisely when
+    /// the user is in fullscreen (no other UI is shown). The status pill
+    /// starts hidden and is only shown by SetStatus().
     /// </summary>
     private void UpdateOverlayVisibility()
     {
-        FloatingBarContent.Visibility = _isFullscreen ? Visibility.Collapsed : Visibility.Visible;
+        FloatingBarContent.Visibility = Visibility.Visible;
         InfoPillContent.Visibility = Visibility.Visible;
+        // StatusPillContent visibility is managed by SetStatus / FadeOutStatus.
     }
 
     private static string FormatFileSize(long bytes)
@@ -367,6 +369,11 @@ public partial class MainWindow : FluentWindow
     {
         if (sender is System.Windows.Controls.Button b && b.ContextMenu != null)
         {
+            // Anchor the popup menu to the button itself, not the mouse cursor.
+            // Placement=Bottom places it directly below the button; PlacementTarget
+            // is the button so the position stays correct even if the user
+            // moved the mouse before clicking.
+            b.ContextMenu.PlacementTarget = b;
             b.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
             b.ContextMenu.IsOpen = true;
         }
@@ -401,18 +408,8 @@ public partial class MainWindow : FluentWindow
         else { WindowState = WindowState.Maximized; MaximizeIcon.Symbol = Wpf.Ui.Controls.SymbolRegular.SquareMultiple24; }
     }
 
-    private void BtnPrev_Click(object sender, RoutedEventArgs e)
-    {
-        System.IO.File.AppendAllText(@"C:\Users\1234_\AppData\Local\Temp\ApertureNeoLinearDemo\crash.log",
-            $"[{DateTime.Now:HH:mm:ss.fff}] BtnPrev clicked\n");
-        _navigation.MovePrevious();
-    }
-    private void BtnNext_Click(object sender, RoutedEventArgs e)
-    {
-        System.IO.File.AppendAllText(@"C:\Users\1234_\AppData\Local\Temp\ApertureNeoLinearDemo\crash.log",
-            $"[{DateTime.Now:HH:mm:ss.fff}] BtnNext clicked\n");
-        _navigation.MoveNext();
-    }
+    private void BtnPrev_Click(object sender, RoutedEventArgs e) => _navigation.MovePrevious();
+    private void BtnNext_Click(object sender, RoutedEventArgs e) => _navigation.MoveNext();
     private void BtnFit_Click(object sender, RoutedEventArgs e) => ImageViewer.FitToScreen();
     private void BtnSlideshow_Click(object sender, RoutedEventArgs e) => ToggleSlideshow();
     private void BtnFullscreen_Click(object sender, RoutedEventArgs e) => ToggleFullscreen();

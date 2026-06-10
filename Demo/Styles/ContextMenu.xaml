@@ -36,12 +36,15 @@
                                 <ColumnDefinition Width="Auto" SharedSizeGroup="MenuItemIGTColumnGroup"/>
                             </Grid.ColumnDefinitions>
 
+                            <!-- Icon ContentPresenter. No explicit Width/Height — the cell
+                                 collapses to 0 when no Icon is set, eliminating the
+                                 empty vertical strip on the left of every leaf
+                                 menu item. -->
                             <ContentPresenter Grid.Column="0"
                                               x:Name="Icon"
                                               ContentSource="Icon"
                                               Margin="0,0,8,0"
-                                              VerticalAlignment="Center"
-                                              Width="16" Height="16"/>
+                                              VerticalAlignment="Center"/>
 
                             <ContentPresenter Grid.Column="1"
                                               x:Name="HeaderHost"

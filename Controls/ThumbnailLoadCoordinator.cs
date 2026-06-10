@@ -21,32 +21,76 @@ public class ThumbnailLoadCoordinator : IDisposable
     public int Size { get; }
     public int ThumbnailErrorLimit { get; set; } = 5;
 
-    public ThumbnailLoadCoordinator(int size = 256, int maxConcurrent = 4)
+    public ThumbnailLoadCoordinator(int size = 256, int maxConcurrent = 2)
     {
         Size = size;
         MaxConcurrent = maxConcurrent;
         _semaphore = new SemaphoreSlim(maxConcurrent, maxConcurrent);
     }
 
-    public void LoadForFolder(IEnumerable<ImageItem> items, int currentIndex, Action<string> onError = null!)
+    /// <summary>
+/// How many items around the current index to eagerly preload. Items
+/// beyond this window are loaded lazily as they scroll into view.
+/// </summary>
+public int PriorityWindow { get; set; } = 50;
+
+public void LoadForFolder(IEnumerable<ImageItem> items, int currentIndex, Action<string>? onError = null)
+{
+    Cancel();
+    _cts = new CancellationTokenSource();
+    var ct = _cts.Token;
+    // Priority-load items near the current index; the rest are loaded
+    // on demand by EnsureVisible().
+    var snapshot = items.ToList();
+    var priority = snapshot.Select((it, idx) => (it, dist: Math.Abs(idx - currentIndex)))
+                          .Where(x => x.dist <= PriorityWindow)
+                          .OrderBy(x => x.dist)
+                          .Select(x => x.it)
+                          .ToList();
+    var remaining = snapshot.Select((it, idx) => (it, dist: Math.Abs(idx - currentIndex)))
+                           .Where(x => x.dist > PriorityWindow)
+                           .OrderBy(x => x.dist)
+                           .Select(x => x.it)
+                           .ToList();
+    _allRemaining = remaining;
+    _ = Task.Run(async () =>
     {
-        Cancel();
-        _cts = new CancellationTokenSource();
-        var ct = _cts.Token;
-        var list = items.Select((it, idx) => (it, dist: Math.Abs(idx - currentIndex)))
-                        .OrderBy(x => x.dist)
-                        .Select(x => x.it)
-                        .ToList();
-        _ = Task.Run(async () =>
+        try
         {
-            try
-            {
-                await Task.WhenAll(list.Select(item => LoadOneAsync(item, ct, onError)));
-            }
-            catch (OperationCanceledException) { }
-            catch (Exception ex) { DebugLog.Write("Thumb", "coordinator exception", ex); }
-        }, ct);
+            await Task.WhenAll(priority.Select(item => LoadOneAsync(item, ct, onError)));
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { DebugLog.Write("Thumb", "coordinator exception", ex); }
+    }, ct);
+}
+
+private List<ImageItem> _allRemaining = new();
+
+/// <summary>
+/// Ensure thumbnails are loaded for the items in the visible range.
+/// Called from the thumbnail panel when it scrolls / virtualizes.
+/// </summary>
+public void EnsureVisible(int firstIndex, int lastIndex)
+{
+    if (_allRemaining == null || _allRemaining.Count == 0) return;
+    var ct = _cts?.Token ?? CancellationToken.None;
+    var pending = new List<ImageItem>();
+    for (int i = firstIndex; i <= lastIndex && i < _allRemaining.Count; i++)
+    {
+        var item = _allRemaining[i];
+        if (item != null && item.Thumbnail == null && !item.HasThumbnailError)
+            pending.Add(item);
     }
+    if (pending.Count == 0) return;
+    _ = Task.Run(async () =>
+    {
+        foreach (var item in pending)
+        {
+            if (ct.IsCancellationRequested) break;
+            await LoadOneAsync(item, ct, null);
+        }
+    });
+}
 
     private async Task LoadOneAsync(ImageItem item, CancellationToken ct, Action<string> onError)
     {

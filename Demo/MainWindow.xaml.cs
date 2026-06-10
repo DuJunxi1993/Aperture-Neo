@@ -42,8 +42,8 @@ public partial class MainWindow : FluentWindow
 
         ImageViewer.ZoomChanged += zoom =>
             Dispatcher.Invoke(() => ZoomTextBlock.Text = $"{zoom * 100:F0}%");
-        ImageViewer.StatusChanged += msg =>
-            Dispatcher.Invoke(() => SetStatus(msg, false));
+        // StatusChanged events are no longer surfaced — the previous StatusPill
+        // UI was removed; LoadImage progress messages no longer reach the user.
 
         FolderTree.FolderSelected += OnFolderSelected;
         FolderTree.DrillModeChanged += UpdateReturnToRootVisibility;
@@ -55,9 +55,6 @@ public partial class MainWindow : FluentWindow
             // Hide toolbar in fullscreen (it auto-showed when mouse moved near top)
             if (_isFullscreen && TitleBarArea.Visibility == Visibility.Visible)
                 HideToolbar();
-            // Fade out any active status message
-            if (!string.IsNullOrEmpty(StatusText.Text))
-                FadeOutStatus();
             _statusHideTimer?.Stop();
         };
 
@@ -294,8 +291,28 @@ public partial class MainWindow : FluentWindow
     {
         ThumbGrid.ItemsSource = _navigation.Items;
         ThumbEmpty.Visibility = _navigation.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        _thumbCoordinator.LoadForFolder(_navigation.Items, _navigation.CurrentIndex,
-            msg => SetStatus(msg, true));
+        _thumbCoordinator.LoadForFolder(_navigation.Items, _navigation.CurrentIndex, null);
+    }
+
+    /// <summary>
+    /// Triggered by the thumbnail ScrollViewer. Estimates which item
+    /// indices are visible based on scroll offset and the configured
+    /// thumbnail size, then asks the coordinator to load any unloaded
+    /// thumbnails in that range. Cheap O(1) work per scroll tick.
+    /// </summary>
+    private void ThumbScroller_ScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        if (_navigation.Count == 0) return;
+        // Approximate visible range. Each row is ~152px tall (140 thumb + margins).
+        const double rowHeight = 152.0;
+        int firstRow = Math.Max(0, (int)(e.VerticalOffset / rowHeight));
+        int visibleRows = Math.Max(1, (int)(e.ViewportHeight / rowHeight) + 1);
+        // Each row has ~2 columns in a typical 360px panel — but we don't know
+        // exact column count; use a generous range so the lazy loader covers
+        // the visible band even with imprecise math.
+        int firstIdx = Math.Max(0, firstRow * 2 - 2);
+        int lastIdx = Math.Min(_navigation.Count - 1, (firstRow + visibleRows) * 2 + 1);
+        _thumbCoordinator.EnsureVisible(firstIdx, lastIdx);
     }
 
     private void OnCurrentImageChanged(ImageItem item)
@@ -313,14 +330,12 @@ public partial class MainWindow : FluentWindow
     /// <summary>
     /// Show/hide the floating overlays based on fullscreen state.
     /// All overlays stay visible in fullscreen — they're useful precisely when
-    /// the user is in fullscreen (no other UI is shown). The status pill
-    /// starts hidden and is only shown by SetStatus().
+    /// the user is in fullscreen (no other UI is shown).
     /// </summary>
     private void UpdateOverlayVisibility()
     {
         FloatingBarContent.Visibility = Visibility.Visible;
         InfoPillContent.Visibility = Visibility.Visible;
-        // StatusPillContent visibility is managed by SetStatus / FadeOutStatus.
     }
 
     private static string FormatFileSize(long bytes)
@@ -329,33 +344,6 @@ public partial class MainWindow : FluentWindow
         if (bytes >= 1024 * 1024) return $"{bytes / (1024.0 * 1024):F1} MB";
         if (bytes >= 1024) return $"{bytes / 1024.0:F1} KB";
         return $"{bytes} B";
-    }
-
-    private void SetStatus(string text, bool isError)
-    {
-        StatusText.Text = text;
-        StatusText.Foreground = isError
-            ? (Brush)FindResource("StatusRed")
-            : (Brush)FindResource("TextTertiary");
-        StatusPillContent.Visibility = Visibility.Visible;
-        StatusPillContent.Opacity = 1;
-        if (!isError) ResetToolbarHideTimer();
-    }
-
-    private void FadeOutStatus()
-    {
-        var anim = new DoubleAnimation
-        {
-            To = 0,
-            Duration = TimeSpan.FromSeconds(0.4),
-            FillBehavior = FillBehavior.Stop
-        };
-        anim.Completed += (_, _) =>
-        {
-            StatusPillContent.Visibility = Visibility.Collapsed;
-            StatusPillContent.Opacity = 1;
-        };
-        StatusPillContent.BeginAnimation(UIElement.OpacityProperty, anim);
     }
 
     private void BtnClearRecent_Click(object sender, RoutedEventArgs e)
@@ -367,14 +355,11 @@ public partial class MainWindow : FluentWindow
     {
         try
         {
-            SetStatus("正在清除缓存…", false);
             await App.ThumbnailCache.ClearAsync();
             foreach (var item in _navigation.Items) { item.Thumbnail = null; item.HasThumbnailError = false; item.ThumbnailErrorMessage = null; }
-            _thumbCoordinator.LoadForFolder(_navigation.Items, _navigation.CurrentIndex,
-                msg => SetStatus(msg, true));
-            SetStatus("缓存已清除", false);
+            _thumbCoordinator.LoadForFolder(_navigation.Items, _navigation.CurrentIndex, null);
         }
-        catch (Exception ex) { DebugLog.Write("Cache", "clear fail", ex); SetStatus($"清除失败: {ex.Message}", true); }
+        catch (Exception ex) { DebugLog.Write("Cache", "clear fail", ex); }
     }
 
     private void BtnMenu_Click(object sender, RoutedEventArgs e)

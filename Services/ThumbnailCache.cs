@@ -117,10 +117,13 @@ public class ThumbnailCache : IDisposable
         await _dbLock.WaitAsync(ct);
         try
         {
-            using var cmd = _db.CreateCommand();
-            cmd.CommandText = "DELETE FROM thumbnails WHERE path = $path";
-            cmd.Parameters.AddWithValue("$path", path);
-            cmd.ExecuteNonQuery();
+            await Task.Run(() =>
+            {
+                using var cmd = _db.CreateCommand();
+                cmd.CommandText = "DELETE FROM thumbnails WHERE path = $path";
+                cmd.Parameters.AddWithValue("$path", path);
+                cmd.ExecuteNonQuery();
+            }, ct);
         }
         finally { _dbLock.Release(); }
     }
@@ -131,9 +134,12 @@ public class ThumbnailCache : IDisposable
         await _dbLock.WaitAsync(ct);
         try
         {
-            using var cmd = _db.CreateCommand();
-            cmd.CommandText = "DELETE FROM thumbnails";
-            cmd.ExecuteNonQuery();
+            await Task.Run(() =>
+            {
+                using var cmd = _db.CreateCommand();
+                cmd.CommandText = "DELETE FROM thumbnails";
+                cmd.ExecuteNonQuery();
+            }, ct);
         }
         finally { _dbLock.Release(); }
     }
@@ -143,24 +149,30 @@ public class ThumbnailCache : IDisposable
         await _dbLock.WaitAsync(ct);
         try
         {
-            using var cmd = _db.CreateCommand();
-            cmd.CommandText = "SELECT data FROM thumbnails WHERE path = $path AND mtime = $mtime";
-            cmd.Parameters.AddWithValue("$path", path);
-            cmd.Parameters.AddWithValue("$mtime", mtime);
-            using var reader = cmd.ExecuteReader();
-            if (reader.Read())
+            // Run the synchronous SQLite work on a worker thread so the
+            // caller's await yields the dispatcher thread.
+            return await Task.Run(() =>
             {
-                var len = (int)reader.GetBytes(0, 0, null, 0, 0);
-                var buf = new byte[len];
-                reader.GetBytes(0, 0, buf, 0, len);
-                return buf;
-            }
+                using var cmd = _db.CreateCommand();
+                cmd.CommandText = "SELECT data FROM thumbnails WHERE path = $path AND mtime = $mtime";
+                cmd.Parameters.AddWithValue("$path", path);
+                cmd.Parameters.AddWithValue("$mtime", mtime);
+                using var reader = cmd.ExecuteReader();
+                if (reader.Read())
+                {
+                    var len = (int)reader.GetBytes(0, 0, null, 0, 0);
+                    var buf = new byte[len];
+                    reader.GetBytes(0, 0, buf, 0, len);
+                    return buf;
+                }
+                return null;
+            }, ct);
         }
         catch
         {
+            return null;
         }
         finally { _dbLock.Release(); }
-        return null;
     }
 
     private async Task WriteToDiskAsync(string path, long mtime, byte[] data, int w, int h, CancellationToken ct)
@@ -168,23 +180,26 @@ public class ThumbnailCache : IDisposable
         await _dbLock.WaitAsync(ct);
         try
         {
-            using var cmd = _db.CreateCommand();
-            cmd.CommandText = @"
-                INSERT INTO thumbnails (path, mtime, data, width, height, created_at)
-                VALUES ($path, $mtime, $data, $w, $h, $created)
-                ON CONFLICT(path) DO UPDATE SET
-                    mtime = excluded.mtime,
-                    data = excluded.data,
-                    width = excluded.width,
-                    height = excluded.height,
-                    created_at = excluded.created_at;";
-            cmd.Parameters.AddWithValue("$path", path);
-            cmd.Parameters.AddWithValue("$mtime", mtime);
-            cmd.Parameters.AddWithValue("$data", data);
-            cmd.Parameters.AddWithValue("$w", w);
-            cmd.Parameters.AddWithValue("$h", h);
-            cmd.Parameters.AddWithValue("$created", DateTime.UtcNow.Ticks);
-            cmd.ExecuteNonQuery();
+            await Task.Run(() =>
+            {
+                using var cmd = _db.CreateCommand();
+                cmd.CommandText = @"
+                    INSERT INTO thumbnails (path, mtime, data, width, height, created_at)
+                    VALUES ($path, $mtime, $data, $w, $h, $created)
+                    ON CONFLICT(path) DO UPDATE SET
+                        mtime = excluded.mtime,
+                        data = excluded.data,
+                        width = excluded.width,
+                        height = excluded.height,
+                        created_at = excluded.created_at;";
+                cmd.Parameters.AddWithValue("$path", path);
+                cmd.Parameters.AddWithValue("$mtime", mtime);
+                cmd.Parameters.AddWithValue("$data", data);
+                cmd.Parameters.AddWithValue("$w", w);
+                cmd.Parameters.AddWithValue("$h", h);
+                cmd.Parameters.AddWithValue("$created", DateTime.UtcNow.Ticks);
+                cmd.ExecuteNonQuery();
+            }, ct);
         }
         catch
         {
@@ -197,16 +212,19 @@ public class ThumbnailCache : IDisposable
         await _dbLock.WaitAsync(ct);
         try
         {
-            using var cmd = _db.CreateCommand();
-            cmd.CommandText = @"
-                DELETE FROM thumbnails
-                WHERE path IN (
-                    SELECT path FROM thumbnails
-                    ORDER BY created_at DESC
-                    LIMIT -1 OFFSET $max
-                )";
-            cmd.Parameters.AddWithValue("$max", MaxEntries);
-            cmd.ExecuteNonQuery();
+            await Task.Run(() =>
+            {
+                using var cmd = _db.CreateCommand();
+                cmd.CommandText = @"
+                    DELETE FROM thumbnails
+                    WHERE path IN (
+                        SELECT path FROM thumbnails
+                        ORDER BY created_at DESC
+                        LIMIT -1 OFFSET $max
+                    )";
+                cmd.Parameters.AddWithValue("$max", MaxEntries);
+                cmd.ExecuteNonQuery();
+            }, ct);
         }
         catch
         {

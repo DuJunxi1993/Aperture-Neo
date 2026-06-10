@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
 using ApertureNeo.Helpers;
 using ApertureNeo.Models;
 
@@ -41,17 +43,22 @@ public class NavigationService
         _watcher.EnableRaisingEvents = false;
     }
 
+    /// <summary>
+    /// Load all supported images from a folder without blocking the UI
+    /// thread. Directory enumeration and ImageItem construction happen on a
+    /// worker task; the constructed list is published back to the
+    /// ObservableCollection on the UI thread.
+    /// </summary>
     public void LoadFolder(string folderPath)
     {
         if (!Directory.Exists(folderPath)) return;
 
         _currentFolder = folderPath;
-        var files = FormatHelper.GetSupportedFiles(folderPath);
 
+        // Clear current items synchronously so the UI updates immediately.
         foreach (var item in _items) item.Thumbnail = null;
         _items.Clear();
-        foreach (var f in files) _items.Add(new ImageItem(f));
-        _currentIndex = _items.Count > 0 ? 0 : -1;
+        _currentIndex = -1;
 
         if (_watcher != null)
         {
@@ -60,8 +67,31 @@ public class NavigationService
         }
 
         CollectionChanged?.Invoke();
-        if (Current != null)
-            CurrentImageChanged?.Invoke(Current);
+
+        // Enumerate + construct ImageItem on a worker thread to avoid
+        // blocking the UI on directories with thousands of files.
+        // ImageItem construction is filesystem-free (FileSize/LastWriteTime
+        // are resolved lazily on first access), so this is fast.
+        Task.Run(() =>
+        {
+            string[] files;
+            try { files = FormatHelper.GetSupportedFiles(folderPath); }
+            catch { return; }
+
+            var list = new List<ImageItem>(files.Length);
+            foreach (var f in files) list.Add(new ImageItem(f));
+
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher == null) return;
+            dispatcher.BeginInvoke(new Action(() =>
+            {
+                foreach (var item in list) _items.Add(item);
+                _currentIndex = _items.Count > 0 ? 0 : -1;
+                CollectionChanged?.Invoke();
+                if (Current != null)
+                    CurrentImageChanged?.Invoke(Current);
+            }));
+        });
     }
 
     public void NavigateTo(string filePath)

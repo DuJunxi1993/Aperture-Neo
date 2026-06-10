@@ -126,8 +126,6 @@ public class SkiaImageViewer : FrameworkElement
             _activeCrossFade = null;
         }
 
-        StatusChanged?.Invoke("加载中...");
-
         Task.Run(async () =>
         {
             var result = await ImageLoader.LoadAsync(path, ct);
@@ -187,8 +185,6 @@ public class SkiaImageViewer : FrameworkElement
                     };
                     _activeCrossFade = handler;
                     CompositionTarget.Rendering += handler;
-
-                    StatusChanged?.Invoke($"{result.Bitmap.Width}x{result.Bitmap.Height}");
                 }
                 else
                 {
@@ -203,7 +199,6 @@ public class SkiaImageViewer : FrameworkElement
     {
         if (_bitmap == null)
         {
-            StatusChanged?.Invoke("无可显示图片");
             return;
         }
 

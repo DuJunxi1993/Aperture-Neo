@@ -104,8 +104,10 @@
                 <ColumnDefinition Width="*" MinWidth="320"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Tree panel -->
-            <Border Grid.Column="0" Background="{StaticResource SurfaceCanvas}" x:Name="TreePanel">
+<!-- Tree panel -->
+            <Border Grid.Column="0" Background="{StaticResource SurfacePanel}"
+                    BorderBrush="#08FFFFFF" BorderThickness="0,0,1,0"
+                    x:Name="TreePanel">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
@@ -181,8 +183,10 @@
             <GridSplitter Grid.Column="1" x:Name="TreeSplitter" HorizontalAlignment="Stretch"
                           Background="Transparent" ShowsPreview="False"/>
 
-            <!-- Thumbnail panel -->
-            <Border Grid.Column="2" Background="{StaticResource SurfaceCanvas}" x:Name="ThumbPanel">
+<!-- Thumbnail panel -->
+            <Border Grid.Column="2" Background="{StaticResource SurfacePanel}"
+                    BorderBrush="#08FFFFFF" BorderThickness="0,0,1,0"
+                    x:Name="ThumbPanel">
                 <Grid>
                     <controls:ThumbnailGrid x:Name="ThumbGrid" FocusVisualStyle="{x:Null}"
                                             ItemTemplate="{StaticResource LinearThumbnailTemplate}"

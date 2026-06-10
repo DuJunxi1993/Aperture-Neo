@@ -27,9 +27,9 @@
 
     <!-- Surfaces (Linear layered luminance model) -->
     <SolidColorBrush x:Key="SurfaceCanvas"   Color="#FF08090a"/>
-    <SolidColorBrush x:Key="SurfacePanel"    Color="#FF0f1011"/>
-    <SolidColorBrush x:Key="SurfaceElevated" Color="#FF191a1b"/>
-    <SolidColorBrush x:Key="SurfaceHover"    Color="#FF28282c"/>
+    <SolidColorBrush x:Key="SurfacePanel"    Color="#FF0b0c0d"/>
+    <SolidColorBrush x:Key="SurfaceElevated" Color="#FF14151a"/>
+    <SolidColorBrush x:Key="SurfaceHover"    Color="#FF1f2024"/>
     <SolidColorBrush x:Key="SurfaceOverlay"  Color="#D9000000"/>
 
     <!-- Text -->

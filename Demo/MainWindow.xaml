@@ -236,7 +236,8 @@ AllowDrop="True">
                  Adorners are part of the main window's visual tree, so they
                  automatically follow window move/resize — the stable WPF pattern. -->
             <Grid Grid.Column="4" ClipToBounds="False" x:Name="ViewerColumn">
-                <controls:SkiaImageViewer x:Name="ImageViewer" Panel.ZIndex="0">
+                <controls:SkiaImageViewer x:Name="ImageViewer" Panel.ZIndex="0"
+                                          IsHitTestVisible="False">
                     <controls:SkiaImageViewer.ContextMenu>
                         <ContextMenu>
                             <MenuItem Header="复制图片路径" Click="CtxCopyPath_Click"/>
@@ -246,18 +247,16 @@ AllowDrop="True">
                         </ContextMenu>
                     </controls:SkiaImageViewer.ContextMenu>
                 </controls:SkiaImageViewer>
-                <!-- Floating overlays sit ABOVE ImageViewer at Panel.ZIndex=10.
-                     They use HorizontalAlignment + VerticalAlignment + Margin to
-                     anchor to the viewer's corners — same WPF layout that the
-                     AdornerLayer would use, but without the Adorner machinery
-                     that wasn't rendering correctly here. -->
-                <Grid x:Name="FloatingOverlayHost" Panel.ZIndex="10"
-                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                      IsHitTestVisible="False">
+                <!-- Floating overlays use Grid + HorizontalAlignment/VerticalAlignment
+                     + Margin to anchor. The Grid is hit-test transparent (no Background)
+                     so empty space passes events through to the viewer; only the
+                     Border children with Background brushes are clickable. -->
+                <Grid x:Name="FloatingOverlayHost" Panel.ZIndex="10">
                     <Border x:Name="FloatingBarContent"
                             HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,18"
                             Background="#E60f1011" BorderBrush="#28FFFFFF" BorderThickness="1"
-                            CornerRadius="{StaticResource RadiusCard}" Padding="6,4">
+                            CornerRadius="{StaticResource RadiusCard}" Padding="6,4"
+                            IsHitTestVisible="True">
                         <Border.Effect>
                             <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.5" Color="Black"/>
                         </Border.Effect>
@@ -303,7 +302,8 @@ AllowDrop="True">
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14,14,0,0"
                             Background="#CC0f1011" BorderBrush="#14FFFFFF" BorderThickness="1"
                             CornerRadius="{StaticResource RadiusPill}" Padding="10,5"
-                            Visibility="Collapsed">
+                            Visibility="Collapsed"
+                            IsHitTestVisible="True">
                         <TextBlock x:Name="StatusText" FontSize="12" FontWeight="500"
                                    Foreground="{StaticResource TextTertiary}"/>
                     </Border>
@@ -311,7 +311,8 @@ AllowDrop="True">
                     <Border x:Name="InfoPillContent"
                             HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,14,14,0"
                             Background="#CC0f1011" BorderBrush="#14FFFFFF" BorderThickness="1"
-                            CornerRadius="{StaticResource RadiusPill}" Padding="10,5">
+                            CornerRadius="{StaticResource RadiusPill}" Padding="10,5"
+                            IsHitTestVisible="True">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock x:Name="ImageInfo" Text="" FontSize="12" FontWeight="500"
                                        FontFamily="{StaticResource FontMono}"

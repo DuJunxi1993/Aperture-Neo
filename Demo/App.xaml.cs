@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Windows;
+using System.Windows.Threading;
 using ApertureNeo.Helpers;
 using ApertureNeo.Services;
 using SQLitePCL;
@@ -11,12 +12,23 @@ public partial class App : Application
 {
     public static ThumbnailCache ThumbnailCache { get; private set; } = null!;
     public static SettingsStore SettingsStore { get; private set; } = null!;
+    private static readonly string CrashLogPath = Path.Combine(Path.GetTempPath(), "ApertureNeoLinearDemo", "crash.log");
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
+        AppDomain.CurrentDomain.UnhandledException += (s, args) =>
+            LogCrash("AppDomain.UnhandledException", args.ExceptionObject as Exception);
+        DispatcherUnhandledException += (s, args) =>
+        {
+            LogCrash("Dispatcher.UnhandledException", args.Exception);
+            args.Handled = true;
+        };
+
         Batteries_V2.Init();
+
+        Directory.CreateDirectory(Path.GetDirectoryName(CrashLogPath)!);
 
         // Demo uses its own cache/settings dirs so it never collides with the main app.
         var cacheDir = Path.Combine(Path.GetTempPath(), "ApertureNeoLinearDemo", "thumbs");
@@ -50,5 +62,14 @@ public partial class App : Application
         SettingsStore?.Save();
         ThumbnailCache?.Dispose();
         base.OnExit(e);
+    }
+
+    private static void LogCrash(string source, Exception? ex)
+    {
+        try
+        {
+            File.AppendAllText(CrashLogPath, $"[{DateTime.Now:HH:mm:ss.fff}] {source}: {ex}\n");
+        }
+        catch { }
     }
 }

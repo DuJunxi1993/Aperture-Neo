@@ -401,8 +401,18 @@ public partial class MainWindow : FluentWindow
         else { WindowState = WindowState.Maximized; MaximizeIcon.Symbol = Wpf.Ui.Controls.SymbolRegular.SquareMultiple24; }
     }
 
-    private void BtnPrev_Click(object sender, RoutedEventArgs e) => _navigation.MovePrevious();
-    private void BtnNext_Click(object sender, RoutedEventArgs e) => _navigation.MoveNext();
+    private void BtnPrev_Click(object sender, RoutedEventArgs e)
+    {
+        System.IO.File.AppendAllText(@"C:\Users\1234_\AppData\Local\Temp\ApertureNeoLinearDemo\crash.log",
+            $"[{DateTime.Now:HH:mm:ss.fff}] BtnPrev clicked\n");
+        _navigation.MovePrevious();
+    }
+    private void BtnNext_Click(object sender, RoutedEventArgs e)
+    {
+        System.IO.File.AppendAllText(@"C:\Users\1234_\AppData\Local\Temp\ApertureNeoLinearDemo\crash.log",
+            $"[{DateTime.Now:HH:mm:ss.fff}] BtnNext clicked\n");
+        _navigation.MoveNext();
+    }
     private void BtnFit_Click(object sender, RoutedEventArgs e) => ImageViewer.FitToScreen();
     private void BtnSlideshow_Click(object sender, RoutedEventArgs e) => ToggleSlideshow();
     private void BtnFullscreen_Click(object sender, RoutedEventArgs e) => ToggleFullscreen();

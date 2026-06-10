@@ -22,7 +22,7 @@
         <Grid.RowDefinitions>
             <RowDefinition x:Name="TitleBarRow" Height="40"/>
             <RowDefinition Height="*"/>
-            <RowDefinition x:Name="BottomBarRow" Height="36"/>
+            <RowDefinition x:Name="BottomBarRow" Height="40"/>
         </Grid.RowDefinitions>
 
         <!-- Title bar (40px, Linear thin) -->
@@ -175,7 +175,7 @@
                 </Grid>
             </Border>
 
-            <GridSplitter Grid.Column="1" x:Name="TreeSplitter" Width="6" HorizontalAlignment="Stretch"
+            <GridSplitter Grid.Column="1" x:Name="TreeSplitter" Width="8" HorizontalAlignment="Stretch"
                           Background="Transparent" ShowsPreview="False"/>
 
             <!-- Thumbnail panel -->
@@ -191,11 +191,46 @@
                         <controls:ThumbnailGrid.ItemTemplate>
                             <DataTemplate>
                                 <Grid Margin="3">
-                                    <Border Background="{Binding Background, RelativeSource={RelativeSource AncestorType=ContentControl}}"
-                                            BorderBrush="{Binding BorderBrush, RelativeSource={RelativeSource AncestorType=ContentControl}}"
-                                            BorderThickness="{Binding BorderThickness, RelativeSource={RelativeSource AncestorType=ContentControl}}"
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Border x:Name="Card"
                                             CornerRadius="{StaticResource RadiusCard}"
                                             behaviors:SquareAspectBehavior.IsEnabled="True">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background">
+                                                    <Setter.Value>
+                                                        <SolidColorBrush Color="#08FFFFFF"/>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Setter Property="BorderBrush">
+                                                    <Setter.Value>
+                                                        <SolidColorBrush Color="#14FFFFFF"/>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Value="True">
+                                                        <DataTrigger.Binding>
+                                                            <Binding Path="IsSelected" RelativeSource="{RelativeSource AncestorType=ContentControl}"/>
+                                                        </DataTrigger.Binding>
+                                                        <Setter Property="Background">
+                                                            <Setter.Value>
+                                                                <SolidColorBrush Color="#FF191a1b"/>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                        <Setter Property="BorderBrush">
+                                                            <Setter.Value>
+                                                                <SolidColorBrush Color="#FF7170ff"/>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                        <Setter Property="BorderThickness" Value="1.5"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
                                         <Grid>
                                             <Image Source="{Binding Thumbnail}" Stretch="Uniform"/>
                                             <TextBlock Text="⚠" FontSize="36" Foreground="{StaticResource StatusRed}"
@@ -214,7 +249,7 @@
                                             </TextBlock>
                                         </Grid>
                                     </Border>
-                                    <TextBlock Text="{Binding FileName}" Style="{StaticResource LinearThumbnailName}"/>
+                                    <TextBlock Grid.Row="1" Text="{Binding FileName}" Style="{StaticResource LinearThumbnailName}"/>
                                 </Grid>
                             </DataTemplate>
                         </controls:ThumbnailGrid.ItemTemplate>
@@ -222,7 +257,7 @@
                 </ScrollViewer>
             </Border>
 
-            <GridSplitter Grid.Column="3" x:Name="ThumbSplitter" Width="6" HorizontalAlignment="Stretch"
+            <GridSplitter Grid.Column="3" x:Name="ThumbSplitter" Width="8" HorizontalAlignment="Stretch"
                           Background="Transparent" ShowsPreview="False"/>
 
             <!-- Image viewer -->

@@ -2,9 +2,9 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
-    <!-- Font families (Inter Variable + JetBrains Mono) -->
-    <FontFamily x:Key="FontPrimary">Demo/Fonts/#Inter Variable</FontFamily>
-    <FontFamily x:Key="FontMono">Demo/Fonts/#JetBrains Mono</FontFamily>
+    <!-- Font families (Inter Variable + JetBrains Mono) — site-of-origin pack URI -->
+    <FontFamily x:Key="FontPrimary">pack://siteoforigin:,,,/Demo/Fonts/InterVariable.ttf#Inter Variable Text</FontFamily>
+    <FontFamily x:Key="FontMono">pack://siteoforigin:,,,/Demo/Fonts/JetBrainsMono-Regular.ttf#JetBrains Mono</FontFamily>
     <FontFamily x:Key="FontPrimaryFallback">Inter, Segoe UI Variable Display, Segoe UI, Arial</FontFamily>
 
     <!-- Border Radius scale -->

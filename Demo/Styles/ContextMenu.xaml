@@ -2,8 +2,10 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- Linear-styled MenuItem.
-         NOTE: must include PART_Popup so submenu children render correctly
-         (without it WPF throws NullReferenceException when a parent item opens its submenu). -->
+         Uses the standard WPF MenuItem template structure (per MSDN):
+         PART_Popup MUST be present and bound via TemplateBinding IsSubmenuOpen
+         for submenus to open. Omitting PART_Popup causes NullReferenceException
+         when the user hovers a parent MenuItem. -->
     <Style x:Key="LinearMenuItem" TargetType="MenuItem">
         <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="FontSize" Value="13"/>
@@ -11,59 +13,60 @@
         <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Padding" Value="10,6"/>
-        <Setter Property="Margin" Value="2,0"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="MenuItem">
-                    <Border x:Name="border"
+                    <Border x:Name="Border"
                             Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="{StaticResource RadiusStd}"
                             Padding="{TemplateBinding Padding}">
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="MenuItemIconColumnGroup"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="MenuItemIGTColumnGroup"/>
                             </Grid.ColumnDefinitions>
-                            <!-- Header (icon + text rendered via ContentPresenter) -->
+
+                            <!-- Icon column (left) -->
                             <ContentPresenter Grid.Column="0"
+                                              x:Name="Icon"
                                               ContentSource="Icon"
                                               Margin="0,0,8,0"
                                               VerticalAlignment="Center"
                                               Width="16" Height="16"/>
+
+                            <!-- Header column (middle) -->
                             <ContentPresenter Grid.Column="1"
+                                              x:Name="HeaderHost"
                                               ContentSource="Header"
                                               RecognizesAccessKey="True"
                                               VerticalAlignment="Center"
                                               Margin="0,0,16,0"
                                               HorizontalAlignment="Left"/>
-                            <!-- Submenu arrow indicator (right-side, only visible when this MenuItem has Items) -->
+
+                            <!-- Submenu arrow indicator (right, only for items with submenus) -->
                             <TextBlock Grid.Column="2"
+                                       x:Name="IGTSubmenuIndicator"
                                        Text="›"
                                        FontSize="14"
                                        Foreground="{StaticResource TextQuat}"
                                        VerticalAlignment="Center"
                                        HorizontalAlignment="Right"
-                                       Margin="6,0,0,0">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding HasItems, RelativeSource={RelativeSource AncestorType=MenuItem}}" Value="True">
-                                                <Setter Property="Visibility" Value="Visible"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                            <!-- Required PART_Popup for submenu support -->
+                                       Margin="6,0,0,0"
+                                       Visibility="Collapsed"/>
+
+                            <!-- Submenu popup — bound to TemplatedParent.IsSubmenuOpen.
+                                 MUST use TemplateBinding (not RelativeSource) for proper
+                                 two-way synchronization. -->
                             <Popup Grid.Column="0" Grid.ColumnSpan="3"
                                    x:Name="PART_Popup"
                                    AllowsTransparency="True"
                                    Placement="Right"
                                    HorizontalOffset="-2"
                                    VerticalOffset="-4"
-                                   IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                   IsOpen="{TemplateBinding IsSubmenuOpen}"
                                    Focusable="False"
                                    PopupAnimation="Fade">
                                 <Border x:Name="SubmenuBorder"
@@ -84,8 +87,12 @@
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <!-- Show submenu arrow for items that have sub-items -->
+                        <Trigger Property="HasItems" Value="True">
+                            <Setter TargetName="IGTSubmenuIndicator" Property="Visibility" Value="Visible"/>
+                        </Trigger>
                         <Trigger Property="IsHighlighted" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{StaticResource BtnBgHover}"/>
+                            <Setter TargetName="Border" Property="Background" Value="{StaticResource BtnBgHover}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4"/>
@@ -103,7 +110,10 @@
         <Setter Property="Margin" Value="6,4"/>
     </Style>
 
-    <!-- Linear-styled ContextMenu container -->
+    <!-- Linear-styled ContextMenu container.
+         ItemContainerStyle is NOT set here — the implicit Style below applies
+         LinearMenuItem automatically. Double-application of the style causes
+         NullReferenceException when submenus open. -->
     <Style x:Key="LinearContextMenu" TargetType="ContextMenu">
         <Setter Property="Background" Value="{StaticResource SurfaceElevated}"/>
         <Setter Property="BorderBrush" Value="{StaticResource BorderStandard}"/>
@@ -111,13 +121,12 @@
         <Setter Property="Padding" Value="6"/>
         <Setter Property="HasDropShadow" Value="False"/>
         <Setter Property="Effect" Value="{StaticResource ShadowDialog}"/>
-        <Setter Property="ItemContainerStyle" Value="{StaticResource LinearMenuItem}"/>
         <Style.Resources>
             <Style TargetType="ScrollViewer" BasedOn="{StaticResource LinearScrollViewer}"/>
         </Style.Resources>
     </Style>
 
-    <!-- Apply to all ContextMenus globally -->
+    <!-- Apply globally -->
     <Style TargetType="ContextMenu" BasedOn="{StaticResource LinearContextMenu}"/>
     <Style TargetType="MenuItem" BasedOn="{StaticResource LinearMenuItem}"/>
     <Style TargetType="Separator" BasedOn="{StaticResource LinearSeparator}"/>

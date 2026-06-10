@@ -235,21 +235,90 @@ AllowDrop="True">
                  status pill) are rendered as Adorners attached to ImageViewer.
                  Adorners are part of the main window's visual tree, so they
                  automatically follow window move/resize — the stable WPF pattern. -->
-            <Grid Grid.Column="4" ClipToBounds="False">
-                <Border Background="{StaticResource SurfaceCanvas}" Panel.ZIndex="0">
-                    <AdornerDecorator>
-                        <controls:SkiaImageViewer x:Name="ImageViewer">
-                            <controls:SkiaImageViewer.ContextMenu>
-                                <ContextMenu>
-                                    <MenuItem Header="复制图片路径" Click="CtxCopyPath_Click"/>
-                                    <MenuItem Header="在资源管理器中打开" Click="CtxOpenInExplorer_Click"/>
-                                    <MenuItem Header="打印" Click="CtxPrint_Click"/>
-                                    <MenuItem Header="设为桌面壁纸" Click="CtxSetWallpaper_Click"/>
-                                </ContextMenu>
-                            </controls:SkiaImageViewer.ContextMenu>
-                        </controls:SkiaImageViewer>
-                    </AdornerDecorator>
-                </Border>
+            <Grid Grid.Column="4" ClipToBounds="False" x:Name="ViewerColumn">
+                <controls:SkiaImageViewer x:Name="ImageViewer" Panel.ZIndex="0">
+                    <controls:SkiaImageViewer.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="复制图片路径" Click="CtxCopyPath_Click"/>
+                            <MenuItem Header="在资源管理器中打开" Click="CtxOpenInExplorer_Click"/>
+                            <MenuItem Header="打印" Click="CtxPrint_Click"/>
+                            <MenuItem Header="设为桌面壁纸" Click="CtxSetWallpaper_Click"/>
+                        </ContextMenu>
+                    </controls:SkiaImageViewer.ContextMenu>
+                </controls:SkiaImageViewer>
+                <!-- Floating overlays sit ABOVE ImageViewer at Panel.ZIndex=10.
+                     They use HorizontalAlignment + VerticalAlignment + Margin to
+                     anchor to the viewer's corners — same WPF layout that the
+                     AdornerLayer would use, but without the Adorner machinery
+                     that wasn't rendering correctly here. -->
+                <Grid x:Name="FloatingOverlayHost" Panel.ZIndex="10"
+                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                      IsHitTestVisible="False">
+                    <Border x:Name="FloatingBarContent"
+                            HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,18"
+                            Background="#E60f1011" BorderBrush="#28FFFFFF" BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusCard}" Padding="6,4">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.5" Color="Black"/>
+                        </Border.Effect>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="BtnPrev" Style="{StaticResource LinearFloatingButton}"
+                                    Click="BtnPrev_Click" ToolTip="上一张 (←)">
+                                <ui:SymbolIcon Symbol="ChevronLeft20" FontSize="14"/>
+                            </Button>
+                            <TextBlock x:Name="ImageIndexInfo" Text="0/0"
+                                       FontFamily="{StaticResource FontMono}" FontSize="12" FontWeight="500"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       VerticalAlignment="Center" Margin="10,0" MinWidth="48" TextAlignment="Center"/>
+                            <Button x:Name="BtnNext" Style="{StaticResource LinearFloatingPrimary}"
+                                    Click="BtnNext_Click" ToolTip="下一张 (→)">
+                                <ui:SymbolIcon Symbol="ChevronRight20" FontSize="14"/>
+                            </Button>
+
+                            <Border Width="1" Background="#14FFFFFF" Margin="8,6"/>
+
+                            <Button x:Name="BtnFit" Style="{StaticResource LinearFloatingButton}"
+                                    Click="BtnFit_Click" ToolTip="适应 (Ctrl+0)">
+                                <ui:SymbolIcon Symbol="PageFit20" FontSize="14"/>
+                            </Button>
+                            <TextBlock x:Name="ZoomTextBlock" Text="100%"
+                                       FontFamily="{StaticResource FontMono}" FontSize="12" FontWeight="500"
+                                       Foreground="{StaticResource TextPrimary}"
+                                       VerticalAlignment="Center" Margin="8,0" MinWidth="44" TextAlignment="Center"
+                                       MouseLeftButtonUp="ZoomTextBlock_Click" Cursor="Hand"/>
+                            <Border Width="1" Background="#14FFFFFF" Margin="6,6"/>
+
+                            <Button x:Name="BtnSlideshow" Style="{StaticResource LinearFloatingButton}"
+                                    Click="BtnSlideshow_Click" ToolTip="幻灯片 (F5)">
+                                <ui:SymbolIcon x:Name="SlideshowIcon" Symbol="Play20" FontSize="12"/>
+                            </Button>
+                            <Button x:Name="BtnFullscreen" Style="{StaticResource LinearFloatingButton}"
+                                    Click="BtnFullscreen_Click" ToolTip="全屏 (Ctrl+F)" Margin="2,0,0,0">
+                                <ui:SymbolIcon Symbol="FullScreenMaximize24" FontSize="14"/>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+
+                    <Border x:Name="StatusPillContent"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14,14,0,0"
+                            Background="#CC0f1011" BorderBrush="#14FFFFFF" BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusPill}" Padding="10,5"
+                            Visibility="Collapsed">
+                        <TextBlock x:Name="StatusText" FontSize="12" FontWeight="500"
+                                   Foreground="{StaticResource TextTertiary}"/>
+                    </Border>
+
+                    <Border x:Name="InfoPillContent"
+                            HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,14,14,0"
+                            Background="#CC0f1011" BorderBrush="#14FFFFFF" BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusPill}" Padding="10,5">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="ImageInfo" Text="" FontSize="12" FontWeight="500"
+                                       FontFamily="{StaticResource FontMono}"
+                                       Foreground="{StaticResource TextSecondary}"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Grid>
         </Grid>
     </Grid>

@@ -166,9 +166,34 @@
                     CornerRadius="{StaticResource RadiusCard}"
                     behaviors:SquareAspectBehavior.IsEnabled="True"
                     BorderThickness="1"
-                    Background="{StaticResource CardBg}"
-                    BorderBrush="{StaticResource CardBorder}"
                     ClipToBounds="True">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="{StaticResource CardBg}"/>
+                        <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
+                        <Style.Triggers>
+                            <!-- Hover state (via ancestor ThumbnailItem.IsMouseOver) -->
+                            <DataTrigger Value="True">
+                                <DataTrigger.Binding>
+                                    <Binding Path="IsMouseOver"
+                                             RelativeSource="{RelativeSource AncestorType=controls:ThumbnailItem}"/>
+                                </DataTrigger.Binding>
+                                <Setter Property="Background" Value="{StaticResource CardBgHover}"/>
+                                <Setter Property="BorderBrush" Value="{StaticResource CardBorderHover}"/>
+                            </DataTrigger>
+                            <!-- Selected state -->
+                            <DataTrigger Value="True">
+                                <DataTrigger.Binding>
+                                    <Binding Path="IsSelected"
+                                             RelativeSource="{RelativeSource AncestorType=controls:ThumbnailItem}"/>
+                                </DataTrigger.Binding>
+                                <Setter Property="Background" Value="{StaticResource CardBgSelected}"/>
+                                <Setter Property="BorderBrush" Value="{StaticResource CardBorderSelected}"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
                 <Grid>
                     <Image Source="{Binding Thumbnail}" Stretch="Uniform"/>
                     <!-- Error state -->

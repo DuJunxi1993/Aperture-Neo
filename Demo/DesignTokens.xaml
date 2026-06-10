@@ -70,5 +70,24 @@
     <DropShadowEffect x:Key="ShadowElev"   BlurRadius="8"  ShadowDepth="2" Opacity="0.4" Color="Black"/>
     <DropShadowEffect x:Key="ShadowDialog" BlurRadius="24" ShadowDepth="8" Opacity="0.5" Color="Black"/>
     <DropShadowEffect x:Key="ShadowFocus"  BlurRadius="12" ShadowDepth="0" Opacity="0.1" Color="Black"/>
+    <DropShadowEffect x:Key="ShadowGlow"   BlurRadius="16" ShadowDepth="0" Opacity="0.6" Color="#FF7170ff"/>
+
+    <!-- Motion (Linear-style durations, wpf-friendly) -->
+    <Duration x:Key="MotionMicro">0:0:0.15</Duration>          <!-- hover, icon swap -->
+    <Duration x:Key="MotionStandard">0:0:0.20</Duration>       <!-- bg fade, button -->
+    <Duration x:Key="MotionEmphasized">0:0:0.24</Duration>     <!-- panel/zoom -->
+    <Duration x:Key="MotionPress">0:0:0.10</Duration>          <!-- press feedback -->
+
+    <!-- Thumbnail card tokens (semantic, used by inline ItemTemplate) -->
+    <SolidColorBrush x:Key="CardBg"          Color="#08FFFFFF"/>
+    <SolidColorBrush x:Key="CardBgHover"     Color="#0DFFFFFF"/>
+    <SolidColorBrush x:Key="CardBgSelected"  Color="#FF191a1b"/>
+    <SolidColorBrush x:Key="CardBorder"      Color="#14FFFFFF"/>
+    <SolidColorBrush x:Key="CardBorderHover" Color="#28FFFFFF"/>
+    <SolidColorBrush x:Key="CardBorderSelected" Color="#FF7170ff"/>
+
+    <!-- Splitter tokens -->
+    <SolidColorBrush x:Key="SplitterLine"       Color="#0DFFFFFF"/>
+    <SolidColorBrush x:Key="SplitterLineHover"  Color="#14FFFFFF"/>
 
 </ResourceDictionary>

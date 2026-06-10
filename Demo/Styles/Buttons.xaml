@@ -32,7 +32,7 @@
                                     <Storyboard>
                                         <ColorAnimation Storyboard.TargetName="border"
                                                         Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                        To="#0DFFFFFF" Duration="0:0:0.2"/>
+                                                        To="#0DFFFFFF" Duration="{StaticResource MotionStandard}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.EnterActions>
@@ -41,14 +41,21 @@
                                     <Storyboard>
                                         <ColorAnimation Storyboard.TargetName="border"
                                                         Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                        To="#08FFFFFF" Duration="0:0:0.2"/>
+                                                        To="#08FFFFFF" Duration="{StaticResource MotionStandard}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.ExitActions>
-                            <Setter Property="BorderBrush" Value="{StaticResource BorderStandard}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{StaticResource BtnBgSubtle}"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <ColorAnimation Storyboard.TargetName="border"
+                                                        Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                        To="#0AFFFFFF" Duration="{StaticResource MotionPress}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4"/>
@@ -87,7 +94,7 @@
                                     <Storyboard>
                                         <ColorAnimation Storyboard.TargetName="border"
                                                         Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                        To="#FF828fff" Duration="0:0:0.2"/>
+                                                        To="#FF828fff" Duration="{StaticResource MotionStandard}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.EnterActions>
@@ -96,7 +103,7 @@
                                     <Storyboard>
                                         <ColorAnimation Storyboard.TargetName="border"
                                                         Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                        To="#FF5e6ad2" Duration="0:0:0.2"/>
+                                                        To="#FF5e6ad2" Duration="{StaticResource MotionStandard}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.ExitActions>
@@ -107,7 +114,7 @@
                                     <Storyboard>
                                         <ColorAnimation Storyboard.TargetName="border"
                                                         Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                        To="#FF5e6ad2" Duration="0:0:0.1"/>
+                                                        To="#FF5e6ad2" Duration="{StaticResource MotionPress}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.EnterActions>
@@ -148,9 +155,9 @@
                                     <Storyboard>
                                         <ColorAnimation Storyboard.TargetName="border"
                                                         Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                        To="#0DFFFFFF" Duration="0:0:0.15"/>
+                                                        To="#0DFFFFFF" Duration="{StaticResource MotionMicro}"/>
                                         <ColorAnimation Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
-                                                        To="#FFf7f8f8" Duration="0:0:0.15"/>
+                                                        To="#FFf7f8f8" Duration="{StaticResource MotionMicro}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.EnterActions>
@@ -159,9 +166,9 @@
                                     <Storyboard>
                                         <ColorAnimation Storyboard.TargetName="border"
                                                         Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                        To="#00000000" Duration="0:0:0.15"/>
+                                                        To="#00000000" Duration="{StaticResource MotionMicro}"/>
                                         <ColorAnimation Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
-                                                        To="#FFd0d6e0" Duration="0:0:0.15"/>
+                                                        To="#FFd0d6e0" Duration="{StaticResource MotionMicro}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.ExitActions>
@@ -191,9 +198,9 @@
                                     <Storyboard>
                                         <ColorAnimation Storyboard.TargetName="border"
                                                         Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                        To="#26E81123" Duration="0:0:0.15"/>
+                                                        To="#26E81123" Duration="{StaticResource MotionMicro}"/>
                                         <ColorAnimation Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
-                                                        To="#FFef4444" Duration="0:0:0.15"/>
+                                                        To="#FFef4444" Duration="{StaticResource MotionMicro}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.EnterActions>
@@ -202,9 +209,9 @@
                                     <Storyboard>
                                         <ColorAnimation Storyboard.TargetName="border"
                                                         Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                        To="#00000000" Duration="0:0:0.15"/>
+                                                        To="#00000000" Duration="{StaticResource MotionMicro}"/>
                                         <ColorAnimation Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
-                                                        To="#FFd0d6e0" Duration="0:0:0.15"/>
+                                                        To="#FFd0d6e0" Duration="{StaticResource MotionMicro}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.ExitActions>
@@ -219,6 +226,102 @@
     <Style x:Key="LinearPillButton" TargetType="Button" BasedOn="{StaticResource LinearButton}">
         <Setter Property="Padding" Value="10,3,10,3"/>
         <Setter Property="FontSize" Value="12"/>
+    </Style>
+
+    <!-- Linear Floating Button (44px circle, used in floating toolbars over viewer) -->
+    <Style x:Key="LinearFloatingButton" TargetType="Button">
+        <Setter Property="Width" Value="36"/>
+        <Setter Property="Height" Value="36"/>
+        <Setter Property="Background" Value="#CC0f1011"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderStandard}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{StaticResource RadiusCard}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <ColorAnimation Storyboard.TargetName="border"
+                                                        Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                        To="#FF191a1b" Duration="{StaticResource MotionMicro}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <ColorAnimation Storyboard.TargetName="border"
+                                                        Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                        To="#CC0f1011" Duration="{StaticResource MotionMicro}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#FF28282c"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Linear Floating Primary Button (filled indigo, for main viewer actions) -->
+    <Style x:Key="LinearFloatingPrimary" TargetType="Button" BasedOn="{StaticResource LinearFloatingButton}">
+        <Setter Property="Background" Value="{StaticResource BrandPrimary}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Width" Value="36"/>
+        <Setter Property="Height" Value="36"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="{StaticResource RadiusCard}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          TextElement.Foreground="White"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <ColorAnimation Storyboard.TargetName="border"
+                                                        Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                        To="#FF828fff" Duration="{StaticResource MotionMicro}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <ColorAnimation Storyboard.TargetName="border"
+                                                        Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                        To="#FF5e6ad2" Duration="{StaticResource MotionMicro}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
 </ResourceDictionary>

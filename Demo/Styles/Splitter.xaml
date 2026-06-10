@@ -1,7 +1,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- Linear GridSplitter: 8px transparent hit zone + 1px semi-transparent white line, brighter on hover -->
+    <!-- Linear GridSplitter: 8px transparent hit zone + 1px semi-transparent line, animated expand on hover -->
     <Style TargetType="GridSplitter">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
@@ -10,15 +10,37 @@
                 <ControlTemplate TargetType="GridSplitter">
                     <Grid Background="Transparent" SnapsToDevicePixels="True" Width="8">
                         <Rectangle x:Name="Line" Width="1"
-                                   Fill="{StaticResource BorderSubtle}"
+                                   Fill="{StaticResource SplitterLine}"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Stretch"
                                    SnapsToDevicePixels="True"/>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Line" Property="Width" Value="2"/>
-                            <Setter TargetName="Line" Property="Fill" Value="{StaticResource BorderStandard}"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Line"
+                                                         Storyboard.TargetProperty="Width"
+                                                         To="2" Duration="{StaticResource MotionMicro}"/>
+                                        <ColorAnimation Storyboard.TargetName="Line"
+                                                        Storyboard.TargetProperty="(Rectangle.Fill).(SolidColorBrush.Color)"
+                                                        To="#14FFFFFF" Duration="{StaticResource MotionMicro}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Line"
+                                                         Storyboard.TargetProperty="Width"
+                                                         To="1" Duration="{StaticResource MotionMicro}"/>
+                                        <ColorAnimation Storyboard.TargetName="Line"
+                                                        Storyboard.TargetProperty="(Rectangle.Fill).(SolidColorBrush.Color)"
+                                                        To="#0DFFFFFF" Duration="{StaticResource MotionMicro}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

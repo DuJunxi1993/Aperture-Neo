@@ -5,7 +5,7 @@
         xmlns:behaviors="clr-namespace:ApertureNeo.Controls;assembly="
         xmlns:tree="clr-namespace:ApertureNeo.Controls.FolderTree;assembly="
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-        Title="Aperture Neo · Linear Demo"
+        Title="Aperture Neo · Linear"
         Width="1400" Height="900"
         MinWidth="1024" MinHeight="600"
         WindowStartupLocation="CenterScreen"
@@ -18,14 +18,15 @@
         WindowBackdropType="None"
         AllowDrop="True">
 
-    <Grid>
+<Grid>
         <Grid.RowDefinitions>
-            <RowDefinition x:Name="TitleBarRow" Height="40"/>
+            <RowDefinition x:Name="TitleBarRow" Height="44"/>
             <RowDefinition Height="*"/>
-            <RowDefinition x:Name="BottomBarRow" Height="40"/>
         </Grid.RowDefinitions>
 
-        <!-- Title bar (40px, Linear thin) -->
+        <!-- ============================== -->
+        <!-- Title bar (44px, Linear thin)   -->
+        <!-- ============================== -->
         <Border Grid.Row="0" x:Name="TitleBarArea" Background="{StaticResource SurfaceCanvas}"
                 BorderBrush="{StaticResource BorderLineTint}" BorderThickness="0,0,0,1"
                 MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
@@ -37,7 +38,7 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Left: open + sidebar toggles -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
                     <Button Style="{StaticResource LinearPrimaryButton}" Click="BtnOpen_Click" ToolTip="打开文件 (Ctrl+O)">
                         <StackPanel Orientation="Horizontal">
                             <ui:SymbolIcon Symbol="FolderOpen24" FontSize="14"/>
@@ -45,7 +46,7 @@
                         </StackPanel>
                     </Button>
                     <Button x:Name="BtnToggleTree" Style="{StaticResource LinearWindowButton}" Click="BtnToggleTree_Click"
-                            ToolTip="显示/隐藏目录栏" Margin="4,0,0,0">
+                            ToolTip="显示/隐藏目录栏" Margin="6,0,0,0">
                         <ui:SymbolIcon Symbol="NavigationLocationTarget20" FontSize="16"/>
                     </Button>
                     <Button x:Name="BtnToggleThumb" Style="{StaticResource LinearWindowButton}" Click="BtnToggleThumb_Click"
@@ -72,12 +73,6 @@
                                     <MenuItem Header="最近访问记录" Click="BtnClearRecent_Click"/>
                                 </MenuItem>
                                 <Separator/>
-                                <MenuItem Header="主题">
-                                    <MenuItem x:Name="ThemeDark" Header="深色" Click="Theme_Click" Tag="dark" IsCheckable="True"/>
-                                    <MenuItem x:Name="ThemeLight" Header="浅色" Click="Theme_Click" Tag="light" IsCheckable="True"/>
-                                    <MenuItem x:Name="ThemeSystem" Header="跟随系统" Click="Theme_Click" Tag="system" IsCheckable="True"/>
-                                </MenuItem>
-                                <Separator/>
                                 <MenuItem Header="关于" Click="About_Click"/>
                             </ContextMenu>
                         </Button.ContextMenu>
@@ -88,40 +83,41 @@
                     <Button x:Name="BtnMaximize" Style="{StaticResource LinearWindowButton}" Click="BtnMaximize_Click" ToolTip="最大化">
                         <ui:SymbolIcon x:Name="MaximizeIcon" Symbol="Square24" FontSize="14"/>
                     </Button>
-                    <Button Style="{StaticResource LinearCloseButton}" Click="BtnClose_Click" ToolTip="关闭" Margin="0,0,4,0">
+                    <Button Style="{StaticResource LinearCloseButton}" Click="BtnClose_Click" ToolTip="关闭" Margin="0,0,6,0">
                         <ui:SymbolIcon Symbol="Dismiss24" FontSize="14"/>
                     </Button>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Main content (3 columns) -->
+        <!-- ============================== -->
+        <!-- Main content (3 columns)       -->
+        <!-- ============================== -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="TreeColumn" Width="220" MinWidth="180"/>
+                <ColumnDefinition x:Name="TreeColumn" Width="232" MinWidth="180"/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition x:Name="ThumbColumn" Width="380" MinWidth="200"/>
+                <ColumnDefinition x:Name="ThumbColumn" Width="360" MinWidth="240"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*" MinWidth="320"/>
             </Grid.ColumnDefinitions>
 
             <!-- Tree panel -->
-            <Border Grid.Column="0" Background="{StaticResource SurfaceCanvas}" x:Name="TreePanel" Padding="0,0,0,0">
+            <Border Grid.Column="0" Background="{StaticResource SurfaceCanvas}" x:Name="TreePanel">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                  Focusable="False" IsTabStop="False"
-                                  Background="Transparent">
+                    <ScrollViewer Grid.Row="0" Background="Transparent">
                         <tree:FolderTreeView x:Name="FolderTree"
                                              Background="Transparent"
                                              BorderThickness="0"
-                                             Foreground="{StaticResource TextPrimary}">
+                                             Foreground="{StaticResource TextPrimary}"
+                                             Padding="4,8">
                             <tree:FolderTreeView.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+                                    <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{Binding Icon}">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock" BasedOn="{StaticResource LinearTreeIcon}">
@@ -135,13 +131,18 @@
                                         </TextBlock>
                                         <TextBlock Text="{Binding DisplayName}">
                                             <TextBlock.Style>
-                                                <Style TargetType="TextBlock" BasedOn="{StaticResource LinearTreeName}">
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+                                                    <Setter Property="FontSize" Value="13"/>
+                                                    <Setter Property="FontWeight" Value="500"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                                    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsSectionHeader}" Value="True">
                                                             <Setter Property="FontSize" Value="11"/>
-                                                            <Setter Property="FontWeight" Value="600"/>
+                                                            <Setter Property="FontWeight" Value="700"/>
                                                             <Setter Property="Foreground" Value="{StaticResource TextQuat}"/>
-                                                            <Setter Property="Margin" Value="0,0,0,0"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -162,7 +163,7 @@
                         </tree:FolderTreeView>
                     </ScrollViewer>
                     <Button Grid.Row="1" x:Name="BtnReturnToRoot" Click="BtnReturnToRoot_Click"
-                            Margin="6,4" Padding="10,5" Cursor="Hand"
+                            Margin="6,4" Cursor="Hand"
                             Style="{StaticResource LinearButton}"
                             HorizontalContentAlignment="Stretch"
                             Visibility="Collapsed"
@@ -175,94 +176,40 @@
                 </Grid>
             </Border>
 
-            <GridSplitter Grid.Column="1" x:Name="TreeSplitter" Width="8" HorizontalAlignment="Stretch"
+            <GridSplitter Grid.Column="1" x:Name="TreeSplitter" HorizontalAlignment="Stretch"
                           Background="Transparent" ShowsPreview="False"/>
 
             <!-- Thumbnail panel -->
-            <Border Grid.Column="2" Background="{StaticResource SurfaceCanvas}" x:Name="ThumbPanel" Padding="0,0,0,0">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                              Background="Transparent">
-                    <controls:ThumbnailGrid x:Name="ThumbGrid" FocusVisualStyle="{x:Null}">
+            <Border Grid.Column="2" Background="{StaticResource SurfaceCanvas}" x:Name="ThumbPanel">
+                <Grid>
+                    <controls:ThumbnailGrid x:Name="ThumbGrid" FocusVisualStyle="{x:Null}"
+                                            ItemTemplate="{StaticResource LinearThumbnailTemplate}"
+                                            Padding="4,8">
                         <controls:ThumbnailGrid.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <controls:AutoFitPanel MinItemSize="140" Spacing="4" IsItemsHost="True"/>
                             </ItemsPanelTemplate>
                         </controls:ThumbnailGrid.ItemsPanel>
-                        <controls:ThumbnailGrid.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Margin="3">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <Border x:Name="Card"
-                                            CornerRadius="{StaticResource RadiusCard}"
-                                            behaviors:SquareAspectBehavior.IsEnabled="True">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Setter Property="Background">
-                                                    <Setter.Value>
-                                                        <SolidColorBrush Color="#08FFFFFF"/>
-                                                    </Setter.Value>
-                                                </Setter>
-                                                <Setter Property="BorderBrush">
-                                                    <Setter.Value>
-                                                        <SolidColorBrush Color="#14FFFFFF"/>
-                                                    </Setter.Value>
-                                                </Setter>
-                                                <Setter Property="BorderThickness" Value="1"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Value="True">
-                                                        <DataTrigger.Binding>
-                                                            <Binding Path="IsSelected" RelativeSource="{RelativeSource AncestorType=ContentControl}"/>
-                                                        </DataTrigger.Binding>
-                                                        <Setter Property="Background">
-                                                            <Setter.Value>
-                                                                <SolidColorBrush Color="#FF191a1b"/>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                        <Setter Property="BorderBrush">
-                                                            <Setter.Value>
-                                                                <SolidColorBrush Color="#FF7170ff"/>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                        <Setter Property="BorderThickness" Value="1.5"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                        <Grid>
-                                            <Image Source="{Binding Thumbnail}" Stretch="Uniform"/>
-                                            <TextBlock Text="⚠" FontSize="36" Foreground="{StaticResource StatusRed}"
-                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                       ToolTip="{Binding ThumbnailErrorMessage}">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding HasThumbnailError}" Value="True">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Grid>
-                                    </Border>
-                                    <TextBlock Grid.Row="1" Text="{Binding FileName}" Style="{StaticResource LinearThumbnailName}"/>
-                                </Grid>
-                            </DataTemplate>
-                        </controls:ThumbnailGrid.ItemTemplate>
                     </controls:ThumbnailGrid>
-                </ScrollViewer>
+                    <!-- Empty state -->
+                    <StackPanel x:Name="ThumbEmpty" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Visibility="Collapsed">
+                        <ui:SymbolIcon Symbol="Image32" FontSize="36" Foreground="{StaticResource TextQuat}"/>
+                        <TextBlock Text="此文件夹没有图片" FontSize="13" FontWeight="500"
+                                   Foreground="{StaticResource TextTertiary}" Margin="0,12,0,0"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
             </Border>
 
-            <GridSplitter Grid.Column="3" x:Name="ThumbSplitter" Width="8" HorizontalAlignment="Stretch"
+            <GridSplitter Grid.Column="3" x:Name="ThumbSplitter" HorizontalAlignment="Stretch"
                           Background="Transparent" ShowsPreview="False"/>
 
-            <!-- Image viewer -->
-            <Border Grid.Column="4" Background="{StaticResource SurfaceCanvas}" ClipToBounds="False" Padding="20">
-                <Border Effect="{StaticResource ShadowSubtle}">
+<!-- Image viewer (full bleed). Overlay elements use Popup because the
+                 SkiaImageViewer paints over sibling Borders within the same Grid
+                 (WPF DWM composition bug with WriteableBitmap + alpha). -->
+            <Grid Grid.Column="4" ClipToBounds="False">
+                <Border Background="{StaticResource SurfaceCanvas}" Panel.ZIndex="0">
                     <controls:SkiaImageViewer x:Name="ImageViewer">
                         <controls:SkiaImageViewer.ContextMenu>
                             <ContextMenu>
@@ -274,79 +221,89 @@
                         </controls:SkiaImageViewer.ContextMenu>
                     </controls:SkiaImageViewer>
                 </Border>
-            </Border>
-        </Grid>
 
-        <!-- Bottom bar (36px) -->
-        <Border Grid.Row="2" x:Name="BottomBar" Background="{StaticResource SurfacePanel}"
-                BorderBrush="{StaticResource BorderLineTint}" BorderThickness="0,1,0,0"
-                Padding="12,0">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+                <!-- Floating toolbar (bottom center) — Linear glass card via Popup -->
+                <Popup x:Name="FloatingBarPopup" Placement="Absolute"
+                       AllowsTransparency="True" IsOpen="False" StaysOpen="True">
+                    <Border x:Name="FloatingBar"
+                            Background="#E60f1011"
+                            BorderBrush="#28FFFFFF" BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusCard}"
+                            Padding="6,4">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.5" Color="Black"/>
+                        </Border.Effect>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="BtnPrev" Style="{StaticResource LinearFloatingButton}"
+                                    Click="BtnPrev_Click" ToolTip="上一张 (←)">
+                                <ui:SymbolIcon Symbol="ChevronLeft20" FontSize="14"/>
+                            </Button>
+                            <TextBlock x:Name="ImageIndexInfo" Text="0/0"
+                                       FontFamily="{StaticResource FontMono}" FontSize="12" FontWeight="500"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       VerticalAlignment="Center" Margin="10,0" MinWidth="48" TextAlignment="Center"/>
+                            <Button x:Name="BtnNext" Style="{StaticResource LinearFloatingPrimary}"
+                                    Click="BtnNext_Click" ToolTip="下一张 (→)">
+                                <ui:SymbolIcon Symbol="ChevronRight20" FontSize="14"/>
+                            </Button>
 
-                <StackPanel Orientation="Horizontal" MinWidth="280" VerticalAlignment="Center">
-                    <TextBlock x:Name="StatusText" Text="就绪" VerticalAlignment="Center" FontSize="12"
-                               Foreground="{StaticResource TextTertiary}" FontWeight="500">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="{StaticResource TextTertiary}"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Tag, ElementName=StatusText}" Value="error">
-                                        <Setter Property="Foreground" Value="{StaticResource StatusRed}"/>
-                                        <Setter Property="FontWeight" Value="600"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                    <TextBlock x:Name="ImageInfo" Text="" VerticalAlignment="Center" FontSize="12"
-                               FontWeight="500" Foreground="{StaticResource TextQuat}" Margin="16,0,0,0"/>
-                    <TextBlock x:Name="ImageIndexInfo" Text="" VerticalAlignment="Center" FontSize="12"
-                               FontWeight="500" Foreground="{StaticResource TextQuat}" Margin="12,0,0,0"/>
-                </StackPanel>
+                            <Border Width="1" Background="#14FFFFFF" Margin="8,6"/>
 
-                <StackPanel Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Button x:Name="BtnPrev" Style="{StaticResource LinearPrimaryButton}" Click="BtnPrev_Click" ToolTip="上一张 (←)">
-                        <StackPanel Orientation="Horizontal">
-                            <ui:SymbolIcon Symbol="ChevronLeft20" FontSize="14"/>
-                            <TextBlock Text="上一张" Margin="6,0,0,0" FontSize="13" FontWeight="500"/>
-                        </StackPanel>
-                    </Button>
-                    <Button x:Name="BtnNext" Style="{StaticResource LinearPrimaryButton}" Click="BtnNext_Click" Margin="6,0,0,0" ToolTip="下一张 (→)">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="下一张" FontSize="13" FontWeight="500"/>
-                            <ui:SymbolIcon Symbol="ChevronRight20" FontSize="14" Margin="6,0,0,0"/>
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
+                            <Button x:Name="BtnFit" Style="{StaticResource LinearFloatingButton}"
+                                    Click="BtnFit_Click" ToolTip="适应 (Ctrl+0)">
+                                <ui:SymbolIcon Symbol="PageFit20" FontSize="14"/>
+                            </Button>
+                            <TextBlock x:Name="ZoomTextBlock" Text="100%"
+                                       FontFamily="{StaticResource FontMono}" FontSize="12" FontWeight="500"
+                                       Foreground="{StaticResource TextPrimary}"
+                                       VerticalAlignment="Center" Margin="8,0" MinWidth="44" TextAlignment="Center"
+                                       MouseLeftButtonUp="ZoomTextBlock_Click" Cursor="Hand"/>
+                            <Border Width="1" Background="#14FFFFFF" Margin="6,6"/>
 
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Style="{StaticResource LinearButton}" Click="BtnFit_Click" ToolTip="适应 (Ctrl+0)">
-                        <StackPanel Orientation="Horizontal">
-                            <ui:SymbolIcon Symbol="PageFit20" FontSize="14"/>
-                            <TextBlock Text="适应" Margin="6,0,0,0" FontSize="13" FontWeight="500"/>
+                            <Button x:Name="BtnSlideshow" Style="{StaticResource LinearFloatingButton}"
+                                    Click="BtnSlideshow_Click" ToolTip="幻灯片 (F5)">
+                                <ui:SymbolIcon x:Name="SlideshowIcon" Symbol="Play20" FontSize="12"/>
+                            </Button>
+                            <Button x:Name="BtnFullscreen" Style="{StaticResource LinearFloatingButton}"
+                                    Click="BtnFullscreen_Click" ToolTip="全屏 (Ctrl+F)" Margin="2,0,0,0">
+                                <ui:SymbolIcon Symbol="FullScreenMaximize24" FontSize="14"/>
+                            </Button>
                         </StackPanel>
-                    </Button>
-                    <TextBlock x:Name="ZoomTextBlock" Text="100%" Foreground="{StaticResource TextPrimary}"
-                               FontFamily="{StaticResource FontMono}" FontSize="12" FontWeight="500"
-                               VerticalAlignment="Center" Margin="10,0" MinWidth="48" TextAlignment="Center"
-                               MouseLeftButtonUp="ZoomTextBlock_Click" Cursor="Hand"/>
-                    <Border Width="1" Background="{StaticResource BorderSubtle}" Margin="4,8"/>
-                    <Button x:Name="BtnSlideshow" Style="{StaticResource LinearButton}" Click="BtnSlideshow_Click" Margin="4,0,0,0" ToolTip="幻灯片 (F5)">
+                    </Border>
+                </Popup>
+
+                <!-- Status pill (top-left of viewer) — via Popup -->
+                <Popup x:Name="StatusPillPopup" Placement="Absolute"
+                       AllowsTransparency="True" IsOpen="False" StaysOpen="True">
+                    <Border x:Name="StatusPill"
+                            Background="#CC0f1011"
+                            BorderBrush="#14FFFFFF" BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusPill}"
+                            Padding="10,5">
+                        <TextBlock x:Name="StatusText" FontSize="12" FontWeight="500"
+                                   Foreground="{StaticResource TextTertiary}"/>
+                    </Border>
+                </Popup>
+
+                <!-- Info pill (top-right of viewer) — via Popup -->
+                <Popup x:Name="InfoPillPopup" Placement="Absolute"
+                       AllowsTransparency="True" IsOpen="True" StaysOpen="True">
+                    <Border x:Name="InfoPill"
+                            Background="#CC0f1011"
+                            BorderBrush="#14FFFFFF" BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusPill}"
+                            Padding="10,5">
                         <StackPanel Orientation="Horizontal">
-                            <ui:SymbolIcon x:Name="SlideshowIcon" Symbol="Play20" FontSize="12"/>
-                            <TextBlock x:Name="SlideshowText" Text="幻灯片" FontSize="13" FontWeight="500" Margin="6,0,0,0"/>
+                            <TextBlock x:Name="ImageInfo" Text="" FontSize="12" FontWeight="500"
+                                       FontFamily="{StaticResource FontMono}"
+                                       Foreground="{StaticResource TextSecondary}"/>
                         </StackPanel>
-                    </Button>
-                    <Button x:Name="BtnFullscreen" Style="{StaticResource LinearButton}" Click="BtnFullscreen_Click" Margin="4,0,0,0" ToolTip="全屏 (Ctrl+F)">
-                        <ui:SymbolIcon Symbol="FullScreenMaximize24" FontSize="14"/>
-                    </Button>
-                </StackPanel>
+                    </Border>
+                </Popup>
             </Grid>
-        </Border>
+        </Grid>
     </Grid>
+
 </ui:FluentWindow>
+
+

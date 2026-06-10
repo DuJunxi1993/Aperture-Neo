@@ -256,10 +256,14 @@ public class SkiaImageViewer : FrameworkElement
         var h = Math.Max(1, (int)RenderSize.Height);
 
         if (_wbmp == null || _wbmp.PixelWidth != w || _wbmp.PixelHeight != h)
-            _wbmp = new WriteableBitmap(w, h, 96, 96, PixelFormats.Bgra32, null);
+            _wbmp = new WriteableBitmap(w, h, 96, 96, PixelFormats.Pbgra32, null);
 
         using var surface = SKSurface.Create(new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul));
         var canvas = surface.Canvas;
+        // Clear to fully transparent. Skia draws the image with pre-multiplied alpha;
+        // we write that pre-multiplied data into a Pbgra32 WriteableBitmap so WPF's
+        // compositor respects the alpha channel and lets siblings (FloatingBar) show
+        // through in the empty regions.
         canvas.Clear(SKColors.Transparent);
 
         // Draw old bitmap (fades out, using its original zoom/offset)
@@ -316,6 +320,16 @@ public class SkiaImageViewer : FrameworkElement
 
         if (_wbmp != null)
             dc.DrawImage(_wbmp, new Rect(RenderSize));
+    }
+
+    protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
+    {
+        base.OnRenderSizeChanged(sizeInfo);
+        // Force WriteableBitmap to be re-allocated to new size, otherwise
+        // it will reuse stale dimensions and clip incorrectly.
+        _wbmp = null;
+        _dirty = true;
+        InvalidateVisual();
     }
 
     protected override void OnMouseWheel(MouseWheelEventArgs e)

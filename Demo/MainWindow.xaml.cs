@@ -7,7 +7,9 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
+using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
 using ApertureNeo.Controls;
 using ApertureNeo.Controls.FolderTree;
@@ -28,8 +30,7 @@ public partial class MainWindow : FluentWindow
     private bool _isTreeVisible = true;
     private bool _isThumbVisible = true;
     private WindowState _prevWindowState;
-    private DispatcherTimer? _toolbarHideTimer;
-    private bool _isToolbarVisible = true;
+    private DispatcherTimer? _statusHideTimer;
     private Point _lastMousePosition;
 
     public MainWindow()
@@ -49,19 +50,23 @@ public partial class MainWindow : FluentWindow
         FolderTree.DrillModeChanged += UpdateReturnToRootVisibility;
         ThumbGrid.ItemClicked += OnThumbClicked;
 
-        _toolbarHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
-        _toolbarHideTimer.Tick += (s, e) =>
+        _statusHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
+        _statusHideTimer.Tick += (s, e) =>
         {
-            if (_isFullscreen && _isToolbarVisible) HideToolbar();
-            _toolbarHideTimer?.Stop();
+            if (!string.IsNullOrEmpty(StatusText.Text))
+            {
+                FadeOutStatus();
+            }
+            _statusHideTimer?.Stop();
         };
 
         Loaded += (_, _) =>
         {
             Focus();
-
             Dispatcher.BeginInvoke(new Action(() =>
             {
+                PositionOverlayPopups();
+                UpdateOverlayPopupsVisibility();
                 var recent = App.SettingsStore.Recent;
                 if (recent.Count > 0 && Directory.Exists(recent[0].Path))
                 {
@@ -70,12 +75,17 @@ public partial class MainWindow : FluentWindow
             }), DispatcherPriority.Loaded);
         };
 
+        // Re-position floating popups whenever window/viewer size changes
+        SizeChanged += (_, _) => PositionOverlayPopups();
+        ImageViewer.SizeChanged += (_, _) => PositionOverlayPopups();
+        ImageViewer.LayoutUpdated += (_, _) => PositionOverlayPopups();
+
         Closed += (_, _) =>
         {
             _thumbCoordinator.Dispose();
             _slideshow.Dispose();
             _navigation.Dispose();
-            _toolbarHideTimer?.Stop();
+            _statusHideTimer?.Stop();
         };
 
         PreviewKeyDown += (_, e) => { if (HandleKey(e.Key)) e.Handled = true; };
@@ -107,8 +117,13 @@ public partial class MainWindow : FluentWindow
         if (Math.Abs(pos.X - _lastMousePosition.X) > 5 || Math.Abs(pos.Y - _lastMousePosition.Y) > 5)
         {
             _lastMousePosition = pos;
-            if (!_isToolbarVisible) ShowToolbar();
+            if (TitleBarArea.Visibility != Visibility.Visible) ShowToolbar();
             ResetToolbarHideTimer();
+        }
+        // Also show floating bar on mouse move in fullscreen
+        if (!FloatingBarPopup.IsOpen)
+        {
+            FloatingBarPopup.IsOpen = true;
         }
     }
 
@@ -161,21 +176,21 @@ public partial class MainWindow : FluentWindow
 
     private void ShowToolbar()
     {
-        _isToolbarVisible = true;
-        TitleBarRow.Height = new GridLength(40);
         TitleBarArea.Visibility = Visibility.Visible;
-        BottomBar.Visibility = Visibility.Visible;
+        TitleBarRow.Height = new GridLength(44);
     }
 
     private void HideToolbar()
     {
-        _isToolbarVisible = false;
-        if (_isFullscreen) TitleBarRow.Height = new GridLength(0);
         TitleBarArea.Visibility = Visibility.Collapsed;
-        BottomBar.Visibility = Visibility.Collapsed;
+        TitleBarRow.Height = new GridLength(0);
     }
 
-    private void ResetToolbarHideTimer() { _toolbarHideTimer?.Stop(); _toolbarHideTimer?.Start(); }
+    private void ResetToolbarHideTimer()
+    {
+        _statusHideTimer?.Stop();
+        _statusHideTimer?.Start();
+    }
 
     private bool HandleKey(Key key)
     {
@@ -272,6 +287,7 @@ public partial class MainWindow : FluentWindow
     private void OnCollectionChanged()
     {
         ThumbGrid.ItemsSource = _navigation.Items;
+        ThumbEmpty.Visibility = _navigation.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         _thumbCoordinator.LoadForFolder(_navigation.Items, _navigation.CurrentIndex,
             msg => SetStatus(msg, true));
     }
@@ -279,13 +295,52 @@ public partial class MainWindow : FluentWindow
     private void OnCurrentImageChanged(ImageItem item)
     {
         if (item == null) return;
-        Title = $"Aperture Neo (Linear Demo) - {item.FileName} ({_navigation.CurrentIndex + 1}/{_navigation.Count})";
+        Title = $"Aperture Neo · {item.FileName} ({_navigation.CurrentIndex + 1}/{_navigation.Count})";
         ImageViewer.LoadImage(item.FilePath);
-        ImageInfo.Text = $"{item.Width}×{item.Height}  |  {FormatFileSize(item.FileSize)}";
+        ImageInfo.Text = $"{item.Width}×{item.Height}  ·  {FormatFileSize(item.FileSize)}";
         ImageIndexInfo.Text = $"{_navigation.CurrentIndex + 1}/{_navigation.Count}";
         ThumbGrid.SelectedItem = item;
         ThumbGrid.ScrollSelectedIntoView();
         if (ImageViewer.ContextMenu != null) ImageViewer.ContextMenu.IsOpen = false;
+        PositionOverlayPopups();
+    }
+
+    /// <summary>
+    /// Position the floating Popup overlays (FloatingBar, StatusPill, InfoPill)
+    /// to align with the ImageViewer's screen coordinates.
+    /// Popups are used because the SkiaImageViewer's WriteableBitmap render
+    /// occludes sibling Borders in the same Grid cell.
+    /// </summary>
+    private void PositionOverlayPopups()
+    {
+        try
+        {
+            if (ImageViewer.ActualWidth <= 0 || ImageViewer.ActualHeight <= 0) return;
+            var topLeft = ImageViewer.PointToScreen(new Point(0, 0));
+            var w = ImageViewer.ActualWidth;
+            var h = ImageViewer.ActualHeight;
+
+            // FloatingBar: bottom-center
+            const float FB_W = 320, FB_H = 44, FB_MARGIN = 18;
+            FloatingBarPopup.HorizontalOffset = topLeft.X + (w - FB_W) / 2;
+            FloatingBarPopup.VerticalOffset = topLeft.Y + h - FB_H - FB_MARGIN;
+
+            // InfoPill: top-right
+            const float IP_MARGIN = 14;
+            // Measure to position right-aligned
+            InfoPillPopup.HorizontalOffset = topLeft.X + w - InfoPill.ActualWidth - IP_MARGIN;
+            InfoPillPopup.VerticalOffset = topLeft.Y + IP_MARGIN;
+
+            // StatusPill: top-left
+            StatusPillPopup.HorizontalOffset = topLeft.X + IP_MARGIN;
+            StatusPillPopup.VerticalOffset = topLeft.Y + IP_MARGIN;
+        }
+        catch { }
+    }
+
+    private void UpdateOverlayPopupsVisibility()
+    {
+        FloatingBarPopup.IsOpen = !_isFullscreen;
     }
 
     private static string FormatFileSize(long bytes)
@@ -296,7 +351,33 @@ public partial class MainWindow : FluentWindow
         return $"{bytes} B";
     }
 
-    private void SetStatus(string text, bool isError) { StatusText.Text = text; StatusText.Tag = isError ? "error" : null; }
+    private void SetStatus(string text, bool isError)
+    {
+        StatusText.Text = text;
+        StatusText.Foreground = isError
+            ? (Brush)FindResource("StatusRed")
+            : (Brush)FindResource("TextTertiary");
+        StatusPillPopup.IsOpen = true;
+        StatusPill.Opacity = 1;
+        PositionOverlayPopups();
+        if (!isError) ResetToolbarHideTimer();
+    }
+
+    private void FadeOutStatus()
+    {
+        var anim = new DoubleAnimation
+        {
+            To = 0,
+            Duration = TimeSpan.FromSeconds(0.4),
+            FillBehavior = FillBehavior.Stop
+        };
+        anim.Completed += (_, _) =>
+        {
+            StatusPillPopup.IsOpen = false;
+            StatusPill.Opacity = 1;
+        };
+        StatusPill.BeginAnimation(UIElement.OpacityProperty, anim);
+    }
 
     private void BtnClearRecent_Click(object sender, RoutedEventArgs e)
     {
@@ -322,17 +403,7 @@ public partial class MainWindow : FluentWindow
         if (sender is System.Windows.Controls.Button b && b.ContextMenu != null) { b.ContextMenu.PlacementTarget = b; b.ContextMenu.Placement = PlacementMode.Bottom; b.ContextMenu.IsOpen = true; }
     }
 
-    private void Theme_Click(object sender, RoutedEventArgs e)
-    {
-        // Linear demo: theme switching disabled. Always dark.
-    }
-
-    private void UpdateThemeMenuChecks()
-    {
-        ThemeDark.IsChecked = true;
-        ThemeLight.IsChecked = false;
-        ThemeSystem.IsChecked = false;
-    }
+    private void UpdateThemeMenuChecks() { /* locked dark */ }
 
     private void About_Click(object sender, RoutedEventArgs e)
     {
@@ -385,11 +456,11 @@ public partial class MainWindow : FluentWindow
 
     private void ApplyColumnVisibility()
     {
-        TreeColumn.Width = _isTreeVisible ? new GridLength(200) : new GridLength(0);
+        TreeColumn.Width = _isTreeVisible ? new GridLength(232) : new GridLength(0);
         TreeColumn.MinWidth = _isTreeVisible ? 180 : 0;
         TreeSplitter.Visibility = _isTreeVisible ? Visibility.Visible : Visibility.Collapsed;
-        ThumbColumn.Width = _isThumbVisible ? new GridLength(400) : new GridLength(0);
-        ThumbColumn.MinWidth = _isThumbVisible ? 200 : 0;
+        ThumbColumn.Width = _isThumbVisible ? new GridLength(360) : new GridLength(0);
+        ThumbColumn.MinWidth = _isThumbVisible ? 240 : 0;
         ThumbSplitter.Visibility = _isThumbVisible ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -397,8 +468,8 @@ public partial class MainWindow : FluentWindow
 
     private void UpdateSlideshowButton()
     {
-        if (_slideshow.IsRunning) { SlideshowIcon.Symbol = Wpf.Ui.Controls.SymbolRegular.Pause24; SlideshowText.Text = "暂停"; }
-        else { SlideshowIcon.Symbol = Wpf.Ui.Controls.SymbolRegular.Play20; SlideshowText.Text = "幻灯片"; }
+        if (_slideshow.IsRunning) { SlideshowIcon.Symbol = Wpf.Ui.Controls.SymbolRegular.Pause24; }
+        else { SlideshowIcon.Symbol = Wpf.Ui.Controls.SymbolRegular.Play20; }
     }
 
     private void ToggleFullscreen()
@@ -411,18 +482,28 @@ public partial class MainWindow : FluentWindow
             WindowState = WindowState.Maximized;
             TreeColumn.Width = new GridLength(0); TreeColumn.MinWidth = 0; TreeSplitter.Visibility = Visibility.Collapsed;
             ThumbColumn.Width = new GridLength(0); ThumbColumn.MinWidth = 0; ThumbSplitter.Visibility = Visibility.Collapsed;
+            FloatingBarPopup.IsOpen = false;
+            InfoPillPopup.IsOpen = false;
+            StatusPillPopup.IsOpen = false;
             HideToolbar();
-            ResetToolbarHideTimer();
         }
         else
         {
             WindowStyle = WindowStyle.SingleBorderWindow;
             WindowState = _prevWindowState;
             ApplyColumnVisibility();
+            FloatingBarPopup.IsOpen = true;
+            InfoPillPopup.IsOpen = true;
             ShowToolbar();
-            _toolbarHideTimer?.Stop();
+            _statusHideTimer?.Stop();
         }
-        Dispatcher.BeginInvoke(() => { UpdateLayout(); ImageViewer.FitToScreen(); Focus(); }, DispatcherPriority.Loaded);
+        Dispatcher.BeginInvoke(() =>
+        {
+            UpdateLayout();
+            ImageViewer.FitToScreen();
+            Focus();
+            PositionOverlayPopups();
+        }, DispatcherPriority.Loaded);
     }
 
     private void ZoomTextBlock_Click(object sender, MouseButtonEventArgs e) => ImageViewer.ZoomToOriginal();

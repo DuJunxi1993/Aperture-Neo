@@ -1,0 +1,13 @@
+Aperture Neo uses the following third-party software:
+
+HarmonyOS Sans SC
+Copyright (c) Huawei Device Co., Ltd.
+Licensed under the HarmonyOS Sans License.
+https://developer.huawei.com/consumer/cn/hms/huawei-softvision/
+
+This font is bundled with the installer and registered per-user
+under %LOCALAPPDATA%\Microsoft\Windows\Fonts\. The full license text
+is shipped alongside the font files and is also available at the
+project repository:
+
+    https://github.com/DuJunxi1993/Aperture-Neo

@@ -11,7 +11,7 @@
     Build configuration. Default: Release
 
 .PARAMETER Version
-    Version string baked into the installer filename. Default: 1.0.0
+    Version string baked into the installer filename. Default: 2.0.0
 
 .PARAMETER SkipInstaller
     Only run dotnet publish; skip Inno Setup compile.
@@ -26,7 +26,7 @@
 [CmdletBinding()]
 param(
     [string]$Configuration = 'Release',
-    [string]$Version = '1.0.0',
+    [string]$Version = '2.0.0',
     [switch]$SkipInstaller,
     [switch]$Zip
 )

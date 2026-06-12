@@ -8,21 +8,15 @@
     <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
     <!-- ============================================================ -->
-    <!-- Backwards-compat resource overrides                            -->
-    <!-- Consumed by ThumbnailItem.UpdateVisual() (code-behind lookup)  -->
+    <!-- ThumbnailItem code-behind resource lookups (consumed by      -->
+    <!-- ThumbnailGrid.cs via Application.Current.Resources[...]).
+         Both keys must exist in BOTH DesignTokens.xaml (Dark) and
+         DesignTokens.Light.xaml so a theme switch never leaves a
+         "resource not found" hole for these brushes. Values mirror
+         the canonical token series; Light overrides them.            -->
     <!-- ============================================================ -->
-    <SolidColorBrush x:Key="ThumbnailSelectedBg"  Color="#FF191a1b"/>
-    <SolidColorBrush x:Key="ThumbnailHoverBg"     Color="#FF28282c"/>
-    <SolidColorBrush x:Key="ThumbnailBorder"      Color="#FF7170ff"/>
-    <SolidColorBrush x:Key="TreeItemHoverBg"      Color="#FF28282c"/>
-    <SolidColorBrush x:Key="TreeItemSelectedBg"   Color="#FF191a1b"/>
-    <SolidColorBrush x:Key="TreeItemSelectedFg"   Color="#FFf7f8f8"/>
-    <SolidColorBrush x:Key="WindowButtonHoverBg"  Color="#0DFFFFFF"/>
-    <SolidColorBrush x:Key="WindowButtonPressedBg" Color="#0DFFFFFF"/>
-    <SolidColorBrush x:Key="HoverBg"    Color="#0DFFFFFF"/>
-    <SolidColorBrush x:Key="PressedBg"  Color="#0AFFFFFF"/>
-    <SolidColorBrush x:Key="SelectionBg" Color="#FF191a1b"/>
-    <SolidColorBrush x:Key="SelectionBorder" Color="#FF7170ff"/>
+    <SolidColorBrush x:Key="ThumbnailSelectedBg"  Color="#FF1f2024"/>
+    <SolidColorBrush x:Key="ThumbnailHoverBg"     Color="#FF1c1d22"/>
 
     <!-- ============================================================ -->
     <!-- Linear-themed ScrollBar (subtle, draggable)                   -->
@@ -33,7 +27,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Thumb">
-                    <Border Background="#28FFFFFF" CornerRadius="3"/>
+                    <Border Background="{StaticResource ScrollBarThumb}" CornerRadius="3"/>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
@@ -137,85 +131,76 @@
     <Style TargetType="ScrollViewer" BasedOn="{StaticResource LinearScrollViewer}"/>
 
     <!-- ============================================================ -->
-    <!-- Thumbnail card text label                                     -->
+    <!-- Square thumbnail card template (used inline in MainWindow.xaml) -->
+    <!-- Round 56: dropped the file-name label below the card. The     -->
+    <!-- DataTemplate root is the Card Border itself, no Grid, no      -->
+    <!-- TextBlock, no second row — the cell is a pure square.         -->
+    <!-- The wrapping ThumbnailItem (ContentControl) carries            -->
+    <!-- IsSelected; this template reacts to it.                       -->
+    <!-- Round 10 (was 8), hover lifts 1.5px via HoverLiftBehavior,    -->
+    <!-- selected state drops the hard border in favor of a softer     -->
+    <!-- outer glow, and the error state is a small red dot in the     -->
+    <!-- top-right corner instead of a big centered icon.              -->
+    <!--                                                              -->
+    <!-- Row 0 is bound to Card.ActualWidth instead of "*" so the    -->
+    <!-- card row is *exactly* the card's actual width — the rounded   -->
+    <!-- bottom corner stays inside Row 0, and the file-name label    -->
+    <!-- in Row 1 sits cleanly below the card, never overlapping the   -->
+    <!-- card's corner radius. AutoFitPanel reserves                   -->
+    <!-- LabelReservedHeight (30px) below the card width for Row 1.   -->
     <!-- ============================================================ -->
-    <Style x:Key="LinearThumbnailName" TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
-        <Setter Property="FontSize" Value="12"/>
-        <Setter Property="FontWeight" Value="500"/>
-        <Setter Property="Foreground" Value="{StaticResource TextTertiary}"/>
-        <Setter Property="HorizontalAlignment" Value="Center"/>
-        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-        <Setter Property="Margin" Value="0,8,0,0"/>
-        <Setter Property="MaxWidth" Value="160"/>
-    </Style>
-
     <!-- ============================================================ -->
-    <!-- Thumbnail card template (used inline in MainWindow.xaml)      -->
-    <!-- The wrapping ThumbnailItem (ContentControl) carries           -->
+    <!-- Square thumbnail card template (used inline in MainWindow.xaml) -->
+    <!-- Round 56: dropped the file-name label below the card. The     -->
+    <!-- DataTemplate root is the Card Border itself, no Grid, no      -->
+    <!-- TextBlock, no second row — the cell is a pure square.         -->
+    <!-- The wrapping ThumbnailItem (ContentControl) carries            -->
     <!-- IsSelected; this template reacts to it.                       -->
     <!-- ============================================================ -->
     <DataTemplate x:Key="LinearThumbnailTemplate" DataType="{x:Type models:ImageItem}">
-        <Grid Margin="3">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-
-            <Border x:Name="Card"
-                    CornerRadius="{StaticResource RadiusCard}"
-                    behaviors:SquareAspectBehavior.IsEnabled="True"
-                    BorderThickness="1"
-                    ClipToBounds="True">
-                <Border.Style>
-                    <Style TargetType="Border">
-                        <Setter Property="Background" Value="{StaticResource CardBg}"/>
-                        <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
-                        <Style.Triggers>
-                            <!-- Hover state (via ancestor ThumbnailItem.IsMouseOver) -->
-                            <DataTrigger Value="True">
-                                <DataTrigger.Binding>
-                                    <Binding Path="IsMouseOver"
-                                             RelativeSource="{RelativeSource AncestorType=controls:ThumbnailItem}"/>
-                                </DataTrigger.Binding>
-                                <Setter Property="Background" Value="{StaticResource CardBgHover}"/>
-                                <Setter Property="BorderBrush" Value="{StaticResource CardBorderHover}"/>
-                            </DataTrigger>
-                            <!-- Selected state — softer 1.5px indigo + subtle glow -->
-                            <DataTrigger Value="True">
-                                <DataTrigger.Binding>
-                                    <Binding Path="IsSelected"
-                                             RelativeSource="{RelativeSource AncestorType=controls:ThumbnailItem}"/>
-                                </DataTrigger.Binding>
-                                <Setter Property="Background" Value="{StaticResource CardBgSelected}"/>
-                                <Setter Property="BorderBrush" Value="{StaticResource CardBorderSelected}"/>
-                                <Setter Property="BorderThickness" Value="1.5"/>
-                                <Setter Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect BlurRadius="8" ShadowDepth="0" Opacity="0.4" Color="#5e6ad2"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Border.Style>
-                <Grid>
-                    <Image Source="{Binding Thumbnail}" Stretch="Uniform"/>
-                    <!-- Error state -->
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                                Background="#CC0f1011"
-                                Visibility="{Binding HasThumbnailError, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="⚠" FontSize="24" Foreground="{StaticResource StatusRed}"
-                                   HorizontalAlignment="Center"/>
-                        <TextBlock Text="加载失败" FontSize="11" FontWeight="500"
-                                   Foreground="{StaticResource TextTertiary}"
-                                   Margin="0,2,0,0" HorizontalAlignment="Center"/>
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <TextBlock Grid.Row="1" Text="{Binding FileName}" Style="{StaticResource LinearThumbnailName}"/>
-        </Grid>
-    </DataTemplate>
-
+        <Border x:Name="Card"
+                CornerRadius="{StaticResource RadiusCard}"
+                Margin="0"
+                behaviors:SquareAspectBehavior.IsEnabled="True"
+                behaviors:HoverLiftBehavior.IsEnabled="True"
+                behaviors:HoverLiftBehavior.LiftAmount="-1.5"
+                ClipToBounds="True">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="BorderBrush" Value="Transparent"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                    <Style.Triggers>
+                        <DataTrigger Value="True">
+                            <DataTrigger.Binding>
+                                <Binding Path="IsMouseOver"
+                                         RelativeSource="{RelativeSource AncestorType=controls:ThumbnailItem}"/>
+                            </DataTrigger.Binding>
+                            <Setter Property="Background" Value="{StaticResource CardBgHover}"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource CardBorderHover}"/>
+                            <Setter Property="BorderThickness" Value="1"/>
+                        </DataTrigger>
+                        <DataTrigger Value="True">
+                            <DataTrigger.Binding>
+                                <Binding Path="IsSelected"
+                                         RelativeSource="{RelativeSource AncestorType=controls:ThumbnailItem}"/>
+                            </DataTrigger.Binding>
+                            <Setter Property="Background" Value="{StaticResource CardBgSelected}"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource BrandPrimary}"/>
+                            <Setter Property="BorderThickness" Value="2"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <Grid>
+                <Image Source="{Binding Thumbnail}" Stretch="Uniform"/>
+                <Border HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Margin="6"
+                        Width="10" Height="10" CornerRadius="5"
+                        Background="{StaticResource StatusRed}"
+                        BorderBrush="{StaticResource SurfaceElevated}" BorderThickness="1.5"
+                        Visibility="{Binding HasThumbnailError, Converter={StaticResource BoolToVis}}"/>
+             </Grid>
+         </Border>
+     </DataTemplate>
 </ResourceDictionary>

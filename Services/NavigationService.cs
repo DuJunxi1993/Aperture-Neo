@@ -85,8 +85,23 @@ public class NavigationService
             if (dispatcher == null) return;
             dispatcher.BeginInvoke(new Action(() =>
             {
-                foreach (var item in list) _items.Add(item);
-                _currentIndex = _items.Count > 0 ? 0 : -1;
+                // Round 68: suppress per-item CollectionChanged during bulk
+                // add. With a 1000-image folder the naive foreach+Add
+                // fires 1000 CollectionChanged events → 1000 layout passes
+                // on the thumbnail grid (which re-measures AutoFitPanel and
+                // creates ThumbnailItem containers on every event). The
+                // single CollectionChanged we fire at the end lets
+                // subscribers refresh once for the whole batch. The
+                // field null/restoration is wrapped in try/finally so a
+                // subscriber throwing doesn't leave the collection mute.
+                var saved = CollectionChanged;
+                CollectionChanged = null;
+                try
+                {
+                    foreach (var item in list) _items.Add(item);
+                    _currentIndex = _items.Count > 0 ? 0 : -1;
+                }
+                finally { CollectionChanged = saved; }
                 CollectionChanged?.Invoke();
                 if (Current != null)
                     CurrentImageChanged?.Invoke(Current);

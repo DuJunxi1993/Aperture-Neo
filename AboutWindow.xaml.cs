@@ -12,23 +12,11 @@ public partial class AboutWindow : FluentWindow
         Owner = owner;
     }
 
-    private void BtnOk_Click(object sender, RoutedEventArgs e)
-    {
-        Close();
-    }
-
-    private void BtnClose_Click(object sender, RoutedEventArgs e)
-    {
-        Close();
-    }
-
+    private void BtnOk_Click(object sender, RoutedEventArgs e) => Close();
+    private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ClickCount == 2)
-        {
-            Close();
-            return;
-        }
+        if (e.ClickCount == 2) { Close(); return; }
         DragMove();
     }
 }

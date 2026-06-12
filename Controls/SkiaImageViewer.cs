@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using ApertureNeo.Models;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ApertureNeo.Services;
@@ -26,6 +27,12 @@ public class SkiaImageViewer : FrameworkElement
     private CancellationTokenSource? _loadCts;
     private WriteableBitmap? _wbmp;
     private bool _dirty = true;
+    // Reentrancy guard. Screenshot tools (Windows Snip, PrintWindow with
+    // PW_RENDERFULLCONTENT, etc.) can re-enter WPF's OnRender while
+    // our SKSurface draw is mid-flight, leading to a deadlock or an
+    // invalid memory access on the WriteableBitmap backbuffer. We
+    // drop the reentrant call instead.
+    private bool _inRender;
     // Cached SK surface + paints — reallocated only when size changes (Fix#3: per-frame alloc)
     private SKSurface? _surface;
     private SKPaint? _paintOld;
@@ -44,6 +51,13 @@ public class SkiaImageViewer : FrameworkElement
 
     public event Action<float>? ZoomChanged;
     public event Action<string>? StatusChanged;
+    /// <summary>
+    /// Raised when a new image finishes loading. The arg is the
+    /// <see cref="ImageLoadResult"/> with authoritative dimensions and the
+    /// loaded bitmap. Subscribers can update bound models (e.g. set the
+    /// ImageItem's width/height) and refresh related UI (info pill, etc.).
+    /// </summary>
+    public event Action<ImageLoadResult>? ImageLoaded;
 
     public SkiaImageViewer()
     {
@@ -86,6 +100,11 @@ public class SkiaImageViewer : FrameworkElement
 
     private void OnRendering(object? sender, EventArgs e)
     {
+        // Drop reentrant calls. CompositionTarget.Rendering normally
+        // serializes with OnRender, but screenshot tools can force a
+        // second tick while the first is still drawing.
+        if (_inRender) return;
+
         var elapsed = (float)(DateTime.UtcNow - _animStart).TotalSeconds;
         var t = Math.Clamp(elapsed / AnimDuration, 0f, 1f);
         t = t * t * (3f - 2f * t);
@@ -148,6 +167,12 @@ public class SkiaImageViewer : FrameworkElement
                     _bitmap = result.Bitmap;
                     _dirty = true;
                     _animOpacity = 0f;
+
+                    // Tell the world a new image is loaded. Subscribers can
+                    // copy Width/Height into bound models (ImageItem) so the
+                    // info pill and other displays get authoritative values
+                    // without needing to re-read the file header themselves.
+                    ImageLoaded?.Invoke(result);
 
                     FitToScreen();
 
@@ -326,17 +351,27 @@ public class SkiaImageViewer : FrameworkElement
 
     protected override void OnRender(DrawingContext dc)
     {
-        if (_bitmap == null)
+        // Drop reentrant calls from screenshot tools. The first call
+        // continues; the second call (which can happen if the print
+        // path forces WPF to re-evaluate the visual tree while our
+        // backbuffer is being written) returns immediately and the
+        // screenshot just captures the previous frame.
+        if (_inRender) return;
+        if (_bitmap == null) return;
+
+        _inRender = true;
+        try
         {
-            return;
+            if (_dirty || _wbmp == null)
+                RenderToWriteableBitmap();
+
+            if (_wbmp != null)
+                dc.DrawImage(_wbmp, new Rect(RenderSize));
         }
-
-        if (_dirty || _wbmp == null)
-            RenderToWriteableBitmap();
-
-        // Short-circuit: skip if no writeable bitmap (Fix#3: avoid DC.DrawImage null op)
-        if (_wbmp != null)
-            dc.DrawImage(_wbmp, new Rect(RenderSize));
+        finally
+        {
+            _inRender = false;
+        }
     }
 
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)

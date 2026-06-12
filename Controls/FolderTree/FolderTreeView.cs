@@ -36,6 +36,38 @@ public class FolderTreeView : ItemsControl
         if (wasInDrill) DrillModeChanged?.Invoke();
     }
 
+    /// <summary>
+    /// No-op in this control (drilling is the navigation primitive,
+    /// not tree expand/collapse) but exposed so the title bar's
+    /// "collapse all" affordance can hook into a sensible handler
+    /// when the tree model grows one. Today it just returns to root.
+    /// </summary>
+    public void CollapseAll() => ReturnToRoot();
+
+    /// <summary>
+    /// When true, the control renders items but ignores clicks.
+    /// Used by the floating-popup clone so the inline tree remains
+    /// the single source of truth for selection.
+    /// </summary>
+    public bool IsReadOnly { get; set; }
+
+    /// <summary>
+    /// Mirror the visible node list of another tree so this control
+    /// can act as a read-only clone (e.g. inside a floating popup).
+    /// The clone keeps its own Items collection and its own
+    /// SelectedNode pointer; the rest of the application talks to
+    /// the inline tree, not the clone, so the clone is just a
+    /// view. Callers should not subscribe to the clone's events.
+    /// </summary>
+    public void SyncFrom(FolderTreeView source)
+    {
+        if (source == null || ReferenceEquals(source, this)) return;
+        IsReadOnly = true;
+        Items.Clear();
+        foreach (var n in source.Items) Items.Add(n);
+        SelectedNode = source.SelectedNode;
+    }
+
     public bool IsInDrillMode => _navStack.Count > 0;
     public event Action? DrillModeChanged;
 
@@ -89,6 +121,7 @@ public class FolderTreeView : ItemsControl
 
     protected override void OnPreviewMouseLeftButtonDown(MouseButtonEventArgs e)
     {
+        if (IsReadOnly) { base.OnPreviewMouseLeftButtonDown(e); return; }
         base.OnPreviewMouseLeftButtonDown(e);
         var el = e.OriginalSource as DependencyObject;
         while (el != null)
@@ -107,7 +140,6 @@ public class FolderTreeView : ItemsControl
     {
         if (node.IsSectionHeader) return;
         if (node is EmptyHintNode) return;
-        if (node is BackNode) { NavigateBack(); return; }
         if (string.IsNullOrEmpty(node.Path)) return;
 
         SelectedNode = node;
@@ -144,7 +176,10 @@ public class FolderTreeView : ItemsControl
         SelectedNode = node;
         _navStack.Push((Items.ToList(), null));
         Items.Clear();
-        Items.Add(new BackNode());
+        // "Back" is no longer injected as a fake tree node — the
+        // floating chip in the sidebar (BtnTreeBack) handles the
+        // back action and is always visible while we're in drill
+        // mode, so duplicating it inside the tree list is redundant.
         var children = GetChildren(node);
         foreach (var c in children) Items.Add(c);
         var path = node.Path;
@@ -155,7 +190,14 @@ public class FolderTreeView : ItemsControl
         DrillModeChanged?.Invoke();
     }
 
-    private async void NavigateBack()
+    /// <summary>
+    /// Pop one frame off the navigation stack and restore the previous
+    /// tree contents. Public so external controls (e.g. the sidebar
+    /// "Back" floating chip in MainWindow.xaml) can drive the same
+    /// back action without going through the deprecated BackNode tree
+    /// entry. Idempotent when called at the root (no-op).
+    /// </summary>
+    public async void NavigateBack()
     {
         if (_navStack.Count == 0) return;
         var (previous, _) = _navStack.Pop();
@@ -217,6 +259,7 @@ public class FolderTreeView : ItemsControl
 
     protected override void OnPreviewMouseRightButtonUp(MouseButtonEventArgs e)
     {
+        if (IsReadOnly) { base.OnPreviewMouseRightButtonUp(e); return; }
         base.OnPreviewMouseRightButtonUp(e);
         var el = e.OriginalSource as DependencyObject;
         TreeNodeBase? node = null;
@@ -232,7 +275,7 @@ public class FolderTreeView : ItemsControl
 
         if (section == FolderSource.Favorite)
         {
-            var remove = new MenuItem { Header = "从收藏夹移除" };
+            var remove = new MenuItem { Header = "从收藏夹移除", Tag = "destructive" };
             remove.Click += (_, _) => App.SettingsStore.RemoveFavorite(node.Path);
             menu.Items.Add(remove);
         }
@@ -240,7 +283,7 @@ public class FolderTreeView : ItemsControl
         {
             if (App.SettingsStore.IsFavorite(node.Path))
             {
-                var remove = new MenuItem { Header = "从收藏夹移除" };
+                var remove = new MenuItem { Header = "从收藏夹移除", Tag = "destructive" };
                 remove.Click += (_, _) => App.SettingsStore.RemoveFavorite(node.Path);
                 menu.Items.Add(remove);
             }
@@ -251,7 +294,7 @@ public class FolderTreeView : ItemsControl
                 menu.Items.Add(add);
             }
             menu.Items.Add(new Separator());
-            var removeFromRecent = new MenuItem { Header = "从最近访问移除" };
+            var removeFromRecent = new MenuItem { Header = "从最近访问移除", Tag = "destructive" };
             removeFromRecent.Click += (_, _) => App.SettingsStore.RemoveRecent(node.Path);
             menu.Items.Add(removeFromRecent);
         }
@@ -259,7 +302,7 @@ public class FolderTreeView : ItemsControl
         {
             if (App.SettingsStore.IsFavorite(node.Path))
             {
-                var remove = new MenuItem { Header = "从收藏夹移除" };
+                var remove = new MenuItem { Header = "从收藏夹移除", Tag = "destructive" };
                 remove.Click += (_, _) => App.SettingsStore.RemoveFavorite(node.Path);
                 menu.Items.Add(remove);
             }

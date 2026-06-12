@@ -37,7 +37,13 @@ public class SettingsStore
     public event Action? FavoritesChanged;
     public event Action? RecentChanged;
 
-    public AppTheme Theme { get; set; } = AppTheme.System;
+    /// <summary>
+    /// Path of the last image the user was viewing. Persisted so a
+    /// theme switch (which closes+reopens the main window) can
+    /// restore the user's position instead of dropping them back at
+    /// the first image in the folder.
+    /// </summary>
+    public string? LastOpenedImage { get; set; }
 
     public void Load()
     {
@@ -54,7 +60,7 @@ public class SettingsStore
                 _recent.Clear();
                 _recent.AddRange(data.Recent ?? new List<RecentEntry>());
             }
-            Theme = data.Theme;
+            LastOpenedImage = data.LastOpenedImage;
         }
         catch
         {
@@ -67,16 +73,21 @@ public class SettingsStore
         {
             List<string> favs;
             List<RecentEntry> recs;
-            AppTheme theme;
+            string? lastImage;
             lock (_lock)
             {
                 favs = _favorites.ToList();
                 recs = _recent.ToList();
-                theme = Theme;
+                lastImage = LastOpenedImage;
             }
             Directory.CreateDirectory(AppDataDir);
             var json = JsonSerializer.Serialize(
-                new SettingsData { Favorites = favs, Recent = recs, Theme = theme },
+                new SettingsData
+                {
+                    Favorites = favs,
+                    Recent = recs,
+                    LastOpenedImage = lastImage
+                },
                 new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(SettingsPath, json);
         }
@@ -184,6 +195,14 @@ public class SettingsStore
     {
         public List<string>? Favorites { get; set; }
         public List<RecentEntry>? Recent { get; set; }
-        public AppTheme Theme { get; set; } = AppTheme.System;
+
+        /// <summary>
+        /// Path of the last image the user was viewing, persisted so a
+        /// theme switch (which closes+reopens the main window) can
+        /// restore the user's position instead of dropping them back at
+        /// the first image in the folder. Null when the app closed
+        /// without an open image.
+        /// </summary>
+        public string? LastOpenedImage { get; set; }
     }
 }

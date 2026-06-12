@@ -5,7 +5,7 @@
     <Style x:Key="TextDisplay" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="FontSize" Value="48"/>
-        <Setter Property="FontWeight" Value="500"/>
+        <Setter Property="FontWeight" Value="600"/>
         <Setter Property="LineHeight" Value="48"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
     </Style>
@@ -13,7 +13,7 @@
     <Style x:Key="TextH1" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="FontSize" Value="32"/>
-        <Setter Property="FontWeight" Value="500"/>
+        <Setter Property="FontWeight" Value="600"/>
         <Setter Property="LineHeight" Value="36"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
     </Style>
@@ -21,7 +21,7 @@
     <Style x:Key="TextH2" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="FontSize" Value="24"/>
-        <Setter Property="FontWeight" Value="500"/>
+        <Setter Property="FontWeight" Value="600"/>
         <Setter Property="LineHeight" Value="32"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
     </Style>
@@ -29,7 +29,7 @@
     <Style x:Key="TextH3" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="FontSize" Value="20"/>
-        <Setter Property="FontWeight" Value="600"/>
+        <Setter Property="FontWeight" Value="700"/>
         <Setter Property="LineHeight" Value="26"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
     </Style>
@@ -45,7 +45,7 @@
     <Style x:Key="TextBodyEmphasis" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="FontSize" Value="14"/>
-        <Setter Property="FontWeight" Value="500"/>
+        <Setter Property="FontWeight" Value="600"/>
         <Setter Property="LineHeight" Value="20"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
     </Style>
@@ -53,7 +53,7 @@
     <Style x:Key="TextCaption" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="FontSize" Value="12"/>
-        <Setter Property="FontWeight" Value="500"/>
+        <Setter Property="FontWeight" Value="600"/>
         <Setter Property="LineHeight" Value="16"/>
         <Setter Property="Foreground" Value="{StaticResource TextTertiary}"/>
     </Style>
@@ -61,7 +61,7 @@
     <Style x:Key="TextMicro" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="FontSize" Value="11"/>
-        <Setter Property="FontWeight" Value="500"/>
+        <Setter Property="FontWeight" Value="600"/>
         <Setter Property="LineHeight" Value="14"/>
         <Setter Property="Foreground" Value="{StaticResource TextQuat}"/>
     </Style>
@@ -77,7 +77,7 @@
     <Style x:Key="TextLabel" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="FontSize" Value="12"/>
-        <Setter Property="FontWeight" Value="600"/>
+        <Setter Property="FontWeight" Value="700"/>
         <Setter Property="LineHeight" Value="16"/>
         <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
     </Style>

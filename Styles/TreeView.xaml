@@ -1,0 +1,137 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:tree="clr-namespace:ApertureNeo.Controls.FolderTree;assembly=">
+
+    <!-- Linear FolderItemContainer: full template with multi-signal
+         hover (bg + bar + icon brightness) and softened selected
+         state (subtler glow, no shadow on hover-only). Row padding
+         tightened to 12,7 to give the tree a denser, more modern
+         feel. -->
+    <Style x:Key="LinearFolderItemContainer" TargetType="tree:FolderItemContainer">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource LinearFocusVisual}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="tree:FolderItemContainer">
+                    <Grid Margin="6,1">
+                        <Border x:Name="Row"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="{StaticResource RadiusComfy}">
+                            <Grid>
+                                <!-- Selection bar: 2.5px brand indigo, flush-left -->
+                                <Border x:Name="SelectionBar"
+                                        Width="2.5"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Stretch"
+                                        Margin="0,6,0,6"
+                                        Background="{StaticResource SelectionBar}"
+                                        Opacity="0"
+                                        CornerRadius="1"/>
+                                <!-- Hover bar: 1.5px lighter, half opacity. Only
+                                     appears on mouse-over (non-selected) to give
+                                     a preview of the selection bar. -->
+                                <Border x:Name="HoverBar"
+                                        Width="1.5"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Stretch"
+                                        Margin="0,8,0,8"
+                                        Background="{StaticResource BorderStandard}"
+                                        Opacity="0"
+                                        CornerRadius="1"/>
+                                <ContentPresenter Margin="14,7,12,7" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <DataTrigger Binding="{Binding IsSectionHeader}" Value="True">
+                            <Setter Property="Cursor" Value="Arrow"/>
+                            <Setter Property="IsHitTestVisible" Value="False"/>
+                        </DataTrigger>
+                        <!-- Hover (non-selected): multi-signal — bg wash +
+                             hover bar. The icon's foreground lift happens
+                             via a DataTrigger on the icon TextBlock in the
+                             ItemTemplate. -->
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                                <Condition Property="IsSelected" Value="False"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Row" Property="Background" Value="{StaticResource BtnBgHover}"/>
+                            <Setter TargetName="HoverBar" Property="Opacity" Value="0.6"/>
+                        </MultiTrigger>
+                        <!-- Selected: full bar + softer outer glow (BlurRadius
+                             18 / Opacity 0.35 — was 14 / 0.45, more shouty). -->
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Row" Property="Background" Value="{StaticResource SelectionBg}"/>
+                            <Setter TargetName="SelectionBar" Property="Opacity" Value="1"/>
+                            <!-- No DropShadowEffect here: glow effects look
+                                 great on dark surfaces but muddy on light
+                                 ones. Selection signal is carried by the
+                                 indigo-tinted background (SelectionBg) +
+                                 the 2.5px brand-indigo left bar (SelectionBar)
+                                 + token-driven outer glow on the row. -->
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Section header label style (used inside a SectionHeaderBorder
+         with the bottom-divider). Brightened from TextQuat to
+         TextTertiary, weight 700 -> 600, and a slightly larger
+         bottom margin so the divider breathes. -->
+    <Style x:Key="LinearSectionHeader" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="700"/>
+        <Setter Property="Foreground" Value="{StaticResource TextTertiary}"/>
+        <Setter Property="Margin" Value="6,0,0,8"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+    </Style>
+
+    <!-- Linear icon style for tree row icons. The selected-state
+         foreground bump is in the ItemTemplate's DataTrigger; this
+         style just sets the resting color. -->
+    <Style x:Key="LinearTreeIcon" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Foreground" Value="{StaticResource TextTertiary}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,8,0"/>
+        <Setter Property="TextAlignment" Value="Center"/>
+        <Setter Property="MinWidth" Value="16"/>
+    </Style>
+
+    <!-- Tree row display name. Selected: weight 500 -> 600. -->
+    <Style x:Key="LinearTreeName" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="600"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+    </Style>
+
+    <!-- Empty hint text -->
+    <Style x:Key="LinearEmptyHint" TargetType="TextBlock" BasedOn="{StaticResource LinearTreeName}">
+        <Setter Property="Foreground" Value="{StaticResource TextQuat}"/>
+        <Setter Property="FontStyle" Value="Italic"/>
+        <Setter Property="FontWeight" Value="400"/>
+    </Style>
+
+    <!-- Section header container: 1px bottom divider, generous
+         vertical padding. Used in MainWindow.xaml as the wrapper
+         around the section title TextBlock. -->
+    <Style x:Key="LinearSectionHeaderContainer" TargetType="Border">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderSubtle}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Setter Property="Padding" Value="0,0,0,8"/>
+        <Setter Property="Margin" Value="12,18,12,6"/>
+    </Style>
+
+</ResourceDictionary>

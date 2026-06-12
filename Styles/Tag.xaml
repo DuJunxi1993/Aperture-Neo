@@ -1,0 +1,53 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Linear Tag (chip / eyebrow) — small rounded badge used for
+         section headers ("收藏夹", "最近访问"), inline status tags,
+         keyboard-shortcut chips, etc. Default surface is a subtle white
+         wash with a hairline border; tint variants can be added by
+         overriding the Background/BorderBrush setters at the call site. -->
+    <Style x:Key="LinearTag" TargetType="Border">
+        <Setter Property="Background" Value="#0DFFFFFF"/>
+        <Setter Property="BorderBrush" Value="#14FFFFFF"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusComfy}"/>
+        <Setter Property="Padding" Value="8,3"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+    </Style>
+
+    <!-- Linear Tag Label (text inside LinearTag). Use as
+         <TextBlock Style="{StaticResource LinearTagLabel}"/>
+         inside a Border with Style=LinearTag. -->
+    <Style x:Key="LinearTagLabel" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="700"/>
+        <Setter Property="Foreground" Value="{StaticResource TextTertiary}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
+    </Style>
+
+    <!-- Linear Dot — 8×8 status indicator. Wrap in a Border; the
+         Background controls the color. Variants in code-behind just
+         change Border.Background to BrandPrimary / StatusRed / etc. -->
+    <Style x:Key="LinearDot" TargetType="Border">
+        <Setter Property="Width" Value="8"/>
+        <Setter Property="Height" Value="8"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Background" Value="{StaticResource TextTertiary}"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+    </Style>
+
+    <!-- Linear Section Header — used as a section eyebrow on top of
+         the FolderTree ("收藏夹", "最近访问", "此电脑"). Composes
+         LinearTag + a label + an optional 1px bottom divider via the
+         Divider property. Padding is generous so the chip breathes. -->
+    <Style x:Key="LinearSectionHeaderBorder" TargetType="Border">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderSubtle}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Setter Property="Padding" Value="2,0,2,8"/>
+        <Setter Property="Margin" Value="10,18,10,6"/>
+    </Style>
+
+</ResourceDictionary>

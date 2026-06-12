@@ -3,97 +3,113 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         Title="关于 Aperture Neo"
-        Width="460" Height="360"
-        MinWidth="380" MinHeight="320"
+        Width="480" Height="440"
+        MinWidth="400" MinHeight="380"
         WindowStartupLocation="CenterOwner"
-        Foreground="{DynamicResource WindowFg}"
-        Background="{DynamicResource WindowBg}"
+        Foreground="{StaticResource TextPrimary}"
+        Background="{StaticResource SurfaceCanvas}"
         WindowBackdropType="None"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        TextOptions.TextFormattingMode="Ideal"
+        UseLayoutRounding="True">
 
-    <Grid Margin="0">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0"/>
+    </WindowChrome.WindowChrome>
+
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="48"/>
+            <RowDefinition Height="44"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="{DynamicResource TitleBarBg}" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+        <!-- Title bar: 44px, drag region, no system chrome (per Linear) -->
+        <Border Grid.Row="0" Background="{StaticResource SurfaceCanvas}"
+                BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,0,0,1"
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
             <Grid>
                 <TextBlock Text="关于" VerticalAlignment="Center" HorizontalAlignment="Center"
-                           Foreground="{DynamicResource TextSecondary}" FontSize="13"/>
-                <Button HorizontalAlignment="Right" Width="46" Height="48" Cursor="Hand"
-                        Background="Transparent" BorderThickness="0" Click="BtnClose_Click">
-                    <Button.Template>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="0">
-                                <TextBlock Text="&#x2715;" FontSize="13" Foreground="{DynamicResource TextPrimary}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="border" Property="Background" Value="{DynamicResource CloseHover}"/>
-                                </Trigger>
-                                <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="border" Property="Background" Value="{DynamicResource ClosePressed}"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Button.Template>
+                           Foreground="{StaticResource TextTertiary}" FontSize="12" FontWeight="700"/>
+                <Button HorizontalAlignment="Right" Width="28" Height="28" Margin="0,0,8,0"
+                        Style="{StaticResource LinearWindowButton}" Click="BtnClose_Click">
+                    <ui:SymbolIcon Symbol="Dismiss24" FontSize="14"/>
                 </Button>
             </Grid>
         </Border>
 
-        <StackPanel Grid.Row="1" Margin="32,24,32,0">
-            <TextBlock Text="📷" FontSize="48" HorizontalAlignment="Left" Margin="0,0,0,12"/>
-            <TextBlock Text="Aperture Neo" FontSize="24" FontWeight="SemiBold"
-                       Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,4"/>
-            <TextBlock Text="A fast, lightweight WPF image viewer."
-                       FontSize="13" Foreground="{DynamicResource TextSecondary}"
-                       TextWrapping="Wrap" Margin="0,0,0,16"/>
-
-            <Border Background="{DynamicResource PanelBg}" CornerRadius="8" Padding="14,10" Margin="0,0,0,14">
-                <StackPanel>
-                    <TextBlock Text="Developed by DJx" FontSize="12" FontWeight="SemiBold"
-                               Foreground="{DynamicResource AccentBlue}" Margin="0,0,0,4"/>
-                    <TextBlock Text="Powered by" FontSize="11"
-                               Foreground="{DynamicResource TextTertiary}" Margin="0,0,0,2"/>
-                    <TextBlock Text="SkiaSharp 3.116.1  ·  WPF-UI 3.0.5  ·  Microsoft.Data.Sqlite 8.0.10"
-                               FontSize="11" Foreground="{DynamicResource TextSecondary}"
-                               TextWrapping="Wrap"/>
-                </StackPanel>
+        <StackPanel Grid.Row="1" Margin="32,24,32,8">
+            <!-- Brand mark: 48px indigo square, Linear-style flat -->
+            <Border Width="48" Height="48" CornerRadius="10"
+                    Background="{StaticResource BrandPrimary}"
+                    HorizontalAlignment="Left" Margin="0,0,0,14">
+                <ui:SymbolIcon Symbol="Image32" FontSize="24" Foreground="White"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
+
+            <!-- Heading: app name + tagline -->
+            <TextBlock Text="Aperture Neo" FontSize="22" FontWeight="600"
+                       Foreground="{StaticResource TextPrimary}" Margin="0,0,0,2"/>
+            <TextBlock Text="A precision image viewer for the desktop." FontSize="13"
+                       Foreground="{StaticResource TextSecondary}" FontWeight="400"
+                       Margin="0,0,0,2"/>
+            <TextBlock Text="Built on the Linear design system — 1px hairline borders, 12px radii, zero drop shadows." 
+                       FontSize="12" Foreground="{StaticResource TextTertiary}" FontWeight="400"
+                       TextWrapping="Wrap" Margin="0,0,0,18"/>
+
+            <!-- Section: 关键能力 (Key capabilities) — Linear eyebrow + content pattern -->
+            <TextBlock Text="关键能力" Style="{StaticResource LinearPopoverEyebrow}" Margin="0,0,0,6"/>
+            <StackPanel Margin="0,0,0,16">
+                <Grid Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="渲染" FontSize="12" FontWeight="510"
+                               Foreground="{StaticResource TextTertiary}" Width="64"/>
+                    <TextBlock Grid.Column="1" Text="SkiaSharp GPU 加速，最大 7680px 边长解码"
+                               FontSize="12" Foreground="{StaticResource TextSecondary}"/>
+                </Grid>
+                <Grid Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="缩略图" FontSize="12" FontWeight="510"
+                               Foreground="{StaticResource TextTertiary}" Width="64"/>
+                    <TextBlock Grid.Column="1" Text="2000 项 LRU SQLite 缓存，磁盘零拷贝，SizeProvider 动态采样"
+                               FontSize="12" Foreground="{StaticResource TextSecondary}"/>
+                </Grid>
+                <Grid Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="迁移" FontSize="12" FontWeight="510"
+                               Foreground="{StaticResource TextTertiary}" Width="64"/>
+                    <TextBlock Grid.Column="1" Text="ImageViewerNeo · HighSpeedImageViewer 旧版本自动迁移"
+                               FontSize="12" Foreground="{StaticResource TextSecondary}"/>
+                </Grid>
+            </StackPanel>
         </StackPanel>
 
-        <Border Grid.Row="2" Background="{DynamicResource BottomBarBg}" Padding="20,14">
+        <!-- Bottom bar: 1px hairline top border, copyright left, OK button right -->
+        <Border Grid.Row="2" Background="{StaticResource SurfaceCanvas}"
+                BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,1,0,0"
+                Padding="20,12">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="© 2026 DJx" FontSize="11"
-                           Foreground="{DynamicResource TextTertiary}" VerticalAlignment="Center"/>
-                <Button Grid.Column="1" x:Name="BtnOk" Content="确定" Click="BtnOk_Click"
-                        MinWidth="84" Padding="14,6" Cursor="Hand" FontSize="12"
-                        Background="{DynamicResource AccentBlue}"
-                        Foreground="White" BorderThickness="0" IsDefault="True">
-                    <Button.Template>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="border" Background="{TemplateBinding Background}"
-                                    CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentBlueHover}"/>
-                                </Trigger>
-                                <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentBluePressed}"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Button.Template>
+                <TextBlock Grid.Column="0" Text="© 2026 DJx · HarmoryOS Sans SC (System) · JetBrains Mono OFL"
+                           FontSize="11" Foreground="{StaticResource TextQuat}" FontWeight="600"
+                           VerticalAlignment="Center"/>
+                <Button Grid.Column="1" x:Name="BtnOk" Click="BtnOk_Click"
+                        MinWidth="80" Cursor="Hand" IsDefault="True"
+                        Style="{StaticResource LinearPrimaryButton}">
+                    <TextBlock Text="确定" FontSize="13" FontWeight="600"/>
                 </Button>
             </Grid>
         </Border>

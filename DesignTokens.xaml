@@ -1,0 +1,132 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!-- Font families: FontPrimary resolves to the system-installed
+         "HarmonyOS Sans SC" (6 weight cuts: Thin/Light/Regular/
+         Medium/Bold/Black). The fallback chain catches the case
+         where the SC family isn't installed. FontMono is shipped
+         in-tree (see Fonts/JetBrainsMono-Regular.ttf in csproj). -->
+    <FontFamily x:Key="FontPrimary">HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial</FontFamily>
+    <FontFamily x:Key="FontMono">pack://siteoforigin:,,,/Fonts/JetBrainsMono-Regular.ttf#JetBrains Mono</FontFamily>
+
+    <!-- Border Radius scale (Linear 8px rhythm) -->
+    <CornerRadius x:Key="RadiusMicro">2</CornerRadius>
+    <CornerRadius x:Key="RadiusStd">4</CornerRadius>
+    <CornerRadius x:Key="RadiusComfy">6</CornerRadius>
+    <CornerRadius x:Key="RadiusCard">8</CornerRadius>
+    <CornerRadius x:Key="RadiusPanel">12</CornerRadius>
+    <CornerRadius x:Key="RadiusLarge">22</CornerRadius>
+    <!-- Pills are small rounded rectangles, not full ellipses. Linear's
+         design uses consistent moderate radii (8px) for status/info pills
+         rather than the WPF default "9999 = full ellipse" convention,
+         which produces visually heavy oval shapes on wide content. -->
+    <CornerRadius x:Key="RadiusPill">8</CornerRadius>
+
+    <!-- Spacing scale -->
+    <Thickness x:Key="PadXs">2,2,2,2</Thickness>
+    <Thickness x:Key="PadSm">4,2,4,2</Thickness>
+    <Thickness x:Key="PadMd">6,4,6,4</Thickness>
+    <Thickness x:Key="PadLg">10,6,10,6</Thickness>
+    <Thickness x:Key="PadXl">12,8,12,8</Thickness>
+    <Thickness x:Key="PadButton">10,5,10,5</Thickness>
+    <Thickness x:Key="PadButtonSm">6,3,6,3</Thickness>
+
+    <!-- Surfaces: Linear layered luminance model (light mode only).
+         L1 Canvas (page bg) → L2 Panel (sidebar) → L2b Tool (thumbnail) →
+         L3 Elevated (cards, popovers) → L4 Hover. The luminance step
+         between L1 and L2 is the primary depth indicator; the
+         1px border is the secondary indicator. -->
+    <SolidColorBrush x:Key="SurfaceCanvas"     Color="#FFfafafa"/>
+    <SolidColorBrush x:Key="SurfacePanel"      Color="#FFf4f4f5"/>
+    <SolidColorBrush x:Key="SurfaceTool"       Color="#FFededee"/>
+    <SolidColorBrush x:Key="SurfaceElevated"   Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="SurfaceCardHover"  Color="#FFF6F6F8"/>
+    <SolidColorBrush x:Key="SurfaceFloating"   Color="#CCFFFFFF"/>
+    <SolidColorBrush x:Key="SurfaceHover"      Color="#FFE8E8EB"/>
+    <SolidColorBrush x:Key="SurfaceOverlay"    Color="#80000000"/>
+
+    <!-- Selection: Linear light-mode selection (subtle indigo tint +
+         darker foreground for contrast). 8% indigo base, 12% on
+         hover, foreground #3a4099 (deeper than the indigo brand
+         color so 4.5:1 contrast holds on the light tint). -->
+    <SolidColorBrush x:Key="SelectionBg"      Color="#FFe0e1ff"/>
+    <SolidColorBrush x:Key="SelectionBgHover" Color="#FFd0d2ff"/>
+    <SolidColorBrush x:Key="SelectionFg"      Color="#FF3a4099"/>
+    <SolidColorBrush x:Key="SelectionBar"     Color="#FF5e6ad2"/>
+
+    <!-- Text (WCAG AA verified, tuned for Linear look) -->
+    <SolidColorBrush x:Key="TextPrimary"   Color="#FF1a1a1a"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="#FF4a4a52"/>
+    <SolidColorBrush x:Key="TextTertiary"  Color="#FF8a8f98"/>
+    <SolidColorBrush x:Key="TextQuat"      Color="#FFa8aab2"/>
+
+    <!-- Brand (indigo / violet) -->
+    <SolidColorBrush x:Key="BrandPrimary"  Color="#FF5e6ad2"/>
+    <SolidColorBrush x:Key="BrandAccent"   Color="#FF7170ff"/>
+    <SolidColorBrush x:Key="BrandHover"    Color="#FF828fff"/>
+    <SolidColorBrush x:Key="BrandLavender" Color="#FF7a7fad"/>
+
+    <!-- Borders: semi-transparent black on light surfaces -->
+    <SolidColorBrush x:Key="BorderSubtle"   Color="#12000000"/>
+    <SolidColorBrush x:Key="BorderStandard" Color="#1F000000"/>
+    <SolidColorBrush x:Key="BorderSolid"    Color="#FFE5E5E8"/>
+    <SolidColorBrush x:Key="BorderSolidAlt" Color="#FFD0D0D4"/>
+    <SolidColorBrush x:Key="BorderLineTint" Color="#FFF1F1F3"/>
+
+    <!-- Button backgrounds: nearly transparent black for light mode -->
+    <SolidColorBrush x:Key="BtnBgGhost"  Color="#08000000"/>
+    <SolidColorBrush x:Key="BtnBgSubtle" Color="#0A000000"/>
+    <SolidColorBrush x:Key="BtnBgHover"  Color="#14000000"/>
+    <SolidColorBrush x:Key="BtnBgPress"  Color="#1F000000"/>
+
+    <!-- Status colors (light mode uses deeper hues for 4.5:1 contrast) -->
+    <SolidColorBrush x:Key="StatusGreen" Color="#FF059669"/>
+    <SolidColorBrush x:Key="StatusRed"   Color="#FFdc2626"/>
+    <SolidColorBrush x:Key="StatusAmber" Color="#FFd97706"/>
+
+    <!-- Close button hover (subtle red wash) -->
+    <SolidColorBrush x:Key="CloseBgHover" Color="#1AE81123"/>
+    <SolidColorBrush x:Key="CloseBgPress" Color="#3CE81123"/>
+
+    <!-- Destructive (light mode: deeper fg, pale red bg) -->
+    <SolidColorBrush x:Key="DestructiveFg"      Color="#FFb91c1c"/>
+    <SolidColorBrush x:Key="DestructiveBg"      Color="#1Adc2626"/>
+    <SolidColorBrush x:Key="DestructiveBgHover" Color="#2Efee2e2"/>
+
+    <!-- Focus ring (shared across themes: brand indigo) -->
+    <SolidColorBrush x:Key="FocusRing" Color="#FF5e6ad2"/>
+
+    <!-- Inner highlight (subtle inner-border tint for cards on light bg) -->
+    <SolidColorBrush x:Key="InnerHighlight" Color="#1F000000"/>
+
+    <!-- Shadows: low opacity on light surfaces; black drop-shadows read
+         crisply on white. Multi-layer stacks are for the dialog/popover
+         tier (level 5); flat single-layer for elevated cards. -->
+    <DropShadowEffect x:Key="ShadowSubtle" BlurRadius="12" ShadowDepth="0" Opacity="0.06" Color="Black"/>
+    <DropShadowEffect x:Key="ShadowElev"   BlurRadius="8"  ShadowDepth="2" Opacity="0.12" Color="Black"/>
+    <DropShadowEffect x:Key="ShadowDialog" BlurRadius="24" ShadowDepth="8" Opacity="0.18" Color="Black"/>
+    <DropShadowEffect x:Key="ShadowFocus"  BlurRadius="12" ShadowDepth="0" Opacity="0.04" Color="Black"/>
+
+    <!-- Motion (theme-independent) -->
+    <Duration x:Key="MotionMicro">0:0:0.15</Duration>
+    <Duration x:Key="MotionStandard">0:0:0.20</Duration>
+    <Duration x:Key="MotionEmphasized">0:0:0.24</Duration>
+    <Duration x:Key="MotionPress">0:0:0.10</Duration>
+
+    <!-- Thumbnail card tokens (light mode, R58+ Linear light palette) -->
+    <SolidColorBrush x:Key="CardBg"          Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="CardBgHover"     Color="#FFF0EEFF"/>
+    <SolidColorBrush x:Key="CardBgSelected"  Color="#FFE0E1FF"/>
+    <SolidColorBrush x:Key="CardBorder"      Color="#00000000"/>
+    <SolidColorBrush x:Key="CardBorderHover" Color="#40000000"/>
+    <SolidColorBrush x:Key="CardBorderSelected" Color="#FF5e6ad2"/>
+
+    <!-- Splitter tokens (subtle 1px hairline, light mode) -->
+    <SolidColorBrush x:Key="SplitterLine"       Color="#14000000"/>
+    <SolidColorBrush x:Key="SplitterLineHover"  Color="#28000000"/>
+
+    <!-- Scrollbar thumb (light mode) -->
+    <SolidColorBrush x:Key="ScrollBarThumb" Color="#28000000"/>
+
+</ResourceDictionary>

@@ -1,0 +1,206 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:behaviors="clr-namespace:ApertureNeo.Controls;assembly="
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib"
+                    xmlns:models="clr-namespace:ApertureNeo.Models;assembly="
+                    xmlns:controls="clr-namespace:ApertureNeo.Controls;assembly=">
+
+    <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+    <!-- ============================================================ -->
+    <!-- ThumbnailItem code-behind resource lookups (consumed by      -->
+    <!-- ThumbnailGrid.cs via Application.Current.Resources[...]).
+         Both keys must exist in BOTH DesignTokens.xaml (Dark) and
+         DesignTokens.Light.xaml so a theme switch never leaves a
+         "resource not found" hole for these brushes. Values mirror
+         the canonical token series; Light overrides them.            -->
+    <!-- ============================================================ -->
+    <SolidColorBrush x:Key="ThumbnailSelectedBg"  Color="#FF1f2024"/>
+    <SolidColorBrush x:Key="ThumbnailHoverBg"     Color="#FF1c1d22"/>
+
+    <!-- ============================================================ -->
+    <!-- Linear-themed ScrollBar (subtle, draggable)                   -->
+    <!-- ============================================================ -->
+    <Style x:Key="LinearScrollBarThumb" TargetType="Thumb">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border Background="{StaticResource ScrollBarThumb}" CornerRadius="3"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="LinearScrollBarPageButton" TargetType="RepeatButton">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Rectangle Fill="Transparent"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="LinearVerticalScrollBar" TargetType="ScrollBar">
+        <Setter Property="Width" Value="10"/>
+        <Setter Property="MinWidth" Value="10"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Grid Background="{TemplateBinding Background}">
+                        <Track Name="PART_Track" IsDirectionReversed="True">
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource LinearScrollBarThumb}"/>
+                            </Track.Thumb>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageDownCommand"
+                                              Style="{StaticResource LinearScrollBarPageButton}"/>
+                            </Track.IncreaseRepeatButton>
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageUpCommand"
+                                              Style="{StaticResource LinearScrollBarPageButton}"/>
+                            </Track.DecreaseRepeatButton>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto"/>
+                <Setter Property="Height" Value="10"/>
+                <Setter Property="MinHeight" Value="10"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Grid Background="{TemplateBinding Background}">
+                                <Track Name="PART_Track">
+                                    <Track.Thumb>
+                                        <Thumb Style="{StaticResource LinearScrollBarThumb}"/>
+                                    </Track.Thumb>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageRightCommand"
+                                                      Style="{StaticResource LinearScrollBarPageButton}"/>
+                                    </Track.IncreaseRepeatButton>
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageLeftCommand"
+                                                      Style="{StaticResource LinearScrollBarPageButton}"/>
+                                    </Track.DecreaseRepeatButton>
+                                </Track>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="LinearScrollViewer" TargetType="ScrollViewer">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollViewer">
+                    <Grid Background="{TemplateBinding Background}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ScrollContentPresenter Grid.Column="0" Content="{TemplateBinding Content}"
+                                                Margin="{TemplateBinding Padding}"/>
+                        <ScrollBar Grid.Column="1" Name="PART_VerticalScrollBar"
+                                   Orientation="Vertical"
+                                   Maximum="{TemplateBinding ScrollableHeight}"
+                                   ViewportSize="{TemplateBinding ViewportHeight}"
+                                   Value="{TemplateBinding VerticalOffset}"
+                                   Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
+                                   Style="{StaticResource LinearVerticalScrollBar}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ScrollViewer" BasedOn="{StaticResource LinearScrollViewer}"/>
+
+    <!-- ============================================================ -->
+    <!-- Square thumbnail card template (used inline in MainWindow.xaml) -->
+    <!-- Round 56: dropped the file-name label below the card. The     -->
+    <!-- DataTemplate root is the Card Border itself, no Grid, no      -->
+    <!-- TextBlock, no second row — the cell is a pure square.         -->
+    <!-- The wrapping ThumbnailItem (ContentControl) carries            -->
+    <!-- IsSelected; this template reacts to it.                       -->
+    <!-- Round 10 (was 8), hover lifts 1.5px via HoverLiftBehavior,    -->
+    <!-- selected state drops the hard border in favor of a softer     -->
+    <!-- outer glow, and the error state is a small red dot in the     -->
+    <!-- top-right corner instead of a big centered icon.              -->
+    <!--                                                              -->
+    <!-- Row 0 is bound to Card.ActualWidth instead of "*" so the    -->
+    <!-- card row is *exactly* the card's actual width — the rounded   -->
+    <!-- bottom corner stays inside Row 0, and the file-name label    -->
+    <!-- in Row 1 sits cleanly below the card, never overlapping the   -->
+    <!-- card's corner radius. AutoFitPanel reserves                   -->
+    <!-- LabelReservedHeight (30px) below the card width for Row 1.   -->
+    <!-- ============================================================ -->
+    <!-- ============================================================ -->
+    <!-- Square thumbnail card template (used inline in MainWindow.xaml) -->
+    <!-- Round 56: dropped the file-name label below the card. The     -->
+    <!-- DataTemplate root is the Card Border itself, no Grid, no      -->
+    <!-- TextBlock, no second row — the cell is a pure square.         -->
+    <!-- The wrapping ThumbnailItem (ContentControl) carries            -->
+    <!-- IsSelected; this template reacts to it.                       -->
+    <!-- ============================================================ -->
+    <DataTemplate x:Key="LinearThumbnailTemplate" DataType="{x:Type models:ImageItem}">
+        <Border x:Name="Card"
+                CornerRadius="{StaticResource RadiusCard}"
+                Margin="0"
+                behaviors:SquareAspectBehavior.IsEnabled="True"
+                behaviors:HoverLiftBehavior.IsEnabled="True"
+                behaviors:HoverLiftBehavior.LiftAmount="-1.5"
+                ClipToBounds="True">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="BorderBrush" Value="Transparent"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                    <Style.Triggers>
+                        <DataTrigger Value="True">
+                            <DataTrigger.Binding>
+                                <Binding Path="IsMouseOver"
+                                         RelativeSource="{RelativeSource AncestorType=controls:ThumbnailItem}"/>
+                            </DataTrigger.Binding>
+                            <Setter Property="Background" Value="{StaticResource CardBgHover}"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource CardBorderHover}"/>
+                            <Setter Property="BorderThickness" Value="1"/>
+                        </DataTrigger>
+                        <DataTrigger Value="True">
+                            <DataTrigger.Binding>
+                                <Binding Path="IsSelected"
+                                         RelativeSource="{RelativeSource AncestorType=controls:ThumbnailItem}"/>
+                            </DataTrigger.Binding>
+                            <Setter Property="Background" Value="{StaticResource CardBgSelected}"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource BrandPrimary}"/>
+                            <Setter Property="BorderThickness" Value="2"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <Grid>
+                <Image Source="{Binding Thumbnail}" Stretch="Uniform"/>
+                <Border HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Margin="6"
+                        Width="10" Height="10" CornerRadius="5"
+                        Background="{StaticResource StatusRed}"
+                        BorderBrush="{StaticResource SurfaceElevated}" BorderThickness="1.5"
+                        Visibility="{Binding HasThumbnailError, Converter={StaticResource BoolToVis}}"/>
+             </Grid>
+         </Border>
+     </DataTemplate>
+</ResourceDictionary>

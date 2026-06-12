@@ -29,11 +29,6 @@ public abstract class TreeNodeBase : INotifyPropertyChanged
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
-internal sealed class BackNode : TreeNodeBase
-{
-    public BackNode() { DisplayName = "返回上一层"; Icon = "↩"; IsLeaf = true; Path = null; }
-}
-
 internal sealed class SectionHeaderNode : TreeNodeBase
 {
     public SectionHeaderNode(string text) { DisplayName = text; IsSectionHeader = true; IsLeaf = true; DisplayFontWeight = FontWeights.Bold; Path = null; }

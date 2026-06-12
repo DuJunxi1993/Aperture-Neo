@@ -1,0 +1,45 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Linear GridSplitter: 8px hit zone with 1px hairline visual.
+         Round 66: the outer Grid's Background is Transparent so the
+         hit zone doesn't paint a visible color block (was previously
+         filled with the adjacent column's color, producing 6-8px
+         wide color bands at rest). Instead a 1px hairline (Rectangle
+         VisibleLine) is rendered centered, giving the Linear-style
+         1px divider look while keeping the 8px hit zone so dragging
+         remains easy. On hover a 1px brand-indigo line appears
+         centered on top of the hairline as a drag affordance. -->
+    <Style TargetType="GridSplitter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="GridSplitter">
+                    <Grid Background="Transparent" Width="8" SnapsToDevicePixels="True">
+                        <!-- 1px hairline visual — Linear-style divider -->
+                        <Rectangle x:Name="VisibleLine"
+                                   Width="1"
+                                   HorizontalAlignment="Center"
+                                   Fill="{StaticResource BorderSubtle}"/>
+                        <!-- Hover affordance: 1px brand-indigo line -->
+                        <Border x:Name="HoverLine"
+                                Width="0"
+                                HorizontalAlignment="Center"
+                                Background="{StaticResource FocusRing}"
+                                Opacity="0"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="HoverLine" Property="Width" Value="1"/>
+                            <Setter TargetName="HoverLine" Property="Opacity" Value="0.7"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

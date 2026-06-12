@@ -1,17 +1,99 @@
 <Application x:Class="ApertureNeo.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:controls="clr-namespace:ApertureNeo.Controls;assembly=">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ui:ThemesDictionary Theme="Dark" />
                 <ui:ControlsDictionary />
-                <ResourceDictionary Source="Resources/Themes/Dark.xaml"/>
+                <!-- DesignTokens.xaml is the single Linear light-mode
+                     token set (dark mode was removed; the app is
+                     Linear light only). Loaded statically so every
+                     {StaticResource Xxx} lookup in the style
+                     dictionaries below can resolve at parse time. -->
+                <ResourceDictionary Source="/DesignTokens.xaml"/>
+                <ResourceDictionary Source="/Styles/Tag.xaml"/>
+                <ResourceDictionary Source="/Styles/Buttons.xaml"/>
+                <ResourceDictionary Source="/Styles/Splitter.xaml"/>
+                <ResourceDictionary Source="/Styles/Text.xaml"/>
+                <ResourceDictionary Source="/Styles/TreeView.xaml"/>
+                <ResourceDictionary Source="/Styles/Thumbnail.xaml"/>
+                <ResourceDictionary Source="/Styles/ContextMenu.xaml"/>
+                <ResourceDictionary Source="/Styles/Popover.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-            <Style TargetType="Popup">
-                <Setter Property="AllowsTransparency" Value="True"/>
+
+            <!-- Global default font. Note: we intentionally do NOT set
+                 Foreground here. A Style setter would beat the inherited
+                 TextElement.Foreground that buttons (and other controls
+                 using ContentPresenter + TextBlock content) use to
+                 propagate their own Foreground down into their text
+                 children. Without the override, a LinearPrimaryButton
+                 with Foreground=White correctly renders white text
+                 inside its content area. -->
+            <Style TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+                <Setter Property="FontWeight" Value="400"/>
+                <Setter Property="FontSize" Value="13"/>
+                <!-- Ideal (sub-pixel anti-aliased) instead of Display
+                     (pixel-snapped). Display was snapping narrow CJK
+                     strokes to whole pixels at 11-13px sizes, which
+                     made the strokes look thin and occasionally drop
+                     sub-pixel anti-aliasing on finer details. Ideal
+                     keeps the full sub-pixel rendering, so Chinese
+                     glyphs look fuller and more readable; the trade
+                     is that Latin letters are very slightly less
+                     crisp at non-integer sizes. -->
+                <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
+                <Setter Property="UseLayoutRounding" Value="True"/>
+            </Style>
+            <Style TargetType="Window">
+                <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            </Style>
+            <!-- Popup transparency is set per-popup. The
+                 TreeFloatingPopup sets AllowsTransparency=False to
+                 avoid WPF layered-window crashes on screenshot
+                 capture; ContextMenu's PART_Popup keeps True for
+                 rounded-corner rendering. -->
+
+            <!-- Global keyboard-focus visual. 2px indigo ring sitting just
+                 outside the control's bounds (Margin=-3). Applied to every
+                 interactive control via its own FocusVisualStyle setter;
+                 we don't override the default here because that would
+                 also force it on controls we don't want it on (e.g.
+                 labels, items inside ItemsControl). -->
+            <Style x:Key="LinearFocusVisual">
+                <Setter Property="Control.Template">
+                    <Setter.Value>
+                        <ControlTemplate>
+                            <Rectangle Margin="-3"
+                                       StrokeThickness="2"
+                                       Stroke="{StaticResource FocusRing}"
+                                       SnapsToDevicePixels="True"/>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Strip the default ContentControl chrome from ThumbnailItem.
+                 Without this, WPF renders an invisible outer Border that
+                 draws a non-rounded rectangle around the thumbnail
+                 card — the user sees a "card inside a square frame" look
+                 instead of a single rounded card. Replacing the default
+                 template with just a ContentPresenter lets our thumbnail
+                 template's own Card Border be the only chrome, and the
+                 card's CornerRadius finally reaches the visual edge. -->
+            <Style TargetType="controls:ThumbnailItem">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ContentControl">
+                            <ContentPresenter/>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
+

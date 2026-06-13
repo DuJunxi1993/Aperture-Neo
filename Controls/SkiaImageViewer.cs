@@ -220,6 +220,15 @@ public class SkiaImageViewer : FrameworkElement
         }, ct);
     }
 
+    /// <summary>
+    /// When true, the next FitToScreen call will snap the image to the
+    /// fitted position immediately, with no zoom/offset animation.
+    /// Used by the window to fullscreen transition so the image does
+    /// not visibly slide from the old (windowed) viewer position to
+    /// the new (fullscreen) one.
+    /// </summary>
+    public bool FitToScreenSkipAnimation { get; set; }
+
     public void FitToScreen()
     {
         if (_bitmap == null)
@@ -239,8 +248,28 @@ public class SkiaImageViewer : FrameworkElement
         _targetZoom = _fitScale;
         _targetOffsetX = (w - _bitmap.Width * _targetZoom) / 2f;
         _targetOffsetY = (h - _bitmap.Height * _targetZoom) / 2f;
-        StartZoomAnim();
-        ZoomChanged?.Invoke(_targetZoom);
+
+        if (FitToScreenSkipAnimation)
+        {
+            // Snap to target without the zoom/offset animation. The
+            // background cross-fade in the Window (AnimateViewerBackground)
+            // is the only transition we run during window→fullscreen; the
+            // image itself appears centred in the new bounds from frame 1.
+            FitToScreenSkipAnimation = false;
+            _animating = false;
+            CompositionTarget.Rendering -= OnRendering;
+            _zoom = _targetZoom;
+            _offsetX = _targetOffsetX;
+            _offsetY = _targetOffsetY;
+            _dirty = true;
+            InvalidateVisual();
+            ZoomChanged?.Invoke(_targetZoom);
+        }
+        else
+        {
+            StartZoomAnim();
+            ZoomChanged?.Invoke(_targetZoom);
+        }
     }
 
     public void ZoomToOriginal()

@@ -515,15 +515,15 @@ AllowDrop="True">
                         </Border>
                     </Popup>
 
-                    <!-- Edge navigation buttons (fullscreen only). MouseEnter/MouseLeave
-                         are handled in code so we can pause the auto-hide timer
-                         while the user is hovering (and rapidly clicking) on a
-                         button. -->
+                    <!-- Edge navigation buttons (fullscreen only). Hit-testing
+                         and the auto-hide pause-while-hovering behaviour is
+                         handled in OnWindowMouseMove (IsMouseOver check)
+                         so the timer correctly pauses while the cursor is
+                         over either button (regardless of which child element
+                         the cursor happens to be over). -->
                     <Border x:Name="EdgeNavLeftContent"
                             HorizontalAlignment="Left" VerticalAlignment="Center" Margin="24,0,0,0"
-                            IsHitTestVisible="True" Visibility="Collapsed" Opacity="0"
-                            MouseEnter="EdgeNavContent_MouseEnter"
-                            MouseLeave="EdgeNavContent_MouseLeave">
+                            IsHitTestVisible="True" Visibility="Collapsed" Opacity="0">
                         <Button x:Name="BtnEdgePrev" Style="{StaticResource LinearEdgeButton}"
                                 Click="BtnPrev_Click" ToolTip="上一张 (←)">
                             <ui:SymbolIcon Symbol="ChevronLeft20" FontSize="18"/>
@@ -532,9 +532,7 @@ AllowDrop="True">
 
                     <Border x:Name="EdgeNavRightContent"
                             HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,24,0"
-                            IsHitTestVisible="True" Visibility="Collapsed" Opacity="0"
-                            MouseEnter="EdgeNavContent_MouseEnter"
-                            MouseLeave="EdgeNavContent_MouseLeave">
+                            IsHitTestVisible="True" Visibility="Collapsed" Opacity="0">
                         <Button x:Name="BtnEdgeNext" Style="{StaticResource LinearEdgeButton}"
                                 Click="BtnNext_Click" ToolTip="下一张 (→)">
                             <ui:SymbolIcon Symbol="ChevronRight20" FontSize="18"/>

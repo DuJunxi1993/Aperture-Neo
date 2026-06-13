@@ -179,32 +179,84 @@ public partial class MainWindow : FluentWindow
     private void OnWindowMouseMove(object sender, MouseEventArgs e)
     {
         if (!_isFullscreen) return;
-        var pos = e.GetPosition(this);
-        if (Math.Abs(pos.X - _lastMousePosition.X) > 5 || Math.Abs(pos.Y - _lastMousePosition.Y) > 5)
+        // Goal 2 (revision): use Win32 GetCursorPos + ScreenToClient so
+        // we get a real screen-coordinate Y rather than the WPF-relative
+        // pos.Y (which can be off by a few DIPs depending on
+        // ClientAreaBorder's Padding and on where the original
+        // WM_MOUSEMOVE landed inside the WPF tree). This is the only
+        // reliable way to test "cursor in the top 300 DIPs of the
+        // window client area".
+        var pt = GetAbsoluteCursorPosRelativeToThis();
+        if (pt.HasValue &&
+            (Math.Abs(pt.Value.X - _lastMousePosition.X) > 5 ||
+             Math.Abs(pt.Value.Y - _lastMousePosition.Y) > 5))
         {
-            _lastMousePosition = pos;
-            // Fullscreen: ONLY show the edge-nav buttons. The TitleBar,
-            // FloatingBar, and InfoPill stay collapsed for the entire
-            // fullscreen session and are restored synchronously on exit
-            // — they must never appear in response to mouse activity.
-            ShowEdgeNav();
-            // Goal 2: also reveal the exit-fullscreen pill when the
-            // cursor is in the top 300px strip.
-            UpdateExitFullscreenHint(pos.Y);
-            ResetOverlayHideTimer();
+            _lastMousePosition = pt.Value;
+            // Goal 1 (revision): if the cursor is hovering over an edge-nav
+            // button, do NOT re-arm the auto-hide timer. The previous
+            // MouseEnter hook missed the case where the cursor stays
+            // *inside* the button (Border.MouseEnter only fires when the
+            // cursor crosses the Border edge, not when it stays inside
+            // a child Button). Using IsMouseOver inside the timer-loop
+            // also correctly handles the case where the cursor is
+            // moving but the button is still under the cursor.
+            bool cursorOverEdgeNav =
+                EdgeNavLeftContent.IsMouseOver || EdgeNavRightContent.IsMouseOver;
+            if (cursorOverEdgeNav)
+            {
+                // Snap opacity back to 1 in case a fade-out had started
+                // and reset the visibility, but DO NOT restart the
+                // 3-second timer.
+                EdgeNavLeftContent.BeginAnimation(UIElement.OpacityProperty, null);
+                EdgeNavRightContent.BeginAnimation(UIElement.OpacityProperty, null);
+                EdgeNavLeftContent.Opacity = 1;
+                EdgeNavRightContent.Opacity = 1;
+                _edgeNavVisible = true;
+                _overlayHideTimer?.Stop();
+            }
+            else
+            {
+                ShowEdgeNav();
+                ResetOverlayHideTimer();
+            }
+            // Goal 2 (revision): also reveal the exit-fullscreen pill
+            // when the cursor is in the top 300 DIPs of the window.
+            UpdateExitFullscreenHint(pt.Value.Y);
         }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool GetCursorPos(out System.Windows.Point lpPoint);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool ScreenToClient(IntPtr hWnd, out System.Windows.Point lpPoint);
+
+    private System.Windows.Point? GetAbsoluteCursorPosRelativeToThis()
+    {
+        if (GetCursorPos(out var screen))
+        {
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            if (ScreenToClient(hwnd, out var client))
+                return client;
+        }
+        return null;
     }
 
     /// <summary>
     /// Goal 2: slide/fade the exit-fullscreen pill in when the cursor
     /// enters the top 300 DIP strip, and back out when it leaves. The
-    /// pill is fullscreen-only; we no-op otherwise.
+    /// pill is fullscreen-only; we no-op otherwise. Uses a strict
+    /// 300px trigger; no edge cases (Y must be > 0 and &lt; 300).
     /// </summary>
     private void UpdateExitFullscreenHint(double y)
     {
         if (!_isFullscreen) return;
         const double triggerZone = 300.0;
-        bool shouldShow = y < triggerZone;
+        // Strict: must be positive AND less than 300. Reject any
+        // negative or zero values (the cursor is outside the window).
+        bool shouldShow = y > 0 && y < triggerZone;
         if (shouldShow && ExitFullscreenHint.Visibility != Visibility.Visible)
             ShowExitFullscreenHint();
         else if (!shouldShow && ExitFullscreenHint.Visibility == Visibility.Visible)
@@ -325,33 +377,6 @@ public partial class MainWindow : FluentWindow
         var fadeIn = new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(200));
         EdgeNavLeftContent.BeginAnimation(UIElement.OpacityProperty, fadeIn);
         EdgeNavRightContent.BeginAnimation(UIElement.OpacityProperty, fadeIn);
-    }
-
-    /// <summary>
-    /// Goal 1: pause the auto-hide timer while the cursor is over either
-    /// edge-nav button, and re-pause any in-flight fade-out so rapid clicks
-    /// on the prev/next arrows don't fight the timer.
-    /// </summary>
-    private void EdgeNavContent_MouseEnter(object sender, MouseEventArgs e)
-    {
-        if (!_isFullscreen) return;
-        // Cancel any fade-out in progress and snap back to fully opaque.
-        EdgeNavLeftContent.BeginAnimation(UIElement.OpacityProperty, null);
-        EdgeNavRightContent.BeginAnimation(UIElement.OpacityProperty, null);
-        EdgeNavLeftContent.Opacity = 1;
-        EdgeNavRightContent.Opacity = 1;
-        // Hold the buttons visible while the cursor is over them.
-        _overlayHideTimer?.Stop();
-    }
-
-    private void EdgeNavContent_MouseLeave(object sender, MouseEventArgs e)
-    {
-        if (!_isFullscreen) return;
-        // Restart the 3-second countdown once the cursor leaves the
-        // button area. If the cursor is still inside the window the
-        // MouseMove handler will keep the buttons visible (and reset
-        // the timer) via ResetOverlayHideTimer.
-        ResetOverlayHideTimer();
     }
 
     /// <summary>
@@ -1052,6 +1077,14 @@ public partial class MainWindow : FluentWindow
         // border around the white viewer. Reset it after the state
         // change so the viewer is flush with the screen edges.
         ResetClientAreaBorderPadding();
+        // Goal 3 (revision): tell SkiaImageViewer to skip its zoom
+        // animation on the next FitToScreen so the image appears at
+        // its new centred position immediately, instead of sliding
+        // from the windowed-viewer position to the new fullscreen
+        // position. The window→fullscreen transition is now driven
+        // entirely by the viewer-background ColorAnimation in
+        // AnimateViewerBackground (white→black over 200ms).
+        ImageViewer.FitToScreenSkipAnimation = true;
         Dispatcher.BeginInvoke(() =>
         {
             UpdateLayout();

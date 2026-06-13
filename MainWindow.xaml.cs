@@ -934,11 +934,17 @@ public partial class MainWindow : FluentWindow
             _prevWindowState = WindowState;
             WindowStyle = WindowStyle.None;
             WindowState = WindowState.Maximized;
+            // Fullscreen surround: pure black, so letterbox gaps from
+            // aspect-ratio mismatch and the residual 1-2px viewer
+            // backdrop all read as "image area" rather than a UI seam.
+            ViewerColumn.Background = (System.Windows.Media.Brush)FindResource("SurfaceBlack");
         }
         else
         {
             WindowStyle = WindowStyle.SingleBorderWindow;
             WindowState = _prevWindowState;
+            // Restore the Linear-theme white viewer background.
+            ViewerColumn.Background = (System.Windows.Media.Brush)FindResource("SurfaceElevated");
         }
         // ApplyColumnVisibility handles ALL chrome (side columns,
         // splitters, hot zone, floating popup). It is called on BOTH

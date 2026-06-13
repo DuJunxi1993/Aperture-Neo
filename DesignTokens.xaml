@@ -43,6 +43,7 @@
     <SolidColorBrush x:Key="SurfaceElevated"   Color="#FFFFFFFF"/>
     <SolidColorBrush x:Key="SurfaceCardHover"  Color="#FFF6F6F8"/>
     <SolidColorBrush x:Key="SurfaceFloating"   Color="#CCFFFFFF"/>
+    <SolidColorBrush x:Key="SurfaceBlack"      Color="#FF000000"/>
     <SolidColorBrush x:Key="SurfaceHover"      Color="#FFE8E8EB"/>
     <SolidColorBrush x:Key="SurfaceOverlay"    Color="#80000000"/>
 

@@ -131,16 +131,16 @@ AllowDrop="True">
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="TreeColumn" Width="232" MinWidth="180"/>
-                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition x:Name="TreeSplitterColumn" Width="Auto"/>
                 <ColumnDefinition x:Name="ThumbColumn" Width="400" MinWidth="160"/>
-                <ColumnDefinition Width="6"/>
+                <ColumnDefinition x:Name="ThumbSplitterColumn" Width="6"/>
                 <!-- Round 57: added back the ThumbSplitter so the
                      user can resize the thumbnail column width. The
                      splitter sits in its own 6px column between the
                      thumb panel and the viewer, making it easy to
                      grab without overlapping either panel's content
                      area. -->
-                <ColumnDefinition Width="*" MinWidth="400"/>
+                <ColumnDefinition x:Name="ViewerColumnDef" Width="*" MinWidth="400"/>
             </Grid.ColumnDefinitions>
 
 <!-- Tree panel. Background uses SurfaceCanvas (the same off-white

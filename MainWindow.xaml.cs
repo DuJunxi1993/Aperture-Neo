@@ -883,23 +883,37 @@ public partial class MainWindow : FluentWindow
 
     private void ApplyColumnVisibility()
     {
+        // Fullscreen: collapse ALL side chrome (columns, splitters, hot
+        // zones) so the viewer column truly owns the visible area. The
+        // 6px ThumbSplitterColumn and the Auto TreeSplitterColumn would
+        // otherwise stay reserved as transparent gaps that show the
+        // window's SurfaceCanvas background through to the viewer edge,
+        // producing visible white-ish seams on top of the white viewer.
+        if (_isFullscreen)
+        {
+            TreeColumn.Width = new GridLength(0);      TreeColumn.MinWidth = 0;
+            TreeSplitterColumn.Width = new GridLength(0);
+            TreeSplitter.Visibility = Visibility.Collapsed;
+            ThumbColumn.Width = new GridLength(0);     ThumbColumn.MinWidth = 0;
+            ThumbSplitterColumn.Width = new GridLength(0);
+            ThumbSplitter.Visibility = Visibility.Collapsed;
+            TreeHotZone.Visibility = Visibility.Collapsed;
+            if (TreeFloatingPopup.IsOpen) TreeFloatingPopup.IsOpen = false;
+            return;
+        }
+
         TreeColumn.Width = _isTreeVisible ? new GridLength(232) : new GridLength(0);
         TreeColumn.MinWidth = _isTreeVisible ? 180 : 0;
+        TreeSplitterColumn.Width = _isTreeVisible ? new GridLength(1, GridUnitType.Auto) : new GridLength(0);
         TreeSplitter.Visibility = _isTreeVisible ? Visibility.Visible : Visibility.Collapsed;
         ThumbColumn.Width = _isThumbVisible ? new GridLength(400) : new GridLength(0);
         ThumbColumn.MinWidth = _isThumbVisible ? 160 : 0;
-        // Round 48 removed the ThumbSplitter (the viewer column
-        // now sits flush against the thumbnail column with no
-        // seam), so the splitter's Visibility toggle is no longer
-        // needed. The reference is kept commented out below for
-        // a future round-trip in case a splitter is reintroduced.
+        ThumbSplitterColumn.Width = _isThumbVisible ? new GridLength(6) : new GridLength(0);
+        ThumbSplitter.Visibility = _isThumbVisible ? Visibility.Visible : Visibility.Collapsed;
         // The 8px left hot zone is only meaningful when the inline
-        // tree is collapsed. In fullscreen we hide it entirely; in
-        // non-fullscreen it's shown iff the tree column is collapsed.
-        TreeHotZone.Visibility =
-            _isFullscreen ? Visibility.Collapsed :
-            _isTreeVisible ? Visibility.Collapsed :
-            Visibility.Visible;
+        // tree is collapsed. Fullscreen is handled in the early-return
+        // branch above.
+        TreeHotZone.Visibility = _isTreeVisible ? Visibility.Collapsed : Visibility.Visible;
         // If the tree just re-opened, dismiss any floating popup.
         if (_isTreeVisible) TreeFloatingPopup.IsOpen = false;
     }
@@ -920,27 +934,34 @@ public partial class MainWindow : FluentWindow
             _prevWindowState = WindowState;
             WindowStyle = WindowStyle.None;
             WindowState = WindowState.Maximized;
-            TreeColumn.Width = new GridLength(0); TreeColumn.MinWidth = 0; TreeSplitter.Visibility = Visibility.Collapsed;
-            ThumbColumn.Width = new GridLength(0); ThumbColumn.MinWidth = 0;
-            // Synchronously hide TitleBar, FloatingBar, InfoPill, AND the
-            // edge nav buttons. No mouse-event trigger can re-show the
-            // first three for the duration of the fullscreen session.
-            UpdateOverlayVisibility();
+        }
+        else
+        {
+            WindowStyle = WindowStyle.SingleBorderWindow;
+            WindowState = _prevWindowState;
+        }
+        // ApplyColumnVisibility handles ALL chrome (side columns,
+        // splitters, hot zone, floating popup). It is called on BOTH
+        // entry and exit so the state machine is symmetric and the
+        // 6px ThumbSplitterColumn / Auto TreeSplitterColumn are
+        // collapsed during fullscreen — otherwise their transparent
+        // backgrounds show the window's SurfaceCanvas tone through,
+        // producing a visible seam between the white viewer and
+        // whatever sits to its left.
+        ApplyColumnVisibility();
+        // Title bar, floating bar, info pill, edge nav are managed
+        // here (orthogonal to column chrome).
+        UpdateOverlayVisibility();
+        if (_isFullscreen)
+        {
+            // Synchronously hide the edge nav. No mouse-event trigger
+            // can re-show it for the duration of the fullscreen session.
             _edgeNavVisible = false;
             EdgeNavLeftContent.Visibility = Visibility.Collapsed;
             EdgeNavRightContent.Visibility = Visibility.Collapsed;
             EdgeNavLeftContent.Opacity = 0;
             EdgeNavRightContent.Opacity = 0;
             _overlayHideTimer?.Stop();
-        }
-        else
-        {
-            WindowStyle = WindowStyle.SingleBorderWindow;
-            WindowState = _prevWindowState;
-            ApplyColumnVisibility();
-            // Synchronously restore all 3 chrome elements + force-hide
-            // the edge nav (which is fullscreen-only).
-            UpdateOverlayVisibility();
         }
         Dispatcher.BeginInvoke(() =>
         {

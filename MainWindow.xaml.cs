@@ -963,12 +963,57 @@ public partial class MainWindow : FluentWindow
             EdgeNavRightContent.Opacity = 0;
             _overlayHideTimer?.Stop();
         }
+        // WPF-UI's FluentWindow wraps the Content in a ClientAreaBorder
+        // (an internal class) whose OnWindowStateChanged sets Padding to
+        // ~5px when the window is maximized. That padding shows the
+        // window's SurfaceCanvas tone (#fafafa) as a 1-2px white-ish
+        // border around the white viewer. Reset it after the state
+        // change so the viewer is flush with the screen edges.
+        ResetClientAreaBorderPadding();
         Dispatcher.BeginInvoke(() =>
         {
             UpdateLayout();
+            ResetClientAreaBorderPadding();
             ImageViewer.FitToScreen();
             Focus();
         }, DispatcherPriority.Loaded);
+    }
+
+    /// <summary>
+    /// Walks the visual tree looking for a FluentWindow.ClientAreaBorder
+    /// (an internal WPF-UI class) and zeroes its Padding. WPF-UI's
+    /// OnWindowStateChanged sets Padding to ~5px in Maximized state to
+    /// keep the OS's "Aero" border visible — but our viewer is edge-to-
+    /// edge, so the ~5px of transparent padding shows the window's
+    /// SurfaceCanvas (#fafafa) tone around the white viewer, producing
+    /// a 1-2px white-ish seam at every screen edge. We can't reference
+    /// the type by name (it's internal), so we match on the class name
+    /// in the visual tree and set the public Padding DP inherited from
+    /// Border. This is invoked both synchronously inside ToggleFullscreen
+    /// (so it beats the FluentWindow padding on the same dispatcher turn)
+    /// and on DispatcherPriority.Loaded (catches the case where the
+    /// FluentWindow sets padding after we do).
+    /// </summary>
+    private void ResetClientAreaBorderPadding()
+    {
+        var cab = FindClientAreaBorder(this);
+        if (cab == null) return;
+        cab.SetValue(System.Windows.Controls.Border.PaddingProperty, new Thickness(0));
+    }
+
+    private static System.Windows.Controls.Border? FindClientAreaBorder(DependencyObject root)
+    {
+        if (root == null) return null;
+        int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < count; i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+            if (child is System.Windows.Controls.Border b && b.GetType().Name == "ClientAreaBorder")
+                return b;
+            var deeper = FindClientAreaBorder(child);
+            if (deeper != null) return deeper;
+        }
+        return null;
     }
 
     private void ZoomTextBlock_Click(object sender, MouseButtonEventArgs e) => ImageViewer.ZoomToOriginal();

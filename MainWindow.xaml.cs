@@ -188,8 +188,54 @@ public partial class MainWindow : FluentWindow
             // fullscreen session and are restored synchronously on exit
             // — they must never appear in response to mouse activity.
             ShowEdgeNav();
+            // Goal 2: also reveal the exit-fullscreen pill when the
+            // cursor is in the top 300px strip.
+            UpdateExitFullscreenHint(pos.Y);
             ResetOverlayHideTimer();
         }
+    }
+
+    /// <summary>
+    /// Goal 2: slide/fade the exit-fullscreen pill in when the cursor
+    /// enters the top 300 DIP strip, and back out when it leaves. The
+    /// pill is fullscreen-only; we no-op otherwise.
+    /// </summary>
+    private void UpdateExitFullscreenHint(double y)
+    {
+        if (!_isFullscreen) return;
+        const double triggerZone = 300.0;
+        bool shouldShow = y < triggerZone;
+        if (shouldShow && ExitFullscreenHint.Visibility != Visibility.Visible)
+            ShowExitFullscreenHint();
+        else if (!shouldShow && ExitFullscreenHint.Visibility == Visibility.Visible)
+            HideExitFullscreenHint();
+    }
+
+    private void ShowExitFullscreenHint()
+    {
+        ExitFullscreenHint.Visibility = Visibility.Visible;
+        ExitFullscreenHint.BeginAnimation(UIElement.OpacityProperty, null);
+        ExitFullscreenTransform.BeginAnimation(TranslateTransform.YProperty, null);
+        var fadeIn = new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(200));
+        var slideIn = new DoubleAnimation(-50d, 0d, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        ExitFullscreenHint.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+        ExitFullscreenTransform.BeginAnimation(TranslateTransform.YProperty, slideIn);
+    }
+
+    private void HideExitFullscreenHint()
+    {
+        ExitFullscreenHint.BeginAnimation(UIElement.OpacityProperty, null);
+        ExitFullscreenTransform.BeginAnimation(TranslateTransform.YProperty, null);
+        var fadeOut = new DoubleAnimation(1d, 0d, TimeSpan.FromMilliseconds(200));
+        var slideOut = new DoubleAnimation(0d, -50d, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+        };
+        ExitFullscreenHint.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+        ExitFullscreenTransform.BeginAnimation(TranslateTransform.YProperty, slideOut);
     }
 
     private void OnWindowDrop(object sender, DragEventArgs e)
@@ -279,6 +325,33 @@ public partial class MainWindow : FluentWindow
         var fadeIn = new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(200));
         EdgeNavLeftContent.BeginAnimation(UIElement.OpacityProperty, fadeIn);
         EdgeNavRightContent.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+    }
+
+    /// <summary>
+    /// Goal 1: pause the auto-hide timer while the cursor is over either
+    /// edge-nav button, and re-pause any in-flight fade-out so rapid clicks
+    /// on the prev/next arrows don't fight the timer.
+    /// </summary>
+    private void EdgeNavContent_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (!_isFullscreen) return;
+        // Cancel any fade-out in progress and snap back to fully opaque.
+        EdgeNavLeftContent.BeginAnimation(UIElement.OpacityProperty, null);
+        EdgeNavRightContent.BeginAnimation(UIElement.OpacityProperty, null);
+        EdgeNavLeftContent.Opacity = 1;
+        EdgeNavRightContent.Opacity = 1;
+        // Hold the buttons visible while the cursor is over them.
+        _overlayHideTimer?.Stop();
+    }
+
+    private void EdgeNavContent_MouseLeave(object sender, MouseEventArgs e)
+    {
+        if (!_isFullscreen) return;
+        // Restart the 3-second countdown once the cursor leaves the
+        // button area. If the cursor is still inside the window the
+        // MouseMove handler will keep the buttons visible (and reset
+        // the timer) via ResetOverlayHideTimer.
+        ResetOverlayHideTimer();
     }
 
     /// <summary>
@@ -934,17 +1007,20 @@ public partial class MainWindow : FluentWindow
             _prevWindowState = WindowState;
             WindowStyle = WindowStyle.None;
             WindowState = WindowState.Maximized;
-            // Fullscreen surround: pure black, so letterbox gaps from
-            // aspect-ratio mismatch and the residual 1-2px viewer
-            // backdrop all read as "image area" rather than a UI seam.
-            ViewerColumn.Background = (System.Windows.Media.Brush)FindResource("SurfaceBlack");
+            // Goal 3: animate the viewer background from white to black over
+            // 200ms so the window→fullscreen transition doesn't pop. The
+            // actual color still snaps to a SolidColorBrush afterwards
+            // (the resources are referenced by name elsewhere).
+            AnimateViewerBackground((System.Windows.Media.Brush)FindResource("SurfaceBlack"));
         }
         else
         {
             WindowStyle = WindowStyle.SingleBorderWindow;
             WindowState = _prevWindowState;
-            // Restore the Linear-theme white viewer background.
-            ViewerColumn.Background = (System.Windows.Media.Brush)FindResource("SurfaceElevated");
+            // Restore the Linear-theme white viewer background, with a
+            // 200ms cross-fade back so the fullscreen→window transition
+            // also animates.
+            AnimateViewerBackground((System.Windows.Media.Brush)FindResource("SurfaceElevated"));
         }
         // ApplyColumnVisibility handles ALL chrome (side columns,
         // splitters, hot zone, floating popup). It is called on BOTH
@@ -1005,6 +1081,42 @@ public partial class MainWindow : FluentWindow
         var cab = FindClientAreaBorder(this);
         if (cab == null) return;
         cab.SetValue(System.Windows.Controls.Border.PaddingProperty, new Thickness(0));
+    }
+
+    /// <summary>
+    /// Goal 3: cross-fade the viewer column background over 200ms.
+    /// SolidColorBrush is mutated via ColorAnimation; the brush instance
+    /// is kept (so the rest of the visual tree that referenced it
+    /// stays valid) and only the underlying color animates.
+    /// </summary>
+    private void AnimateViewerBackground(System.Windows.Media.Brush target)
+    {
+        if (target is not System.Windows.Media.SolidColorBrush targetSolid) return;
+        // Clone the resource brush so we own the color (resource brushes
+        // are shared/frozen; we can't mutate them).
+        var current = ViewerColumn.Background as System.Windows.Media.SolidColorBrush;
+        if (current == null || current.IsFrozen)
+        {
+            current = new System.Windows.Media.SolidColorBrush(
+                current?.Color ?? System.Windows.Media.Colors.White);
+        }
+        else
+        {
+            // Detach the previous animation so the new one wins.
+            current.BeginAnimation(System.Windows.Media.SolidColorBrush.ColorProperty, null);
+        }
+        ViewerColumn.Background = current;
+        var anim = new System.Windows.Media.Animation.ColorAnimation
+        {
+            From = current.Color,
+            To = targetSolid.Color,
+            Duration = TimeSpan.FromMilliseconds(200),
+            EasingFunction = new System.Windows.Media.Animation.CubicEase
+            {
+                EasingMode = System.Windows.Media.Animation.EasingMode.EaseInOut
+            }
+        };
+        current.BeginAnimation(System.Windows.Media.SolidColorBrush.ColorProperty, anim);
     }
 
     private static System.Windows.Controls.Border? FindClientAreaBorder(DependencyObject root)

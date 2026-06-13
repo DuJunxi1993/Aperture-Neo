@@ -515,10 +515,15 @@ AllowDrop="True">
                         </Border>
                     </Popup>
 
-                    <!-- Edge navigation buttons (fullscreen only). -->
+                    <!-- Edge navigation buttons (fullscreen only). MouseEnter/MouseLeave
+                         are handled in code so we can pause the auto-hide timer
+                         while the user is hovering (and rapidly clicking) on a
+                         button. -->
                     <Border x:Name="EdgeNavLeftContent"
                             HorizontalAlignment="Left" VerticalAlignment="Center" Margin="24,0,0,0"
-                            IsHitTestVisible="True" Visibility="Collapsed" Opacity="0">
+                            IsHitTestVisible="True" Visibility="Collapsed" Opacity="0"
+                            MouseEnter="EdgeNavContent_MouseEnter"
+                            MouseLeave="EdgeNavContent_MouseLeave">
                         <Button x:Name="BtnEdgePrev" Style="{StaticResource LinearEdgeButton}"
                                 Click="BtnPrev_Click" ToolTip="上一张 (←)">
                             <ui:SymbolIcon Symbol="ChevronLeft20" FontSize="18"/>
@@ -527,11 +532,38 @@ AllowDrop="True">
 
                     <Border x:Name="EdgeNavRightContent"
                             HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,24,0"
-                            IsHitTestVisible="True" Visibility="Collapsed" Opacity="0">
+                            IsHitTestVisible="True" Visibility="Collapsed" Opacity="0"
+                            MouseEnter="EdgeNavContent_MouseEnter"
+                            MouseLeave="EdgeNavContent_MouseLeave">
                         <Button x:Name="BtnEdgeNext" Style="{StaticResource LinearEdgeButton}"
                                 Click="BtnNext_Click" ToolTip="下一张 (→)">
                             <ui:SymbolIcon Symbol="ChevronRight20" FontSize="18"/>
                         </Button>
+                    </Border>
+
+                    <!-- Goal 2: exit-fullscreen floating pill, fullscreen only. Sits
+                         near the top center of the screen, slides in from above and
+                         fades in when the cursor enters the top 300px of the window,
+                         reverses on cursor leave. -->
+                    <Border x:Name="ExitFullscreenHint"
+                            HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,30,0,0"
+                            Background="{StaticResource SurfaceFloating}"
+                            BorderBrush="{StaticResource BorderStandard}" BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusPanel}" Padding="10,5"
+                            IsHitTestVisible="True" Visibility="Collapsed" Opacity="0"
+                            RenderTransformOrigin="0.5,0.5">
+                        <Border.RenderTransform>
+                            <TranslateTransform x:Name="ExitFullscreenTransform" Y="-50"/>
+                        </Border.RenderTransform>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="ArrowMinimize20" FontSize="14"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           VerticalAlignment="Center"/>
+                            <TextBlock Text="退出全屏 (Esc / F)"
+                                       FontSize="11" FontWeight="600"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       VerticalAlignment="Center" Margin="6,0,0,0"/>
+                        </StackPanel>
                     </Border>
                 </Grid>
             </Grid>

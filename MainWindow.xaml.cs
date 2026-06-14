@@ -225,23 +225,27 @@ public partial class MainWindow : FluentWindow
         }
     }
 
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-    private static extern bool GetCursorPos(out System.Windows.Point lpPoint);
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct POINT { public int x; public int y; }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-    private static extern bool ScreenToClient(IntPtr hWnd, out System.Windows.Point lpPoint);
+    private static extern bool GetCursorPos(out POINT lpPoint);
 
     private System.Windows.Point? GetAbsoluteCursorPosRelativeToThis()
     {
-        if (GetCursorPos(out var screen))
-        {
-            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
-            if (ScreenToClient(hwnd, out var client))
-                return client;
-        }
-        return null;
+        // Use GetCursorPos for the absolute screen position, then
+        // translate it into the window's client area by subtracting
+        // the window's top-left screen position (from PointToScreen).
+        // This avoids the ScreenToClient P/Invoke signature trap
+        // (it needs a POINT struct, not a System.Windows.Point) and
+        // is more reliable than WindowInteropHelper(this).Handle on
+        // FluentWindow, which can return IntPtr.Zero in early events.
+        if (!GetCursorPos(out var screen)) return null;
+        var windowOrigin = this.PointToScreen(new System.Windows.Point(0, 0));
+        var clientX = screen.x - windowOrigin.X;
+        var clientY = screen.y - windowOrigin.Y;
+        return new System.Windows.Point(clientX, clientY);
     }
 
     /// <summary>
@@ -254,8 +258,6 @@ public partial class MainWindow : FluentWindow
     {
         if (!_isFullscreen) return;
         const double triggerZone = 300.0;
-        // Strict: must be positive AND less than 300. Reject any
-        // negative or zero values (the cursor is outside the window).
         bool shouldShow = y > 0 && y < triggerZone;
         if (shouldShow && ExitFullscreenHint.Visibility != Visibility.Visible)
             ShowExitFullscreenHint();

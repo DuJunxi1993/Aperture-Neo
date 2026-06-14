@@ -182,17 +182,45 @@ public class ThumbnailCache : IDisposable
         }
         DebugLog.Write("Thumb", $"generated: {Path.GetFileName(path)} ({bytes.Length} bytes, {w}x{h})");
 
-        try
-        {
-            await WriteToDiskAsync(path, mtime, bytes, w, h, ct);
-            await EvictIfNeededAsync(ct);
-        }
-        catch (Exception ex)
-        {
-            DebugLog.Write("Thumb", "disk write fail (return memory only)", ex);
-        }
+        // Round B: defer the disk write to a background task. The
+        // first-time decode of a thumbnail is the slowest path
+        // (file read + SKBitmap.Decode + scale + JPEG encode +
+        // SQLite INSERT + possibly eviction). Synchronously awaiting
+        // the SQLite write + eviction here meant the user's
+        // "show me a thumbnail" request waited for disk IO even
+        // though the in-memory bytes were ready. Queueing the
+        // write lets GetOrCreateWithErrorAsync return the bytes
+        // immediately; the SQLite write happens off the request
+        // path. If the app crashes before the queue drains, the
+        // pending thumbnails are simply re-decoded next time the
+        // folder is opened — no correctness impact, just a
+        // one-time perf hit on first revisit.
+        EnqueueDeferredWrite(path, mtime, bytes, w, h);
 
         return (bytes, null, w, h);
+    }
+
+    /// <summary>
+    /// Fire-and-forget background write + eviction. Each pending
+    /// write acquires <see cref="_writeLock"/> serially so the
+    /// SQLite operations remain single-threaded. The
+    /// <see cref="Task.Run"/> hop is enough to free the caller's
+    /// dispatcher thread.
+    /// </summary>
+    private void EnqueueDeferredWrite(string path, long mtime, byte[] data, int w, int h)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await WriteToDiskAsync(path, mtime, data, w, h, CancellationToken.None);
+                await EvictIfNeededAsync(CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                DebugLog.Write("Thumb", "deferred write fail", ex);
+            }
+        });
     }
 
     /// <summary>Drop the cached thumbnail for <paramref name="path"/>.

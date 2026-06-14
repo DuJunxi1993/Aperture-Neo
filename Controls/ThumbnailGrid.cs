@@ -21,7 +21,7 @@ namespace ApertureNeo.Controls;
 /// </summary>
 public class ThumbnailGrid : ListBox
 {
-    public static readonly DependencyProperty SelectedItemProperty =
+    public static new readonly DependencyProperty SelectedItemProperty =
         DependencyProperty.Register(nameof(SelectedItem), typeof(ImageItem), typeof(ThumbnailGrid),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, OnSelectedItemChanged));
 

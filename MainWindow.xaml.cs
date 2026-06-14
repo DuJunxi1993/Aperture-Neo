@@ -226,42 +226,10 @@ public partial class MainWindow : FluentWindow
                 ShowEdgeNav();
                 ResetOverlayHideTimer();
             }
-            // Goal 2 (revised): exit-pill is no longer triggered by cursor
-            // position. It now appears on fullscreen entry and auto-hides
-            // after 3s. The cursor Y mapping code is preserved below
-            // because the previous P/Invoke work is still useful and
-            // removing it would orphan the helper methods.
+            // Exit-pill is no longer triggered by cursor position; it
+            // appears on fullscreen entry and auto-hides after 3s (see
+            // _exitHintHideTimer wiring in the constructor).
         }
-    }
-
-    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-    private struct POINT { public int x; public int y; }
-
-    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-    private struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
-
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-    private static extern bool GetCursorPos(out POINT lpPoint);
-
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-
-    private System.Windows.Point? GetAbsoluteCursorPosRelativeToThis()
-    {
-        if (!GetCursorPos(out var screen)) return null;
-        // Use GetWindowRect (Win32) instead of this.PointToScreen to
-        // avoid the WPF-UI / WindowChrome / ClientAreaBorder interactions
-        // that made PointToScreen report (-8, -8) as the window origin
-        // after WindowStyle=None. GetWindowRect returns the actual OS
-        // window rectangle in screen coordinates — always correct.
-        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
-        if (hwnd == IntPtr.Zero) return null;
-        if (!GetWindowRect(hwnd, out var rect)) return null;
-        var clientX = screen.x - rect.Left;
-        var clientY = screen.y - rect.Top;
-        return new System.Windows.Point(clientX, clientY);
     }
 
     /// <summary>

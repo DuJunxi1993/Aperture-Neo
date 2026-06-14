@@ -1051,75 +1051,89 @@ public partial class MainWindow : FluentWindow
     /// and ClientAreaBorder padding change that would otherwise show
     /// as a flicker.
     /// </summary>
+    /// <summary>
+    /// Enter fullscreen with the same animation shape as exit:
+    /// fade the viewer area 1 → 0 (150ms, ease-in), then in the
+    /// Completed callback switch the OS window to fullscreen +
+    /// apply chrome + refit the image, then fade back 0 → 1
+    /// (150ms, ease-out). Total 300ms — same as exit, so enter and
+    /// exit feel like mirror images of each other.
+    /// </summary>
     private void EnterFullscreen()
     {
         _prevWindowState = WindowState;
 
-        // 1. Hide the viewer area synchronously. This is the entire
-        //    trick: with Opacity=0 the user can't see the layout
-        //    recompute, the ClientAreaBorder padding reset, the image
-        //    refit — none of it. Then we fade back in.
-        ViewerColumn.Opacity = 0;
-
-        // 2. OS-level: become borderless + cover the whole screen.
-        WindowStyle = WindowStyle.None;
-        WindowState = WindowState.Maximized;
-
-        // 3. Apply chrome state synchronously. ApplyColumnVisibility
-        //    collapses the side columns; ResetClientAreaBorderPadding
-        //    kills WPF-UI's 5px-maximized padding.
-        ApplyColumnVisibility();
-        UpdateOverlayVisibility();
-        ResetClientAreaBorderPadding();
-
-        // 4. Force a synchronous layout pass. Without this, the
-        //    SkiaImageViewer's ActualWidth/ActualHeight still reflect
-        //    the pre-fullscreen windowed size (WPF layout is async
-        //    after WindowState change), so FitToScreen would compute
-        //    centering offsets for the old (smaller) viewer rect,
-        //    leaving the image off-center in the new (fullscreen) rect.
-        //    With UpdateLayout the actual dimensions are up to date
-        //    before FitToScreen reads them.
-        UpdateLayout();
-
-        // 5. Snap the image to the new fullscreen fit immediately —
-        //    no zoom/offset animation. The viewer is at Opacity=0
-        //    so the snap is invisible. Setting FitToScreenSkipAnimation
-        //    before FitToScreen makes the SkiaImageViewer write the
-        //    new _zoom/_offsetX/_offsetY directly instead of
-        //    animating to them over ~200ms (during which the user
-        //    would see the image slide into position through the
-        //    150ms opacity fade).
-        ImageViewer.FitToScreenSkipAnimation = true;
-        ImageViewer.FitToScreen();
-
-        // 6. Hide the edge nav and show the exit hint.
-        _edgeNavVisible = false;
-        EdgeNavLeftContent.Visibility = Visibility.Collapsed;
-        EdgeNavRightContent.Visibility = Visibility.Collapsed;
-        EdgeNavLeftContent.Opacity = 0;
-        EdgeNavRightContent.Opacity = 0;
-        _overlayHideTimer?.Stop();
-        ShowExitFullscreenHint();
-        _exitHintHideTimer?.Stop();
-        _exitHintHideTimer?.Start();
-
-        // 7. Fade the viewer back in (150ms, ease-out). The image
-        //    appears in its new fullscreen fit at the new size, on a
-        //    background that's mid-transition to black. Single
-        //    animation, no other moving parts.
-        ViewerColumn.BeginAnimation(UIElement.OpacityProperty,
-            new System.Windows.Media.Animation.DoubleAnimation(1d, TimeSpan.FromMilliseconds(150))
+        // 1. Fade the windowed viewer to transparent over 150ms.
+        //    After this completes, the windowed viewer is invisible
+        //    and we can swap the OS-level state without the user
+        //    seeing any layout recompute.
+        var fadeOut = new System.Windows.Media.Animation.DoubleAnimation(
+            0d, TimeSpan.FromMilliseconds(150))
+        {
+            EasingFunction = new System.Windows.Media.Animation.CubicEase
             {
-                EasingFunction = new System.Windows.Media.Animation.CubicEase
+                EasingMode = System.Windows.Media.Animation.EasingMode.EaseIn
+            }
+        };
+        fadeOut.Completed += (_, _) =>
+        {
+            // 2. OS-level: become borderless + cover the whole screen.
+            WindowStyle = WindowStyle.None;
+            WindowState = WindowState.Maximized;
+
+            // 3. Apply chrome state synchronously. ApplyColumnVisibility
+            //    collapses the side columns; ResetClientAreaBorderPadding
+            //    kills WPF-UI's 5px-maximized padding.
+            ApplyColumnVisibility();
+            UpdateOverlayVisibility();
+            ResetClientAreaBorderPadding();
+
+            // 4. Force a synchronous layout pass. WPF layout is async
+            //    after WindowState change — without UpdateLayout the
+            //    SkiaImageViewer's ActualWidth/ActualHeight still
+            //    reflect the pre-fullscreen size, so FitToScreen
+            //    would compute centering offsets for the old (smaller)
+            //    rect, leaving the image off-center.
+            UpdateLayout();
+
+            // 5. Snap the image to the new fullscreen fit immediately.
+            //    ViewerColumn.Opacity is still 0 at this point (we
+            //    haven't started the fade-in yet), so the snap is
+            //    invisible. Skip the zoom animation because the
+            //    200ms slide-in would be visible through the
+            //    following 150ms opacity fade.
+            ImageViewer.FitToScreenSkipAnimation = true;
+            ImageViewer.FitToScreen();
+
+            // 6. Hide the edge nav and show the exit hint.
+            _edgeNavVisible = false;
+            EdgeNavLeftContent.Visibility = Visibility.Collapsed;
+            EdgeNavRightContent.Visibility = Visibility.Collapsed;
+            EdgeNavLeftContent.Opacity = 0;
+            EdgeNavRightContent.Opacity = 0;
+            _overlayHideTimer?.Stop();
+            ShowExitFullscreenHint();
+            _exitHintHideTimer?.Stop();
+            _exitHintHideTimer?.Start();
+
+            // 7. Fade the viewer back in (150ms, ease-out). The image
+            //    appears in its new fullscreen fit at the new size,
+            //    on a background that's mid-transition to black.
+            ViewerColumn.BeginAnimation(UIElement.OpacityProperty,
+                new System.Windows.Media.Animation.DoubleAnimation(1d, TimeSpan.FromMilliseconds(150))
                 {
-                    EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
-                }
-            });
+                    EasingFunction = new System.Windows.Media.Animation.CubicEase
+                    {
+                        EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
+                    }
+                });
+        };
+        ViewerColumn.BeginAnimation(UIElement.OpacityProperty, fadeOut);
 
         // 8. Parallel: viewer background white → pure black (150ms,
-        //    ease-in-out). The user lands on a black fullscreen after
-        //    the fade-in completes.
+        //    ease-in-out). Started alongside the fade-out so the
+        //    background is mid-transition when the fade-in reveals
+        //    the new fullscreen view.
         AnimateViewerBackground(
             (System.Windows.Media.Brush)FindResource("SurfaceBlack"), 150);
     }

@@ -358,7 +358,7 @@ AllowDrop="True">
                         </Border.Effect>
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <Button x:Name="BtnPrev" Style="{StaticResource LinearFloatingPrimary}"
-                                    Click="BtnPrev_Click" ToolTip="上一张 (←)"
+                                    Click="BtnPrev_Click"
                                     IsHitTestVisible="True">
                                 <ui:SymbolIcon Symbol="ChevronLeft20" FontSize="14" Foreground="White"/>
                             </Button>
@@ -367,7 +367,7 @@ AllowDrop="True">
                                        Foreground="{StaticResource TextSecondary}"
                                        VerticalAlignment="Center" Margin="10,0" MinWidth="48" TextAlignment="Center"/>
                             <Button x:Name="BtnNext" Style="{StaticResource LinearFloatingPrimary}"
-                                    Click="BtnNext_Click" ToolTip="下一张 (→)"
+                                    Click="BtnNext_Click"
                                     IsHitTestVisible="True">
                                 <ui:SymbolIcon Symbol="ChevronRight20" FontSize="14" Foreground="White"/>
                             </Button>
@@ -525,7 +525,7 @@ AllowDrop="True">
                             HorizontalAlignment="Left" VerticalAlignment="Center" Margin="24,0,0,0"
                             IsHitTestVisible="True" Visibility="Collapsed" Opacity="0">
                         <Button x:Name="BtnEdgePrev" Style="{StaticResource LinearEdgeButton}"
-                                Click="BtnPrev_Click" ToolTip="上一张 (←)">
+                                Click="BtnPrev_Click">
                             <ui:SymbolIcon Symbol="ChevronLeft20" FontSize="18"/>
                         </Button>
                     </Border>
@@ -534,7 +534,7 @@ AllowDrop="True">
                             HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,24,0"
                             IsHitTestVisible="True" Visibility="Collapsed" Opacity="0">
                         <Button x:Name="BtnEdgeNext" Style="{StaticResource LinearEdgeButton}"
-                                Click="BtnNext_Click" ToolTip="下一张 (→)">
+                                Click="BtnNext_Click">
                             <ui:SymbolIcon Symbol="ChevronRight20" FontSize="18"/>
                         </Button>
                     </Border>

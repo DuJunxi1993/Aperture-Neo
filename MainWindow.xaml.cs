@@ -228,23 +228,30 @@ public partial class MainWindow : FluentWindow
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
     private struct POINT { public int x; public int y; }
 
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
     private static extern bool GetCursorPos(out POINT lpPoint);
 
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
     private System.Windows.Point? GetAbsoluteCursorPosRelativeToThis()
     {
-        // Use GetCursorPos for the absolute screen position, then
-        // translate it into the window's client area by subtracting
-        // the window's top-left screen position (from PointToScreen).
-        // This avoids the ScreenToClient P/Invoke signature trap
-        // (it needs a POINT struct, not a System.Windows.Point) and
-        // is more reliable than WindowInteropHelper(this).Handle on
-        // FluentWindow, which can return IntPtr.Zero in early events.
         if (!GetCursorPos(out var screen)) return null;
-        var windowOrigin = this.PointToScreen(new System.Windows.Point(0, 0));
-        var clientX = screen.x - windowOrigin.X;
-        var clientY = screen.y - windowOrigin.Y;
+        // Use GetWindowRect (Win32) instead of this.PointToScreen to
+        // avoid the WPF-UI / WindowChrome / ClientAreaBorder interactions
+        // that made PointToScreen report (-8, -8) as the window origin
+        // after WindowStyle=None. GetWindowRect returns the actual OS
+        // window rectangle in screen coordinates — always correct.
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return null;
+        if (!GetWindowRect(hwnd, out var rect)) return null;
+        var clientX = screen.x - rect.Left;
+        var clientY = screen.y - rect.Top;
         return new System.Windows.Point(clientX, clientY);
     }
 

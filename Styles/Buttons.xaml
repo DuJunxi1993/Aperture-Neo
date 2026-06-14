@@ -1,57 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- Linear Ghost Button (default action). Compact 28px tall to
-         match LinearPrimaryButton — the two sit on the same visual
-         baseline. 8px corner radius, 12px font. Width is auto-sized
-         to content. Hover bumps to 8% white; press lifts to 12% for
-         tactile feedback. -->
-    <Style x:Key="LinearButton" TargetType="Button">
-        <Setter Property="Background" Value="{StaticResource BtnBgGhost}"/>
-        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
-        <Setter Property="FontWeight" Value="600"/>
-        <Setter Property="FontSize" Value="12"/>
-        <Setter Property="Height" Value="28"/>
-        <Setter Property="MinHeight" Value="28"/>
-        <Setter Property="Padding" Value="10,0"/>
-        <Setter Property="BorderBrush" Value="{StaticResource BorderStandard}"/>
-        <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FocusVisualStyle" Value="{StaticResource LinearFocusVisual}"/>
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="Button">
-                    <Border x:Name="border"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{StaticResource RadiusStd}">
-                        <ContentPresenter HorizontalAlignment="Center"
-                                          VerticalAlignment="Center"
-                                          Margin="{TemplateBinding Padding}"
-                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <!-- ColorAnimation on (Border.Background).(...) would
-                             crash on the frozen resource brush; we use a
-                             direct Setter — instant, terse, matches Linear. -->
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{StaticResource BtnBgHover}"/>
-                            <Setter TargetName="border" Property="BorderBrush" Value="#28FFFFFF"/>
-                        </Trigger>
-                        <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{StaticResource BtnBgPress}"/>
-                        </Trigger>
-                        <Trigger Property="IsEnabled" Value="False">
-                            <Setter Property="Opacity" Value="0.4"/>
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
-
     <!-- Linear Primary Button (indigo brand CTA). Compact 28px tall,
          6px corner radius, 12px font, 10,0 padding — fits the 44px
          title bar with 8px breathing room above and below. Hover

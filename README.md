@@ -1,6 +1,8 @@
 # Aperture Neo
 
 A fast, lightweight WPF image viewer with SkiaSharp rendering, thumbnail sidebar, slideshow, and fullscreen support.
+<img width="1750" height="1125" alt="图片" src="https://github.com/user-attachments/assets/c8f4f1e6-98ef-4780-adc0-bc376d5e8fe7" />
+
 
 ## Download & Install
 

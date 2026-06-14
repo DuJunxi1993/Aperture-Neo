@@ -1289,13 +1289,15 @@ public partial class MainWindow : FluentWindow
     /// underlying controls.
     /// </summary>
     /// <summary>
-    /// Double-click on the viewer (outside buttons):
-    ///   - in fullscreen: exit fullscreen
-    ///   - in window mode: zoom the image to 100% (same as clicking
-    ///     the floating-bar percent label)
-    /// Preview (tunneling) phase + e.Handled=true so the event does
-    /// not bubble to underlying controls (the edge-nav arrows in
-    /// fullscreen, the floating bar in window mode).
+    /// Double-click on the viewer (outside buttons): toggle the
+    /// image between Fit-to-screen and 100% (same as the
+    /// floating-bar percent label click semantics, but
+    /// round-tripping in both directions). Behaviour is the same
+    /// in window mode and fullscreen mode — double-click never
+    /// exits fullscreen anymore. Esc / Ctrl+F still does.
+    /// Preview (tunneling) phase + e.Handled=true so the event
+    /// does not bubble to underlying controls (the edge-nav
+    /// arrows in fullscreen, the floating bar in window mode).
     /// </summary>
     private void Viewer_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
@@ -1314,21 +1316,15 @@ public partial class MainWindow : FluentWindow
                 walker = System.Windows.Media.VisualTreeHelper.GetParent(walker);
             }
         }
-        if (_isFullscreen)
-        {
-            ToggleFullscreen();
-        }
+        // Toggle between Fit and 100%, in both window mode and
+        // fullscreen mode. (Matches the floating-bar percent label
+        // click semantics, but in both directions — clicking the
+        // percent always zooms to 100%, the viewer double-click
+        // rounds-trips fit↔100%.)
+        if (ImageViewer.IsAtFitScale)
+            ImageViewer.ZoomToOriginal();
         else
-        {
-            // Window mode: toggle between Fit and 100%.
-            // (matches the floating-bar percent label click semantics,
-            // but in both directions — clicking the percent always zooms
-            // to 100%, the viewer double-click rounds-trips fit↔100%.)
-            if (ImageViewer.IsAtFitScale)
-                ImageViewer.ZoomToOriginal();
-            else
-                ImageViewer.FitToScreen();
-        }
+            ImageViewer.FitToScreen();
         e.Handled = true;
     }
 

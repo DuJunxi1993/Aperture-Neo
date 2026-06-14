@@ -39,8 +39,14 @@ public class ThumbnailLoadCoordinator : IDisposable
     /// <summary>
     /// How many items around the current index to eagerly preload. Items
     /// beyond this window are loaded lazily as they scroll into view.
+    /// Bumped from 50 to 200 in Round A: the original 50 was tuned for
+    /// the "first visit to a small folder" case, but for a 500+ image
+    /// folder with a thumb panel that fits ~30 items per viewport, the
+    /// user could scroll multiple screens before EnsureVisible
+    /// caught up. 200 covers ~6.5 viewports ahead and behind, so
+    /// the band of already-decoded items always outpaces the scroll.
     /// </summary>
-    public int PriorityWindow { get; set; } = 50;
+    public int PriorityWindow { get; set; } = 200;
 
     /// <summary>
     /// Round 68: the WPF BitmapImage is asked to decode only this many

@@ -1065,17 +1065,35 @@ public partial class MainWindow : FluentWindow
         WindowStyle = WindowStyle.None;
         WindowState = WindowState.Maximized;
 
-        // 3. Apply chrome state and refit the image synchronously.
-        //    ApplyColumnVisibility collapses the side columns;
-        //    ResetClientAreaBorderPadding kills WPF-UI's 5px-maximized
-        //    padding; FitToScreen re-centers the image in the new
-        //    fullscreen rect. All invisible because Opacity=0.
+        // 3. Apply chrome state synchronously. ApplyColumnVisibility
+        //    collapses the side columns; ResetClientAreaBorderPadding
+        //    kills WPF-UI's 5px-maximized padding.
         ApplyColumnVisibility();
         UpdateOverlayVisibility();
         ResetClientAreaBorderPadding();
+
+        // 4. Force a synchronous layout pass. Without this, the
+        //    SkiaImageViewer's ActualWidth/ActualHeight still reflect
+        //    the pre-fullscreen windowed size (WPF layout is async
+        //    after WindowState change), so FitToScreen would compute
+        //    centering offsets for the old (smaller) viewer rect,
+        //    leaving the image off-center in the new (fullscreen) rect.
+        //    With UpdateLayout the actual dimensions are up to date
+        //    before FitToScreen reads them.
+        UpdateLayout();
+
+        // 5. Snap the image to the new fullscreen fit immediately —
+        //    no zoom/offset animation. The viewer is at Opacity=0
+        //    so the snap is invisible. Setting FitToScreenSkipAnimation
+        //    before FitToScreen makes the SkiaImageViewer write the
+        //    new _zoom/_offsetX/_offsetY directly instead of
+        //    animating to them over ~200ms (during which the user
+        //    would see the image slide into position through the
+        //    150ms opacity fade).
+        ImageViewer.FitToScreenSkipAnimation = true;
         ImageViewer.FitToScreen();
 
-        // 4. Hide the edge nav and show the exit hint.
+        // 6. Hide the edge nav and show the exit hint.
         _edgeNavVisible = false;
         EdgeNavLeftContent.Visibility = Visibility.Collapsed;
         EdgeNavRightContent.Visibility = Visibility.Collapsed;
@@ -1086,7 +1104,7 @@ public partial class MainWindow : FluentWindow
         _exitHintHideTimer?.Stop();
         _exitHintHideTimer?.Start();
 
-        // 5. Fade the viewer back in (150ms, ease-out). The image
+        // 7. Fade the viewer back in (150ms, ease-out). The image
         //    appears in its new fullscreen fit at the new size, on a
         //    background that's mid-transition to black. Single
         //    animation, no other moving parts.
@@ -1099,7 +1117,7 @@ public partial class MainWindow : FluentWindow
                 }
             });
 
-        // 6. Parallel: viewer background white → pure black (150ms,
+        // 8. Parallel: viewer background white → pure black (150ms,
         //    ease-in-out). The user lands on a black fullscreen after
         //    the fade-in completes.
         AnimateViewerBackground(
@@ -1141,10 +1159,27 @@ public partial class MainWindow : FluentWindow
             ApplyColumnVisibility();
             UpdateOverlayVisibility();
             ResetClientAreaBorderPadding();
+
+            // 3. Force a synchronous layout pass. Without this, the
+            //    SkiaImageViewer's ActualWidth/ActualHeight still
+            //    reflect the fullscreen size (WPF layout is async
+            //    after WindowState change), so FitToScreen would
+            //    compute centering offsets for the old (fullscreen)
+            //    rect, leaving the image off-center in the new
+            //    (windowed) rect.
+            UpdateLayout();
+
+            // 4. Snap the image to the new (windowed) fit immediately,
+            //    no animation. The viewer is still at Opacity=0
+            //    (we haven't started the fade-in yet), so the snap
+            //    is invisible. Skip the zoom animation because the
+            //    200ms slide-in would be visible through the
+            //    following 150ms opacity fade.
+            ImageViewer.FitToScreenSkipAnimation = true;
             ImageViewer.FitToScreen();
             Focus();
 
-            // 3. If the user had the window Maximized before fullscreen,
+            // 5. If the user had the window Maximized before fullscreen,
             //    re-maximize it on the next dispatcher cycle (deferred
             //    so it doesn't fight the WindowStyle HWND recreation
             //    happening above).
@@ -1156,7 +1191,7 @@ public partial class MainWindow : FluentWindow
                 }), System.Windows.Threading.DispatcherPriority.Background);
             }
 
-            // 4. Fade the viewer back in over 150ms.
+            // 6. Fade the viewer back in over 150ms.
             ViewerColumn.BeginAnimation(UIElement.OpacityProperty,
                 new System.Windows.Media.Animation.DoubleAnimation(1d, TimeSpan.FromMilliseconds(150))
                 {

@@ -7,6 +7,14 @@ using System.Windows.Media.Imaging;
 using SkiaSharp;
 namespace ApertureNeo.Models;
 
+/// <summary>
+/// One image in a folder. Wraps the file path and exposes
+/// lazily-resolved metadata (size, mtime, dimensions, EXIF) and a
+/// bound <see cref="Thumbnail"/> for the thumbnail grid. All
+/// filesystem reads are deferred to first access (or
+/// <see cref="SetDimensions"/>) so folder enumeration stays off
+/// the IO hot path.
+/// </summary>
 public class ImageItem : INotifyPropertyChanged
 {
     private BitmapSource? _thumbnail;

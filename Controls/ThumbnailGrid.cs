@@ -100,6 +100,13 @@ public class ThumbnailGrid : ListBox
         }
     }
 
+    /// <summary>
+    /// Mark <paramref name="item"/> as the selected item, refresh
+    /// the visual selection state on all containers, and raise
+    /// <see cref="ItemClicked"/>. Called from
+    /// <c>ThumbnailItem.OnMouseLeftButtonUp</c> so the host window
+    /// can navigate to the clicked image.
+    /// </summary>
     public void NotifyItemClicked(ImageItem item)
     {
         SelectedItem = item;
@@ -107,6 +114,13 @@ public class ThumbnailGrid : ListBox
         ItemClicked?.Invoke(item);
     }
 
+    /// <summary>
+    /// Scroll the currently-selected item into the visible band.
+    /// Deferred to <see cref="DispatcherPriority.Background"/> so
+    /// the container's <c>ActualWidth</c>/<c>ActualHeight</c> are
+    /// available when <c>BringIntoView</c> runs. No-op if nothing
+    /// is selected or the item isn't in the items source.
+    /// </summary>
     public void ScrollSelectedIntoView()
     {
         if (SelectedItem == null) return;
@@ -131,6 +145,13 @@ public class ThumbnailGrid : ListBox
     }
 }
 
+/// <summary>
+/// One cell in the thumbnail grid. A <see cref="ContentControl"/>
+/// (not a <c>ListBoxItem</c>) so we can render our own
+/// selection chrome via the card template's
+/// <c>LinearThumbnailTemplate</c> without the default
+/// ListBox focus ring competing with the hover state.
+/// </summary>
 public class ThumbnailItem : ContentControl
 {
     public static readonly DependencyProperty IsSelectedProperty =

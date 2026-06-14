@@ -4,6 +4,13 @@ using Timer = System.Timers.Timer;
 
 namespace ApertureNeo.Services;
 
+/// <summary>
+/// Timer-driven auto-advance for the viewer. Fires
+/// <see cref="NextRequested"/> every <see cref="IntervalMs"/>
+/// milliseconds while running; the host window subscribes to
+/// that event and calls <c>NavigationService.MoveNext</c> on
+/// the UI thread.
+/// </summary>
 public class SlideshowService : IDisposable
 {
     private readonly Timer _timer;
@@ -34,6 +41,9 @@ public class SlideshowService : IDisposable
         _timer.Elapsed += (_, _) => NextRequested?.Invoke();
     }
 
+    /// <summary>Start the slideshow timer. No-op if already
+    /// running. The first <see cref="NextRequested"/> fires after
+    /// <see cref="IntervalMs"/> has elapsed, not immediately.</summary>
     public void Start()
     {
         if (_isRunning) return;
@@ -42,6 +52,8 @@ public class SlideshowService : IDisposable
         _timer.Start();
     }
 
+    /// <summary>Stop the slideshow timer. Fires <see cref="Stopped"/>
+    /// so the host can refresh the play/pause button icon.</summary>
     public void Stop()
     {
         if (!_isRunning) return;
@@ -50,6 +62,8 @@ public class SlideshowService : IDisposable
         Stopped?.Invoke();
     }
 
+    /// <summary>Toggle between running and stopped. Equivalent to
+    /// <see cref="Stop"/> when running, <see cref="Start"/> otherwise.</summary>
     public void Toggle()
     {
         if (_isRunning) Stop();

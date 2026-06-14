@@ -8,6 +8,12 @@ using SQLitePCL;
 
 namespace ApertureNeo;
 
+/// <summary>
+/// Application entry point. Owns the long-lived singletons
+/// (<see cref="ThumbnailCache"/>, <see cref="SettingsStore"/>),
+/// the SQLite native init, and the global exception handlers that
+/// keep the process alive across screenshot-tool reentrancy.
+/// </summary>
 public partial class App : Application
 {
     public static ThumbnailCache ThumbnailCache { get; private set; } = null!;

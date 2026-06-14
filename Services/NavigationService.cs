@@ -10,6 +10,14 @@ using ApertureNeo.Models;
 
 namespace ApertureNeo.Services;
 
+/// <summary>
+/// Owns the current folder's image list and the "current image"
+/// pointer. Folder enumeration runs on a worker task; the
+/// resulting <see cref="ImageItem"/> list is published back to
+/// the UI thread via <see cref="CollectionChanged"/>. A
+/// <see cref="FileSystemWatcher"/> reloads on file
+/// create/delete/rename in the watched folder.
+/// </summary>
 public class NavigationService
 {
     private readonly ObservableCollection<ImageItem> _items = new();
@@ -157,8 +165,18 @@ public class NavigationService
     }
 }
 
+/// <summary>
+/// Extension methods for <see cref="ObservableCollection{T}"/> used
+/// by the navigation service.
+/// </summary>
 internal static class ObservableCollectionExtensions
 {
+    /// <summary>
+    /// Find the first index whose <see cref="ImageItem.FilePath"/>
+    /// matches <paramref name="filePath"/> (case-insensitive). Returns
+    /// -1 if no match. Used by <see cref="NavigationService.NavigateTo"/>
+    /// to map a file path to a list index.
+    /// </summary>
     public static int IndexOfFirst(this ObservableCollection<ImageItem> items, string filePath)
     {
         for (int i = 0; i < items.Count; i++)

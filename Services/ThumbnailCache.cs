@@ -7,6 +7,15 @@ using SkiaSharp;
 
 namespace ApertureNeo.Services;
 
+/// <summary>
+/// SQLite-backed cache for thumbnail JPEGs. Cached entries are
+/// keyed by (path, mtime) so editing a file invalidates the
+/// cached thumbnail automatically. LRU eviction by
+/// <c>created_at</c> keeps the row count at
+/// <see cref="MaxEntries"/>. Falls back to a memory-only
+/// decode + return on SQLite IO errors (logged via
+/// <see cref="DebugLog"/>) so a corrupt cache never blocks the UI.
+/// </summary>
 public class ThumbnailCache : IDisposable
 {
     public const int MaxEntries = 2000;
@@ -69,6 +78,15 @@ public class ThumbnailCache : IDisposable
         cmd.ExecuteNonQuery();
     }
 
+    /// <summary>
+    /// Look up a cached thumbnail for <paramref name="path"/>; if
+    /// missing, decode the file, scale it down to the requested
+    /// <paramref name="size"/>, write the JPEG bytes to the cache,
+    /// and return them. Pass <paramref name="size"/>=0 to use the
+    /// late-bound <see cref="SetSizeProvider"/> source.
+    /// Returns null on decode failure (or when the cache is
+    /// disposed) — callers should not throw on null.
+    /// </summary>
     public async Task<byte[]?> GetOrCreateAsync(string path, int size = 256, CancellationToken ct = default)
     {
         var (bytes, _, _, _) = await GetOrCreateWithErrorAsync(path, size, ct);
@@ -146,6 +164,9 @@ public class ThumbnailCache : IDisposable
         return (bytes, null, w, h);
     }
 
+    /// <summary>Drop the cached thumbnail for <paramref name="path"/>.
+    /// Called when the user manually triggers "clear cache" or when
+    /// the source file's mtime changes and we want to force a re-decode.</summary>
     public async Task InvalidateAsync(string path, CancellationToken ct = default)
     {
         if (_disposed) return;
@@ -163,6 +184,10 @@ public class ThumbnailCache : IDisposable
         finally { _dbLock.Release(); }
     }
 
+    /// <summary>Delete every cached thumbnail. Used by the
+    /// "clear cache" menu action. All in-flight decodes complete
+    /// before the table is truncated, so the operation is safe to
+    /// call while a folder is being browsed.</summary>
     public async Task ClearAsync(CancellationToken ct = default)
     {
         if (_disposed) return;

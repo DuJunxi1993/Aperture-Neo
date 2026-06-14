@@ -20,6 +20,14 @@ using Wpf.Ui.Controls;
 
 namespace ApertureNeo;
 
+/// <summary>
+/// Main viewer window. Three-column layout
+/// (FolderTree | ThumbnailGrid | SkiaImageViewer), fullscreen state
+/// machine, slideshow + keyboard nav, and most app-level event
+/// wiring. Long-lived state lives in <see cref="NavigationService"/>
+/// and <see cref="SlideshowService"/>; this class orchestrates
+/// them and proxies UI events.
+/// </summary>
 public partial class MainWindow : FluentWindow
 {
     private readonly NavigationService _navigation = new();

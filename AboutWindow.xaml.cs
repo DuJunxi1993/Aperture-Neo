@@ -4,6 +4,10 @@ using Wpf.Ui.Controls;
 
 namespace ApertureNeo;
 
+/// <summary>
+/// "About" dialog. Modal, owner-relative, no business logic beyond
+/// "OK closes the window" and "double-click the title bar closes".
+/// </summary>
 public partial class AboutWindow : FluentWindow
 {
     public AboutWindow(Window owner)

@@ -7,16 +7,36 @@ using SkiaSharp;
 
 namespace ApertureNeo.Services;
 
+/// <summary>
+/// SkiaSharp-based image decoder. Reads the file off-thread, asks
+/// the codec for the source dimensions, and if the long edge
+/// exceeds <see cref="MaxDecodeDimension"/> allocates a
+/// pre-scaled bitmap of <c>(decodeW, decodeH)</c> to keep
+/// allocations bounded for huge photos (8K JPEGs etc.).
+/// </summary>
 public class ImageLoader
 {
     private int _maxDecodeDimension = 7680;
 
+    /// <summary>
+    /// Upper bound on the longest edge of the decoded bitmap, in
+    /// pixels. Sources larger than this are downsampled during
+    /// decode (preserving aspect ratio). Clamped to [1080, 7680].
+    /// Default 7680 covers 8K sources.
+    /// </summary>
     public int MaxDecodeDimension
     {
         get => _maxDecodeDimension;
         set => _maxDecodeDimension = Math.Clamp(value, 1080, 7680);
     }
 
+    /// <summary>
+    /// Decode <paramref name="path"/> to an <see cref="ImageLoadResult"/>
+    /// on a worker thread. Honors the cancellation token at
+    /// pre-decode (after FileInfo) and at post-decode (after codec
+    /// open) checkpoints. Never throws — failure modes are returned
+    /// in <see cref="ImageLoadResult.ErrorMessage"/>.
+    /// </summary>
     public Task<ImageLoadResult> LoadAsync(string path, CancellationToken ct = default)
     {
         return Task.Run(() =>

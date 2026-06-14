@@ -9,6 +9,15 @@ using ApertureNeo.Models;
 
 namespace ApertureNeo.Services;
 
+/// <summary>
+/// Persists user-mutable state (favorites, recent folders,
+/// last-opened image path) to <c>%APPDATA%\ApertureNeo\settings.json</c>.
+/// Reads/writes are guarded by a single lock; saves are debounced
+/// (<see cref="ScheduleSave"/>) so a burst of AddRecent/AddFavorite
+/// calls collapses into one disk write. <see cref="FavoritesChanged"/>
+/// and <see cref="RecentChanged"/> events let the tree refresh
+/// without polling.
+/// </summary>
 public class SettingsStore
 {
     public const int MaxRecentCount = 10;
@@ -45,6 +54,12 @@ public class SettingsStore
     /// </summary>
     public string? LastOpenedImage { get; set; }
 
+    /// <summary>
+    /// Read <see cref="SettingsPath"/> from disk and replace the
+    /// in-memory favorites, recent, and last-opened-image values.
+    /// Called once at startup from <c>App.OnStartup</c>. Silent on
+    /// missing file or parse error — starts with empty state.
+    /// </summary>
     public void Load()
     {
         try
@@ -67,6 +82,13 @@ public class SettingsStore
         }
     }
 
+    /// <summary>
+    /// Serialize the current favorites, recent list, and last-opened
+    /// image to <see cref="SettingsPath"/>. Synchronous; called by
+    /// <see cref="ScheduleSave"/> after a short debounce, and by
+    /// <c>App.OnExit</c> on application close. Silent on IO error
+    /// (logged but not propagated).
+    /// </summary>
     public void Save()
     {
         try
@@ -96,12 +118,17 @@ public class SettingsStore
         }
     }
 
+    /// <summary>True if <paramref name="path"/> is in the favorites list
+    /// (case-insensitive). Safe to call from any thread.</summary>
     public bool IsFavorite(string path)
     {
         lock (_lock)
             return _favorites.Any(p => p.Equals(path, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>Add <paramref name="path"/> to favorites if not
+    /// already present. Triggers a debounced save and fires
+    /// <see cref="FavoritesChanged"/> when the list actually changed.</summary>
     public void AddFavorite(string path)
     {
         bool changed;
@@ -117,6 +144,9 @@ public class SettingsStore
         }
     }
 
+    /// <summary>Remove <paramref name="path"/> from favorites
+    /// (case-insensitive). No-op if absent. Triggers save + event
+    /// only on actual change.</summary>
     public void RemoveFavorite(string path)
     {
         bool changed;
@@ -131,6 +161,8 @@ public class SettingsStore
         }
     }
 
+    /// <summary>Remove <paramref name="path"/> from the recent
+    /// list. No-op if absent.</summary>
     public void RemoveRecent(string path)
     {
         bool changed;
@@ -138,6 +170,8 @@ public class SettingsStore
         if (changed) { ScheduleSave(); RecentChanged?.Invoke(); }
     }
 
+    /// <summary>Drop the entire recent list. Fires
+    /// <see cref="RecentChanged"/> only if the list was non-empty.</summary>
     public void ClearRecent()
     {
         bool changed;
@@ -145,6 +179,10 @@ public class SettingsStore
         if (changed) { ScheduleSave(); RecentChanged?.Invoke(); }
     }
 
+    /// <summary>Move <paramref name="path"/> to the front of the
+    /// recent list and update its <see cref="RecentEntry.LastOpened"/>
+    /// to UtcNow. Trims the list to <see cref="MaxRecentCount"/> by
+    /// dropping the oldest entries.</summary>
     public void AddRecent(string path)
     {
         bool changed;

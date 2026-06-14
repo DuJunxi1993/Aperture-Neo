@@ -11,6 +11,16 @@ using SkiaSharp;
 
 namespace ApertureNeo.Controls;
 
+/// <summary>
+/// Image-rendering surface. Loads via <see cref="ImageLoader"/>
+/// (off-thread decode), caches the result in a
+/// <see cref="WriteableBitmap"/>, and composites with
+/// <see cref="SkiaSharp"/> on <see cref="OnRender"/>. Supports
+/// mouse-wheel zoom-to-cursor, pan, fit-to-screen, and
+/// animated transitions. Screenshot tools (Windows Snip, etc.)
+/// re-enter WPF's render path mid-frame; a reentrancy guard
+/// drops the second call to avoid a deadlock.
+/// </summary>
 public class SkiaImageViewer : FrameworkElement
 {
     private SKBitmap? _bitmap;

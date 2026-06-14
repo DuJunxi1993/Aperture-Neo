@@ -7,6 +7,15 @@ using System.Windows;
 
 namespace ApertureNeo.Controls.FolderTree;
 
+/// <summary>
+/// One row in <see cref="FolderTreeView"/>. Concrete subclasses
+/// are <see cref="FolderItemNode"/>, <see cref="DriveItemNode"/>,
+/// and the internal <see cref="SectionHeaderNode"/>. Carries
+/// everything the row template needs (label, icon, font size,
+/// "is a section header" flag) and raises
+/// <see cref="INotifyPropertyChanged"/> so the template updates
+/// when the underlying file system changes.
+/// </summary>
 public abstract class TreeNodeBase : INotifyPropertyChanged
 {
     private string _displayName = "";

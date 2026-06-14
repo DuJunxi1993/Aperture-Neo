@@ -14,6 +14,12 @@ using ApertureNeo.Services;
 
 namespace ApertureNeo.Controls.FolderTree;
 
+/// <summary>
+/// Where a folder node lives in the tree. Drives the
+/// "should this be added to recent / favorites?" decision
+/// in the navigation service — only <see cref="Subdirectory"/>
+/// rows go through that gate.
+/// </summary>
 public enum FolderSource
 {
     Favorite,
@@ -22,11 +28,26 @@ public enum FolderSource
     Subdirectory
 }
 
+/// <summary>
+/// Three-section folder tree (Favorites / Recent / ThisPC) with
+/// drill-into-subfolder navigation. Drilling pushes the current
+/// view onto an internal stack; <see cref="NavigateBack"/> pops.
+/// Right-click on a node shows an "add/remove favorite" context
+/// menu. A read-only <see cref="SyncFrom"/> clone is used inside
+/// the floating tree popup.
+/// </summary>
 public class FolderTreeView : ItemsControl
 {
     public new ObservableCollection<TreeNodeBase> Items { get; } = new();
     private readonly Stack<(List<TreeNodeBase> items, string? parentPath)> _navStack = new();
 
+    /// <summary>
+    /// Pop the drill stack back to the top-level
+    /// (Favorites/Recent/ThisPC) view. Fires
+    /// <see cref="DrillModeChanged"/> if the stack was non-empty
+    /// before the call so the host window can update the
+    /// "back to root" floating chip.
+    /// </summary>
     public void ReturnToRoot()
     {
         bool wasInDrill = _navStack.Count > 0;
@@ -58,6 +79,13 @@ public class FolderTreeView : ItemsControl
     /// SelectedNode pointer; the rest of the application talks to
     /// the inline tree, not the clone, so the clone is just a
     /// view. Callers should not subscribe to the clone's events.
+    /// </summary>
+    /// <summary>
+    /// Mirror the visible node list and selection of another
+    /// tree into this one, then mark this control as read-only.
+    /// Used by the floating tree popup so it can render the same
+    /// items the inline tree shows without subscribing to
+    /// favorite/recent change events.
     /// </summary>
     public void SyncFrom(FolderTreeView source)
     {
@@ -378,6 +406,13 @@ public class FolderTreeView : ItemsControl
 
     // ---- Page Up/Down ----
 
+    /// <summary>
+    /// Walk the visible (top-level) folder list to find
+    /// <paramref name="currentPath"/>, then select the next or
+    /// previous folder (wrapping). Returns false if
+    /// <paramref name="currentPath"/> isn't in the list. Bound to
+    /// PageUp/PageDown in the host window's key handler.
+    /// </summary>
     public bool NavigateToAdjacentFolder(string currentPath, bool forward)
     {
         var all = Items.Where(i => i.Path != null && !(i is SectionHeaderNode)).ToList();

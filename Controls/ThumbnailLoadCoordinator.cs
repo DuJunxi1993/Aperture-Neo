@@ -11,6 +11,14 @@ using ApertureNeo.Services;
 
 namespace ApertureNeo.Controls;
 
+/// <summary>
+/// Concurrent thumbnail loader with priority scheduling. On
+/// <see cref="LoadForFolder"/> the items closest to the current
+/// index are decoded first (bounded by <see cref="PriorityWindow"/>);
+/// the rest are loaded lazily by <see cref="EnsureVisible"/> as
+/// the user scrolls. Concurrency is capped at
+/// <see cref="MaxConcurrent"/> via a <see cref="SemaphoreSlim"/>.
+/// </summary>
 public class ThumbnailLoadCoordinator : IDisposable
 {
     private readonly SemaphoreSlim _semaphore;
@@ -46,6 +54,14 @@ public class ThumbnailLoadCoordinator : IDisposable
     /// </summary>
     public int DecodePixelWidth { get; set; } = 128;
 
+    /// <summary>
+    /// Cancel any in-flight decode queue, then schedule priority
+    /// loads for items within <see cref="PriorityWindow"/> of
+    /// <paramref name="currentIndex"/> and defer the rest to
+    /// <see cref="EnsureVisible"/>. <paramref name="onError"/>
+    /// (if non-null) is invoked once per failed decode on the UI
+    /// thread; subscribers should keep the handler fast.
+    /// </summary>
     public void LoadForFolder(IEnumerable<ImageItem> items, int currentIndex, Action<string>? onError = null)
     {
         Cancel();
@@ -110,6 +126,12 @@ public class ThumbnailLoadCoordinator : IDisposable
     private DateTime _lastEnsureCall = DateTime.MinValue;
     private static readonly TimeSpan EnsureDebounce = TimeSpan.FromMilliseconds(100);
 
+    /// <summary>
+    /// Schedule thumbnail loads for items in the visible band
+    /// (best-effort, debounced to 10Hz to avoid superseding
+    /// itself during fling scrolls). Items already loaded or
+    /// already in error state are skipped silently.
+    /// </summary>
     public void EnsureVisible(int firstIndex, int lastIndex)
     {
         if (_allRemaining == null || _allRemaining.Count == 0) return;
@@ -207,6 +229,12 @@ public class ThumbnailLoadCoordinator : IDisposable
         return app.Dispatcher.InvokeAsync(action, DispatcherPriority.Background).Task;
     }
 
+    /// <summary>
+    /// Cancel all in-flight decodes and dispose the
+    /// <see cref="CancellationTokenSource"/>. Safe to call when
+    /// nothing is running; <see cref="LoadForFolder"/> calls this
+    /// at entry so a new folder load never races the old one.
+    /// </summary>
     public void Cancel()
     {
         var old = _cts;

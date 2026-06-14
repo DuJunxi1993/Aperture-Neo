@@ -229,6 +229,13 @@ public class SkiaImageViewer : FrameworkElement
     /// </summary>
     public bool FitToScreenSkipAnimation { get; set; }
 
+    /// <summary>
+    /// True when the current zoom is within 1% of the auto-fit scale
+    /// (i.e. the image is at "Fit to screen" size). Used by the host
+    /// window's double-click handler to toggle Fit ↔ 100%.
+    /// </summary>
+    public bool IsAtFitScale => _bitmap != null && Math.Abs(_zoom - _fitScale) < 0.01f;
+
     public void FitToScreen()
     {
         if (_bitmap == null)

@@ -225,6 +225,12 @@ AllowDrop="True">
                                                             <Setter Property="FontWeight" Value="600"/>
                                                             <Setter Property="Foreground" Value="{StaticResource TextTertiary}"/>
                                                         </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsEmptyHint}" Value="True">
+                                                            <Setter Property="FontSize" Value="11"/>
+                                                            <Setter Property="FontWeight" Value="400"/>
+                                                            <Setter Property="Foreground" Value="{StaticResource TextQuat}"/>
+                                                            <Setter Property="FontStyle" Value="Italic"/>
+                                                        </DataTrigger>
                                                         <DataTrigger Value="True">
                                                             <DataTrigger.Binding>
                                                                 <Binding Path="IsSelected" RelativeSource="{RelativeSource AncestorType=tree:FolderItemContainer}"/>
@@ -350,6 +356,14 @@ AllowDrop="True">
                      ensures it doesn't intercept the double-click. -->
                 <Rectangle x:Name="BlackFlashOverlay" Panel.ZIndex="5"
                            Fill="Black" Visibility="Collapsed" Opacity="0"
+                           IsHitTestVisible="False"
+                           HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                <!-- White-flash overlay: covers the viewer with white during
+                     fullscreen EXIT (shorter, snappier than the entry black flash).
+                     Sits at Panel.ZIndex=5 alongside BlackFlashOverlay, only one
+                     is ever visible at a time. -->
+                <Rectangle x:Name="WhiteFlashOverlay" Panel.ZIndex="5"
+                           Fill="White" Visibility="Collapsed" Opacity="0"
                            IsHitTestVisible="False"
                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
                 <!-- Floating overlays at Panel.ZIndex=10 sit ABOVE the

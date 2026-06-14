@@ -496,5 +496,5 @@ internal sealed class FolderItemContainer : ContentControl
 
 internal sealed class EmptyHintNode : TreeNodeBase
 {
-    public EmptyHintNode(string text) { DisplayName = text; Path = null; IsSectionHeader = true; }
+    public EmptyHintNode(string text) { DisplayName = text; Path = null; IsSectionHeader = true; IsEmptyHint = true; }
 }

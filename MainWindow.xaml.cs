@@ -1080,10 +1080,11 @@ public partial class MainWindow : FluentWindow
             _exitHintHideTimer?.Stop();
             _exitHintHideTimer?.Start();
 
-            // Black-flash overlay covers the viewer for ~100ms during
-            // the entry transition so the snap from windowed → fullscreen
-            // viewer position is hidden behind a fade.
-            FlashBlackOverlay();
+            // Black-flash overlay covers the viewer during the entry
+            // transition so the snap from windowed → fullscreen viewer
+            // position is hidden behind a fade.
+            //   200ms fade-in → 150ms hold (full black) → 200ms fade-out
+            FlashOverlay(BlackFlashOverlay, 200, 150, 200);
         }
         else
         {
@@ -1091,8 +1092,9 @@ public partial class MainWindow : FluentWindow
             HideExitFullscreenHint();
             _exitHintHideTimer?.Stop();
 
-            // Black-flash during exit too.
-            FlashBlackOverlay();
+            // White-flash during exit (shorter, snappier than entry):
+            //   100ms fade-in → 0ms hold → 200ms fade-out
+            FlashOverlay(WhiteFlashOverlay, 100, 0, 200);
         }
         // WPF-UI's FluentWindow wraps the Content in a ClientAreaBorder
         // (an internal class) whose OnWindowStateChanged sets Padding to
@@ -1177,38 +1179,38 @@ public partial class MainWindow : FluentWindow
     }
 
     /// <summary>
-    /// Black-flash overlay: briefly covers the viewer with a black
-    /// rectangle (fade in 100ms → 100ms hold → fade out 200ms) so
-    /// the snap from windowed → fullscreen viewer position (or back)
-    /// is hidden behind a smooth fade instead of being a hard pop.
-    /// Used by both entry and exit of fullscreen.
+    /// Flash an overlay rectangle (black or white) across the viewer
+    /// to hide the snap from windowed ↔ fullscreen viewer position.
+    /// Timeline:
+    ///   fadeInMs  — 0 → 1
+    ///   holdMs    — full opacity (0 = no hold)
+    ///   fadeOutMs — 1 → 0 (CubicEase ease-in-out, starts at fadeInMs+holdMs)
+    /// Always Collapses + resets Opacity=0 when the fade-out completes
+    /// so future hit-tests are not caught.
     /// </summary>
-    private void FlashBlackOverlay()
+    private void FlashOverlay(System.Windows.Shapes.Rectangle? rect,
+                              double fadeInMs, double holdMs, double fadeOutMs)
     {
-        if (BlackFlashOverlay == null) return;
-        // Cancel any in-flight animation.
-        BlackFlashOverlay.BeginAnimation(UIElement.OpacityProperty, null);
-        BlackFlashOverlay.Visibility = Visibility.Visible;
-        BlackFlashOverlay.Opacity = 0;
-        var fadeIn = new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(100));
-        var fadeOut = new DoubleAnimation(1d, 0d, TimeSpan.FromMilliseconds(200))
+        if (rect == null) return;
+        rect.BeginAnimation(UIElement.OpacityProperty, null);
+        rect.Visibility = Visibility.Visible;
+        rect.Opacity = 0;
+        var fadeIn = new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(fadeInMs));
+        var fadeOutStart = TimeSpan.FromMilliseconds(fadeInMs + holdMs);
+        var fadeOut = new DoubleAnimation(1d, 0d, TimeSpan.FromMilliseconds(fadeOutMs))
         {
             EasingFunction = new System.Windows.Media.Animation.CubicEase
             {
                 EasingMode = System.Windows.Media.Animation.EasingMode.EaseInOut
             },
-            // BeginTime shifts the start of the fade-out to after fade-in completes.
-            BeginTime = TimeSpan.FromMilliseconds(100)
+            BeginTime = fadeOutStart
         };
-        BlackFlashOverlay.BeginAnimation(UIElement.OpacityProperty, fadeIn);
-        BlackFlashOverlay.BeginAnimation(UIElement.OpacityProperty, fadeOut);
-
-        // Once the fade-out completes, hide the overlay so it doesn't
-        // catch future hit-tests.
+        rect.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+        rect.BeginAnimation(UIElement.OpacityProperty, fadeOut);
         fadeOut.Completed += (_, _) =>
         {
-            BlackFlashOverlay.Visibility = Visibility.Collapsed;
-            BlackFlashOverlay.Opacity = 0;
+            rect.Visibility = Visibility.Collapsed;
+            rect.Opacity = 0;
         };
     }
 
@@ -1252,8 +1254,14 @@ public partial class MainWindow : FluentWindow
         }
         else
         {
-            // Window mode: zoom to 100% (matches ZoomTextBlock_Click).
-            ImageViewer.ZoomToOriginal();
+            // Window mode: toggle between Fit and 100%.
+            // (matches the floating-bar percent label click semantics,
+            // but in both directions — clicking the percent always zooms
+            // to 100%, the viewer double-click rounds-trips fit↔100%.)
+            if (ImageViewer.IsAtFitScale)
+                ImageViewer.ZoomToOriginal();
+            else
+                ImageViewer.FitToScreen();
         }
         e.Handled = true;
     }

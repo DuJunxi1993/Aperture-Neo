@@ -22,6 +22,7 @@ public abstract class TreeNodeBase : INotifyPropertyChanged
     public bool IsSectionHeader { get => _isSectionHeader; set { _isSectionHeader = value; OnPropertyChanged(); } }
     public bool IsFirstSection { get; set; }
     public bool IsLeaf { get; set; }
+    public bool IsEmptyHint { get; set; }
     public ObservableCollection<TreeNodeBase> Children { get; } = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;

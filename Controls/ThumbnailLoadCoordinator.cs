@@ -121,39 +121,52 @@ public class ThumbnailLoadCoordinator : IDisposable
     private int _currentFocusIndex;
 
     /// <summary>
-    /// Ensure thumbnails are loaded for the items in the visible range.
-    /// Called from the thumbnail panel when it scrolls / virtualizes.
-    /// Round 68: debounced to 100ms — the ScrollChanged event can
-    /// fire every frame during a fling scroll, and each call spins
-    /// up a fresh Task.Run. Throttling to 10Hz keeps the worker pool
-    /// busy with actual decode work instead of being saturated by
-    /// scrolling-triggered work that supersedes itself.
+    /// Pending items accumulated between debounced flushes. During a
+    /// fast scroll, ScrollChanged can fire faster than the debounce
+    /// window — the old implementation dropped each in-flight range
+    /// after the first, leaving the user's actual landing position
+    /// un-loaded. The HashSet deduplicates across overlapping ranges
+    /// so the next flush picks up everything.
     /// </summary>
+    private readonly HashSet<ImageItem> _ensurePending = new();
+
     private DateTime _lastEnsureCall = DateTime.MinValue;
     private static readonly TimeSpan EnsureDebounce = TimeSpan.FromMilliseconds(100);
 
     /// <summary>
-    /// Schedule thumbnail loads for items in the visible band
-    /// (best-effort, debounced to 10Hz to avoid superseding
-    /// itself during fling scrolls). Items already loaded or
-    /// already in error state are skipped silently.
+    /// Schedule thumbnail loads for items in the visible band.
+    /// Debounced to 10Hz to avoid spawning a fresh Task.Run on every
+    /// fling-scroll frame, but unlike the previous implementation
+    /// the dropped ranges are accumulated in <see cref="_ensurePending"/>
+    /// and loaded by the next flush — fast scrolls no longer lose
+    /// the load for the user's landing position. Items already
+    /// loaded or in error state are skipped silently.
     /// </summary>
     public void EnsureVisible(int firstIndex, int lastIndex)
     {
         if (_allRemaining == null || _allRemaining.Count == 0) return;
-        var now = DateTime.UtcNow;
-        if (now - _lastEnsureCall < EnsureDebounce) return;
-        _lastEnsureCall = now;
 
-        var ct = _cts?.Token ?? CancellationToken.None;
-        var pending = new List<ImageItem>();
+        // Accumulate pending items (deduplicated via the HashSet) so
+        // the next flush picks up everything we missed.
         for (int i = firstIndex; i <= lastIndex && i < _allRemaining.Count; i++)
         {
             var item = _allRemaining[i];
             if (item != null && item.Thumbnail == null && !item.HasThumbnailError)
-                pending.Add(item);
+                _ensurePending.Add(item);
         }
-        if (pending.Count == 0) return;
+        if (_ensurePending.Count == 0) return;
+
+        // Debounce: if a flush is scheduled soon, the pending set
+        // already captured this range; bail without spawning a new
+        // Task.Run. The next non-debounced call (or the existing
+        // scheduled flush) will pick it up.
+        var now = DateTime.UtcNow;
+        if (now - _lastEnsureCall < EnsureDebounce) return;
+        _lastEnsureCall = now;
+
+        var pending = new List<ImageItem>(_ensurePending);
+        _ensurePending.Clear();
+        var ct = _cts?.Token ?? CancellationToken.None;
         _ = Task.Run(async () =>
         {
             foreach (var item in pending)

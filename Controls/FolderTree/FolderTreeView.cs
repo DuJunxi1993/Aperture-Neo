@@ -228,6 +228,7 @@ public class FolderTreeView : ItemsControl
     public async void NavigateBack()
     {
         if (_navStack.Count == 0) return;
+        var stackBefore = _navStack.Count;
         var (previous, _) = _navStack.Pop();
         Items.Clear();
         SelectedNode = null;
@@ -235,12 +236,46 @@ public class FolderTreeView : ItemsControl
         if (_pendingRecentRefresh) RefreshRecent();
         DrillModeChanged?.Invoke();
 
-        await Task.Delay(50);
-        TreeNodeBase? latest = null;
+        // Popped back to root view (stack now empty): run the same
+        // Recent-priority auto-select that Init() uses, so the user
+        // lands on the most-recent Recent node rather than a blank
+        // selection. Mid-drill pops (stack still non-empty after the
+        // pop) leave SelectedNode = null — the current folder isn't
+        // in the parent's children list, so there's nothing useful
+        // to highlight.
+        if (stackBefore == 1)
+        {
+            Dispatcher.BeginInvoke(new Action(SelectFirstNode), System.Windows.Threading.DispatcherPriority.Background);
+        }
+    }
+
+    /// <summary>
+    /// Auto-select the most relevant top-level node. Prefers the
+    /// first Recent (matches "where was I just?") over the first
+    /// Favorite. Falls back to the first non-header item if Recent
+    /// is empty. Used by both <see cref="Init"/> and
+    /// <see cref="NavigateBack"/> (when the back stack empties).
+    /// </summary>
+    private void SelectFirstNode()
+    {
         foreach (var item in Items)
-        { if (item is FolderItemNode or DriveItemNode) { latest = item; break; } }
-        if (latest?.Path != null)
-            FolderSelected?.Invoke(ResolveSourceForNode(latest), latest.Path!);
+        {
+            if (item is RecentNode)
+            {
+                SelectedNode = item;
+                ScrollSelectedIntoView();
+                return;
+            }
+        }
+        foreach (var item in Items)
+        {
+            if (item is FolderItemNode || item is RecentNode || item is DriveItemNode)
+            {
+                SelectedNode = item;
+                ScrollSelectedIntoView();
+                return;
+            }
+        }
     }
 
     private static IEnumerable<TreeNodeBase> GetChildren(TreeNodeBase node)
@@ -480,19 +515,9 @@ public class FolderTreeView : ItemsControl
 
         _ = LoadDrivesAsync(gen);
 
-        // Auto-select first non-header item so the selection visual is visible
-        Dispatcher.BeginInvoke(new Action(() =>
-        {
-            for (int i = 0; i < Items.Count; i++)
-            {
-                if (Items[i] is FolderItemNode || Items[i] is RecentNode || Items[i] is DriveItemNode)
-                {
-                    SelectedNode = Items[i];
-                    ScrollSelectedIntoView();
-                    return;
-                }
-            }
-        }), System.Windows.Threading.DispatcherPriority.Background);
+        // Auto-select the most relevant top-level node. Prefer the
+        // first Recent ("where was I just?") over the first Favorite.
+        Dispatcher.BeginInvoke(new Action(SelectFirstNode), System.Windows.Threading.DispatcherPriority.Background);
     }
 
     private async Task LoadDrivesAsync(int gen)

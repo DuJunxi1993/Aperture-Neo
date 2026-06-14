@@ -570,7 +570,7 @@ public partial class MainWindow : FluentWindow
     /// </summary>
     private void ThumbGrid_Loaded(object sender, RoutedEventArgs e)
     {
-        var innerScroller = FindVisualChild<ScrollViewer>(ThumbGrid);
+        var innerScroller = VisualTreeHelpers.FindVisualChild<ScrollViewer>(ThumbGrid);
         if (innerScroller == null) return;
         innerScroller.ScrollChanged += ThumbScroller_ScrollChanged;
         // Round 68: wire the ThumbnailCache size provider to the
@@ -581,7 +581,7 @@ public partial class MainWindow : FluentWindow
         // width each time a thumbnail is generated. A second
         // resolution pass on column resize re-evaluates the size
         // because the Func is captured by reference, not value.
-        var autoFit = FindVisualChild<AutoFitPanel>(ThumbGrid);
+        var autoFit = VisualTreeHelpers.FindVisualChild<AutoFitPanel>(ThumbGrid);
         if (autoFit != null)
         {
             App.ThumbnailCache.SetSizeProvider(() => (int)autoFit.ActualItemWidth);
@@ -600,26 +600,6 @@ public partial class MainWindow : FluentWindow
     /// inner ScrollViewer (e.g. custom keyboard navigation).
     /// </summary>
     public event EventHandler? ThumbGrid_Ready;
-
-    /// <summary>
-    /// Walk the visual tree depth-first and return the first
-    /// descendant of type <typeparamref name="T"/>. Used to
-    /// locate the ListBox's internal ScrollViewer from code
-    /// without keeping a direct XAML reference to it (its x:Name
-    /// is on a ListBox template part, not directly accessible).
-    /// </summary>
-    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
-    {
-        int count = VisualTreeHelper.GetChildrenCount(parent);
-        for (int i = 0; i < count; i++)
-        {
-            var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is T t) return t;
-            var found = FindVisualChild<T>(child);
-            if (found != null) return found;
-        }
-        return null;
-    }
 
     private void OnCurrentImageChanged(ImageItem item)
     {
@@ -723,24 +703,13 @@ public partial class MainWindow : FluentWindow
         if (!InfoPopover.IsOpen) return;
         var src = e.OriginalSource as DependencyObject;
         // Click on the pill: the pill's MouseLeftButtonUp toggles.
-        if (IsDescendantOf(src, InfoPillContent)) return;
+        if (VisualTreeHelpers.IsDescendantOf(src, InfoPillContent)) return;
         // Click inside the popover's content: keep open so the
         // user can select / interact with the text inside.
         if (InfoPopover.Child is DependencyObject popoverChild
-            && IsDescendantOf(src, popoverChild)) return;
+            && VisualTreeHelpers.IsDescendantOf(src, popoverChild)) return;
         // Click anywhere else: close.
         InfoPopover.IsOpen = false;
-    }
-
-    private static bool IsDescendantOf(DependencyObject? node, DependencyObject? ancestor)
-    {
-        if (node == null || ancestor == null) return false;
-        while (node != null)
-        {
-            if (node == ancestor) return true;
-            node = System.Windows.Media.VisualTreeHelper.GetParent(node);
-        }
-        return false;
     }
 
     /// <summary>
@@ -812,7 +781,7 @@ public partial class MainWindow : FluentWindow
         PopoverFileName.Text = string.IsNullOrEmpty(item.FileName) ? "—" : item.FileName;
 
         // Section 2: size + dimensions
-        PopoverSize.Text = FormatFileSize(item.FileSize);
+        PopoverSize.Text = ImageFormatHelper.FormatFileSize(item.FileSize);
         if (item.Width.HasValue && item.Height.HasValue)
         {
             PopoverDimensions.Text = $"{item.Width} × {item.Height}";
@@ -892,14 +861,6 @@ public partial class MainWindow : FluentWindow
             EdgeNavRightContent.Opacity = 0;
             _overlayHideTimer?.Stop();
         }
-    }
-
-    private static string FormatFileSize(long bytes)
-    {
-        if (bytes >= 1024L * 1024 * 1024) return $"{bytes / (1024.0 * 1024 * 1024):F1} GB";
-        if (bytes >= 1024 * 1024) return $"{bytes / (1024.0 * 1024):F1} MB";
-        if (bytes >= 1024) return $"{bytes / 1024.0:F1} KB";
-        return $"{bytes} B";
     }
 
     private void BtnClearRecent_Click(object sender, RoutedEventArgs e)
@@ -1239,7 +1200,7 @@ public partial class MainWindow : FluentWindow
     /// </summary>
     private void ResetClientAreaBorderPadding()
     {
-        var cab = FindClientAreaBorder(this);
+        var cab = VisualTreeHelpers.FindClientAreaBorder(this);
         if (cab == null) return;
         cab.SetValue(System.Windows.Controls.Border.PaddingProperty, new Thickness(0));
     }
@@ -1326,21 +1287,6 @@ public partial class MainWindow : FluentWindow
         else
             ImageViewer.FitToScreen();
         e.Handled = true;
-    }
-
-    private static System.Windows.Controls.Border? FindClientAreaBorder(DependencyObject root)
-    {
-        if (root == null) return null;
-        int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
-        for (int i = 0; i < count; i++)
-        {
-            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
-            if (child is System.Windows.Controls.Border b && b.GetType().Name == "ClientAreaBorder")
-                return b;
-            var deeper = FindClientAreaBorder(child);
-            if (deeper != null) return deeper;
-        }
-        return null;
     }
 
     private void ZoomTextBlock_Click(object sender, MouseButtonEventArgs e) => ImageViewer.ZoomToOriginal();

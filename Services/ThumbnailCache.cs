@@ -31,7 +31,15 @@ public class ThumbnailCache : IDisposable
 
     private readonly string _dbPath;
     private readonly SqliteConnection _db;
-    private readonly SemaphoreSlim _dbLock = new(1, 1);
+    // Round B: split into reader / writer semaphores. Previously a
+    // single SemaphoreSlim(1, 1) serialized all SQLite work, so
+    // 8 concurrent ThumbnailLoadCoordinator workers effectively
+    // queued on a single op-at-a-time cache. With 4 reader slots
+    // the common case (multiple concurrent reads from cache hits)
+    // can overlap, while writes remain exclusive to avoid
+    // SQLITE_BUSY during eviction.
+    private readonly SemaphoreSlim _readLock = new(4, 4);
+    private readonly SemaphoreSlim _writeLock = new(1, 1);
     private Func<int> _sizeProvider;
     private bool _disposed;
 
@@ -64,6 +72,29 @@ public class ThumbnailCache : IDisposable
 
     private void InitSchema()
     {
+        // Round B: enable WAL journal mode. Default "delete" mode
+        // holds an EXCLUSIVE lock on the database file for the
+        // entire duration of every write — even with 4 concurrent
+        // reader slots, a single in-progress write would still
+        // block all readers at the SQLite layer. WAL switches to a
+        // write-ahead log so readers see a stable snapshot of the
+        // last committed transaction and don't block on writers
+        // (and vice versa). Cheap one-time cost (a new -wal file
+        // in the cache dir).
+        using (var pragma = _db.CreateCommand())
+        {
+            pragma.CommandText = "PRAGMA journal_mode = WAL;";
+            pragma.ExecuteNonQuery();
+        }
+        using (var pragma = _db.CreateCommand())
+        {
+            // NORMAL is the recommended sync level for WAL — full is
+            // overkill (WAL is already crash-safe) and risks fsync
+            // stalls on slow disks. OFF is unsafe.
+            pragma.CommandText = "PRAGMA synchronous = NORMAL;";
+            pragma.ExecuteNonQuery();
+        }
+
         using var cmd = _db.CreateCommand();
         cmd.CommandText = @"
             CREATE TABLE IF NOT EXISTS thumbnails (
@@ -170,7 +201,7 @@ public class ThumbnailCache : IDisposable
     public async Task InvalidateAsync(string path, CancellationToken ct = default)
     {
         if (_disposed) return;
-        await _dbLock.WaitAsync(ct);
+        await _writeLock.WaitAsync(ct);
         try
         {
             await Task.Run(() =>
@@ -181,7 +212,7 @@ public class ThumbnailCache : IDisposable
                 cmd.ExecuteNonQuery();
             }, ct);
         }
-        finally { _dbLock.Release(); }
+        finally { _writeLock.Release(); }
     }
 
     /// <summary>Delete every cached thumbnail. Used by the
@@ -191,7 +222,7 @@ public class ThumbnailCache : IDisposable
     public async Task ClearAsync(CancellationToken ct = default)
     {
         if (_disposed) return;
-        await _dbLock.WaitAsync(ct);
+        await _writeLock.WaitAsync(ct);
         try
         {
             await Task.Run(() =>
@@ -201,12 +232,12 @@ public class ThumbnailCache : IDisposable
                 cmd.ExecuteNonQuery();
             }, ct);
         }
-        finally { _dbLock.Release(); }
+        finally { _writeLock.Release(); }
     }
 
     private async Task<byte[]?> ReadFromDiskAsync(string path, long mtime, CancellationToken ct)
     {
-        await _dbLock.WaitAsync(ct);
+        await _readLock.WaitAsync(ct);
         try
         {
             // Run the synchronous SQLite work on a worker thread so the
@@ -232,12 +263,12 @@ public class ThumbnailCache : IDisposable
         {
             return null;
         }
-        finally { _dbLock.Release(); }
+        finally { _readLock.Release(); }
     }
 
     private async Task WriteToDiskAsync(string path, long mtime, byte[] data, int w, int h, CancellationToken ct)
     {
-        await _dbLock.WaitAsync(ct);
+        await _writeLock.WaitAsync(ct);
         try
         {
             await Task.Run(() =>
@@ -264,12 +295,12 @@ public class ThumbnailCache : IDisposable
         catch
         {
         }
-        finally { _dbLock.Release(); }
+        finally { _writeLock.Release(); }
     }
 
     private async Task EvictIfNeededAsync(CancellationToken ct)
     {
-        await _dbLock.WaitAsync(ct);
+        await _writeLock.WaitAsync(ct);
         try
         {
             await Task.Run(() =>
@@ -289,7 +320,7 @@ public class ThumbnailCache : IDisposable
         catch
         {
         }
-        finally { _dbLock.Release(); }
+        finally { _writeLock.Release(); }
     }
 
     private static (byte[]? data, int w, int h) GenerateThumbnail(string path, int size)
@@ -374,6 +405,7 @@ public class ThumbnailCache : IDisposable
         _disposed = true;
         try { _db.Close(); _db.Dispose(); }
         catch { }
-        _dbLock.Dispose();
+        _readLock.Dispose();
+        _writeLock.Dispose();
     }
 }

@@ -144,16 +144,28 @@ begin
   Result := not IsWebView2Installed();
 end;
 
-// Resolve a previous installer (same AppId) and, if present, run its unins000.exe
-// silently so this installer can replace it. After confirmation from the user.
-// Returns True if the new install should proceed.
+// Resolve a previous installer (same AppId) and, if present, run its
+// unins000.exe silently so this installer can replace it. After
+// confirmation from the user. Returns True if the new install
+// should proceed.
+//
+// Resilient to a stale registry entry whose uninstaller file has
+// been deleted (typical after a user manually cleaned up, or after
+// a previous install's uninstaller was quarantined). In that case
+// the new install's [Files] `ignoreversion` flag overwrites the app
+// files, the [Registry] section rewrites the entries, and Inno
+// Setup generates a fresh unins000.exe on install completion — so
+// we just skip the silent uninstall and let the new install
+// proceed rather than refusing with a critical error.
 function RemovePreviousVersion(): Boolean;
 var
   UninstallKey: String;
   UninstallStr: String;
+  UninstDir: String;
   UninstExe: String;
   ResultCode: Integer;
   Found: Boolean;
+  FileFound: Boolean;
 begin
   Result := True;
   Found := False;
@@ -166,7 +178,48 @@ begin
 
   if not Found then Exit;
 
-  UninstExe := ExtractFilePath(UninstallStr) + 'unins000.exe';
+  // Registry values may be quoted when the path contains spaces —
+  // ExtractFilePath doesn't strip quotes, so "C:\path\unins000.exe"
+  // would become "C:\path\unins000.exe\" with a stray trailing
+  // quote. Strip a single leading/trailing pair if present.
+  if (UninstallStr <> '') and (UninstallStr[1] = '"') then
+    UninstallStr := Copy(UninstallStr, 2, Length(UninstallStr) - 2);
+  UninstDir := ExtractFilePath(UninstallStr);
+
+  // Probe the standard Inno Setup uninstaller names. unins000.exe
+  // is the default; unins001/002 appear if ISCC is recompiled into
+  // the same output directory multiple times. We try them in order
+  // and bail silently if none exist — see the function-level comment
+  // for why this is safe (the new install overwrites the rest).
+  UninstExe := '';
+  FileFound := False;
+  if FileExists(UninstDir + 'unins000.exe') then
+  begin
+    UninstExe := UninstDir + 'unins000.exe';
+    FileFound := True;
+  end
+  else if FileExists(UninstDir + 'unins001.exe') then
+  begin
+    UninstExe := UninstDir + 'unins001.exe';
+    FileFound := True;
+  end
+  else if FileExists(UninstDir + 'unins002.exe') then
+  begin
+    UninstExe := UninstDir + 'unins002.exe';
+    FileFound := True;
+  end;
+
+  if not FileFound then
+  begin
+    // Stale registry entry: the previous install's uninstaller file
+    // is gone, but the UninstallString still points at its former
+    // path. Log to the installer's debug log for diagnostics and
+    // proceed — the new install will rewrite the registry and Inno
+    // Setup will create a fresh unins000.exe at the end of install.
+    Log('Previous version uninstaller not found at ' + UninstDir +
+        ' (unins000/001/002.exe all missing); skipping uninstall.');
+    Exit;
+  end;
 
   if MsgBox(
     'A previous version of Aperture Neo was detected on this computer.' + #13#10#13#10 +
@@ -188,7 +241,7 @@ begin
     MsgBox('Failed to launch the previous version''s uninstaller:' + #13#10 +
            UninstExe + #13#10#13#10 +
            'Please remove it manually (Settings -> Apps -> Installed apps) and run this installer again.',
-       mbCriticalError, MB_OK);
+      mbCriticalError, MB_OK);
     Result := False;
   end;
 end;

@@ -93,14 +93,4 @@
         <Setter Property="MinWidth" Value="16"/>
     </Style>
 
-    <!-- Tree row display name. Selected: weight 500 -> 600. -->
-    <Style x:Key="LinearTreeName" TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
-        <Setter Property="FontSize" Value="13"/>
-        <Setter Property="FontWeight" Value="600"/>
-        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-        <Setter Property="VerticalAlignment" Value="Center"/>
-        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-    </Style>
-
 </ResourceDictionary>

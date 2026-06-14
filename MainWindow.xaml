@@ -348,24 +348,6 @@ AllowDrop="True">
                     </controls:SkiaImageViewer.ContextMenu>
                 </controls:SkiaImageViewer>
 
-                <!-- Black-flash overlay used during fullscreen enter/exit so
-                     the snap from windowed → fullscreen viewer position is
-                     hidden behind a smooth fade. Panel.ZIndex=5 (above the
-                     viewer, below the floating overlays) so it covers the
-                     image but not the exit pill. IsHitTestVisible=False
-                     ensures it doesn't intercept the double-click. -->
-                <Rectangle x:Name="BlackFlashOverlay" Panel.ZIndex="5"
-                           Fill="Black" Visibility="Collapsed" Opacity="0"
-                           IsHitTestVisible="False"
-                           HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
-                <!-- White-flash overlay: covers the viewer with white during
-                     fullscreen EXIT (shorter, snappier than the entry black flash).
-                     Sits at Panel.ZIndex=5 alongside BlackFlashOverlay, only one
-                     is ever visible at a time. -->
-                <Rectangle x:Name="WhiteFlashOverlay" Panel.ZIndex="5"
-                           Fill="White" Visibility="Collapsed" Opacity="0"
-                           IsHitTestVisible="False"
-                           HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
                 <!-- Floating overlays at Panel.ZIndex=10 sit ABOVE the
                      SkiaImageViewer for hit-testing. The Grid has IsHitTestVisible=True
                      (default) so it can route events to its children. Each Border

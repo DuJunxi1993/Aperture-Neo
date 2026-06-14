@@ -1036,88 +1036,141 @@ public partial class MainWindow : FluentWindow
     private void ToggleFullscreen()
     {
         _isFullscreen = !_isFullscreen;
-        if (_isFullscreen)
-        {
-            _prevWindowState = WindowState;
-            WindowStyle = WindowStyle.None;
-            WindowState = WindowState.Maximized;
-            // Goal 3: animate the viewer background from white to black
-            // (kept as a softer cross-fade underneath the black-flash).
-            AnimateViewerBackground((System.Windows.Media.Brush)FindResource("SurfaceBlack"));
-        }
-        else
-        {
-            WindowStyle = WindowStyle.SingleBorderWindow;
-            WindowState = _prevWindowState;
-            AnimateViewerBackground((System.Windows.Media.Brush)FindResource("SurfaceElevated"));
-        }
-        // ApplyColumnVisibility handles ALL chrome (side columns,
-        // splitters, hot zone, floating popup). It is called on BOTH
-        // entry and exit so the state machine is symmetric and the
-        // 6px ThumbSplitterColumn / Auto TreeSplitterColumn are
-        // collapsed during fullscreen — otherwise their transparent
-        // backgrounds show the window's SurfaceCanvas tone through,
-        // producing a visible seam between the white viewer and
-        // whatever sits to its left.
+        if (_isFullscreen) EnterFullscreen();
+        else               ExitFullscreen();
+    }
+
+    /// <summary>
+    /// Enter fullscreen with the simplest possible animation: hide the
+    /// viewer area synchronously (Opacity=0, no animation), change the
+    /// OS window state, apply the chrome, refit the image synchronously,
+    /// then fade the viewer back in over 150ms. The viewer background
+    /// does a parallel 150ms ColorAnimation white→black. That's it —
+    /// no flash overlays, no delayed FitToScreen, no RenderTransform
+    /// scaling. The single Opacity fade hides every layout recompute
+    /// and ClientAreaBorder padding change that would otherwise show
+    /// as a flicker.
+    /// </summary>
+    private void EnterFullscreen()
+    {
+        _prevWindowState = WindowState;
+
+        // 1. Hide the viewer area synchronously. This is the entire
+        //    trick: with Opacity=0 the user can't see the layout
+        //    recompute, the ClientAreaBorder padding reset, the image
+        //    refit — none of it. Then we fade back in.
+        ViewerColumn.Opacity = 0;
+
+        // 2. OS-level: become borderless + cover the whole screen.
+        WindowStyle = WindowStyle.None;
+        WindowState = WindowState.Maximized;
+
+        // 3. Apply chrome state and refit the image synchronously.
+        //    ApplyColumnVisibility collapses the side columns;
+        //    ResetClientAreaBorderPadding kills WPF-UI's 5px-maximized
+        //    padding; FitToScreen re-centers the image in the new
+        //    fullscreen rect. All invisible because Opacity=0.
         ApplyColumnVisibility();
-        // Title bar, floating bar, info pill, edge nav are managed
-        // here (orthogonal to column chrome).
         UpdateOverlayVisibility();
-        if (_isFullscreen)
-        {
-            // Synchronously hide the edge nav. No mouse-event trigger
-            // can re-show it for the duration of the fullscreen session.
-            _edgeNavVisible = false;
-            EdgeNavLeftContent.Visibility = Visibility.Collapsed;
-            EdgeNavRightContent.Visibility = Visibility.Collapsed;
-            EdgeNavLeftContent.Opacity = 0;
-            EdgeNavRightContent.Opacity = 0;
-            _overlayHideTimer?.Stop();
-
-            // Goal 2 (revised): exit-hint pill appears on entry and
-            // auto-hides after 3s. No longer tied to cursor position.
-            ShowExitFullscreenHint();
-            _exitHintHideTimer?.Stop();
-            _exitHintHideTimer?.Start();
-
-            // Black-flash overlay covers the viewer during the entry
-            // transition so the snap from windowed → fullscreen viewer
-            // position is hidden behind a fade.
-            //   200ms fade-in → 150ms hold (full black) → 200ms fade-out
-            FlashOverlay(BlackFlashOverlay, 200, 150, 200);
-        }
-        else
-        {
-            // Hide the exit-hint pill immediately on exit.
-            HideExitFullscreenHint();
-            _exitHintHideTimer?.Stop();
-
-            // White-flash during exit (shorter, snappier than entry):
-            //   100ms fade-in → 0ms hold → 200ms fade-out
-            FlashOverlay(WhiteFlashOverlay, 100, 0, 200);
-        }
-        // WPF-UI's FluentWindow wraps the Content in a ClientAreaBorder
-        // (an internal class) whose OnWindowStateChanged sets Padding to
-        // ~5px when the window is maximized. That padding shows the
-        // window's SurfaceCanvas tone (#fafafa) as a 1-2px white-ish
-        // border around the white viewer. Reset it after the state
-        // change so the viewer is flush with the screen edges.
         ResetClientAreaBorderPadding();
-        // Goal 3 (revision): tell SkiaImageViewer to skip its zoom
-        // animation on the next FitToScreen so the image appears at
-        // its new centred position immediately, instead of sliding
-        // from the windowed-viewer position to the new fullscreen
-        // position. The window→fullscreen transition is now driven
-        // entirely by the viewer-background ColorAnimation in
-        // AnimateViewerBackground (white→black over 200ms).
-        ImageViewer.FitToScreenSkipAnimation = true;
-        Dispatcher.BeginInvoke(() =>
+        ImageViewer.FitToScreen();
+
+        // 4. Hide the edge nav and show the exit hint.
+        _edgeNavVisible = false;
+        EdgeNavLeftContent.Visibility = Visibility.Collapsed;
+        EdgeNavRightContent.Visibility = Visibility.Collapsed;
+        EdgeNavLeftContent.Opacity = 0;
+        EdgeNavRightContent.Opacity = 0;
+        _overlayHideTimer?.Stop();
+        ShowExitFullscreenHint();
+        _exitHintHideTimer?.Stop();
+        _exitHintHideTimer?.Start();
+
+        // 5. Fade the viewer back in (150ms, ease-out). The image
+        //    appears in its new fullscreen fit at the new size, on a
+        //    background that's mid-transition to black. Single
+        //    animation, no other moving parts.
+        ViewerColumn.BeginAnimation(UIElement.OpacityProperty,
+            new System.Windows.Media.Animation.DoubleAnimation(1d, TimeSpan.FromMilliseconds(150))
+            {
+                EasingFunction = new System.Windows.Media.Animation.CubicEase
+                {
+                    EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
+                }
+            });
+
+        // 6. Parallel: viewer background white → pure black (150ms,
+        //    ease-in-out). The user lands on a black fullscreen after
+        //    the fade-in completes.
+        AnimateViewerBackground(
+            (System.Windows.Media.Brush)FindResource("SurfaceBlack"), 150);
+    }
+
+    /// <summary>
+    /// Exit fullscreen with the simplest possible animation: fade the
+    /// viewer area to Opacity=0 over 150ms, then (in the Completed
+    /// event) restore the OS window to its previous state + chrome +
+    /// FitToScreen, then fade back in over 150ms. Viewer background
+    /// does a parallel 150ms ColorAnimation black→white. No flash
+    /// overlays, no extra timers — the animation's own Completed
+    /// event drives the post-fade work.
+    /// </summary>
+    private void ExitFullscreen()
+    {
+        HideExitFullscreenHint();
+        _exitHintHideTimer?.Stop();
+
+        // 1. Fade the viewer to 0 over 150ms (ease-in). After this
+        //    completes, restore the OS window.
+        var fadeOut = new System.Windows.Media.Animation.DoubleAnimation(
+            0d, TimeSpan.FromMilliseconds(150))
         {
-            UpdateLayout();
+            EasingFunction = new System.Windows.Media.Animation.CubicEase
+            {
+                EasingMode = System.Windows.Media.Animation.EasingMode.EaseIn
+            }
+        };
+        fadeOut.Completed += (_, _) =>
+        {
+            // 2. Restore the OS window. Force WindowState=Normal
+            //    rather than _prevWindowState so a previous Maximized
+            //    state doesn't accidentally no-op (since the window is
+            //    currently Maximized).
+            WindowStyle = WindowStyle.SingleBorderWindow;
+            WindowState = WindowState.Normal;
+            ApplyColumnVisibility();
+            UpdateOverlayVisibility();
             ResetClientAreaBorderPadding();
             ImageViewer.FitToScreen();
             Focus();
-        }, DispatcherPriority.Loaded);
+
+            // 3. If the user had the window Maximized before fullscreen,
+            //    re-maximize it on the next dispatcher cycle (deferred
+            //    so it doesn't fight the WindowStyle HWND recreation
+            //    happening above).
+            if (_prevWindowState == WindowState.Maximized)
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    WindowState = WindowState.Maximized;
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+
+            // 4. Fade the viewer back in over 150ms.
+            ViewerColumn.BeginAnimation(UIElement.OpacityProperty,
+                new System.Windows.Media.Animation.DoubleAnimation(1d, TimeSpan.FromMilliseconds(150))
+                {
+                    EasingFunction = new System.Windows.Media.Animation.CubicEase
+                    {
+                        EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
+                    }
+                });
+        };
+        ViewerColumn.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+
+        // 5. Parallel: viewer background black → white (150ms).
+        AnimateViewerBackground(
+            (System.Windows.Media.Brush)FindResource("SurfaceElevated"), 150);
     }
 
     /// <summary>
@@ -1148,7 +1201,7 @@ public partial class MainWindow : FluentWindow
     /// is kept (so the rest of the visual tree that referenced it
     /// stays valid) and only the underlying color animates.
     /// </summary>
-    private void AnimateViewerBackground(System.Windows.Media.Brush target)
+    private void AnimateViewerBackground(System.Windows.Media.Brush target, double durationMs = 200)
     {
         if (target is not System.Windows.Media.SolidColorBrush targetSolid) return;
         // Clone the resource brush so we own the color (resource brushes
@@ -1169,49 +1222,13 @@ public partial class MainWindow : FluentWindow
         {
             From = current.Color,
             To = targetSolid.Color,
-            Duration = TimeSpan.FromMilliseconds(200),
+            Duration = TimeSpan.FromMilliseconds(durationMs),
             EasingFunction = new System.Windows.Media.Animation.CubicEase
             {
                 EasingMode = System.Windows.Media.Animation.EasingMode.EaseInOut
             }
         };
         current.BeginAnimation(System.Windows.Media.SolidColorBrush.ColorProperty, anim);
-    }
-
-    /// <summary>
-    /// Flash an overlay rectangle (black or white) across the viewer
-    /// to hide the snap from windowed ↔ fullscreen viewer position.
-    /// Timeline:
-    ///   fadeInMs  — 0 → 1
-    ///   holdMs    — full opacity (0 = no hold)
-    ///   fadeOutMs — 1 → 0 (CubicEase ease-in-out, starts at fadeInMs+holdMs)
-    /// Always Collapses + resets Opacity=0 when the fade-out completes
-    /// so future hit-tests are not caught.
-    /// </summary>
-    private void FlashOverlay(System.Windows.Shapes.Rectangle? rect,
-                              double fadeInMs, double holdMs, double fadeOutMs)
-    {
-        if (rect == null) return;
-        rect.BeginAnimation(UIElement.OpacityProperty, null);
-        rect.Visibility = Visibility.Visible;
-        rect.Opacity = 0;
-        var fadeIn = new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(fadeInMs));
-        var fadeOutStart = TimeSpan.FromMilliseconds(fadeInMs + holdMs);
-        var fadeOut = new DoubleAnimation(1d, 0d, TimeSpan.FromMilliseconds(fadeOutMs))
-        {
-            EasingFunction = new System.Windows.Media.Animation.CubicEase
-            {
-                EasingMode = System.Windows.Media.Animation.EasingMode.EaseInOut
-            },
-            BeginTime = fadeOutStart
-        };
-        rect.BeginAnimation(UIElement.OpacityProperty, fadeIn);
-        rect.BeginAnimation(UIElement.OpacityProperty, fadeOut);
-        fadeOut.Completed += (_, _) =>
-        {
-            rect.Visibility = Visibility.Collapsed;
-            rect.Opacity = 0;
-        };
     }
 
     /// <summary>

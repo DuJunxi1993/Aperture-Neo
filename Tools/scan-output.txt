@@ -1,0 +1,138 @@
+﻿Scan @ 2026-06-14 22:24:23
+Root: D:\Development\ApertureNeo
+Files: 12 XAML, 24 C#
+Defined keys: 120
+
+=== SUMMARY ===
+  HIGH_CONFIDENCE_UNUSED       51
+  POSSIBLY_USED                69
+  MISSED_PATTERN_RISK          0
+
+=== HIGH_CONFIDENCE_UNUSED (safe to delete) ===
+
+  [DesignTokens.xaml:76]  BorderLineTint
+  [DesignTokens.xaml:75]  BorderSolidAlt
+  [DesignTokens.xaml:67]  BrandAccent
+  [DesignTokens.xaml:68]  BrandHover
+  [DesignTokens.xaml:69]  BrandLavender
+  [DesignTokens.xaml:80]  BtnBgSubtle
+  [DesignTokens.xaml:119]  CardBg
+  [DesignTokens.xaml:122]  CardBorder
+  [DesignTokens.xaml:124]  CardBorderSelected
+  [DesignTokens.xaml:95]  DestructiveBg
+  [DesignTokens.xaml:102]  InnerHighlight
+  [DesignTokens.xaml:115]  MotionEmphasized
+  [DesignTokens.xaml:113]  MotionMicro
+  [DesignTokens.xaml:116]  MotionPress
+  [DesignTokens.xaml:114]  MotionStandard
+  [DesignTokens.xaml:32]  PadButton
+  [DesignTokens.xaml:33]  PadButtonSm
+  [DesignTokens.xaml:30]  PadLg
+  [DesignTokens.xaml:29]  PadMd
+  [DesignTokens.xaml:28]  PadSm
+  [DesignTokens.xaml:31]  PadXl
+  [DesignTokens.xaml:27]  PadXs
+  [DesignTokens.xaml:19]  RadiusLarge
+  [DesignTokens.xaml:14]  RadiusMicro
+  [DesignTokens.xaml:24]  RadiusPill
+  [DesignTokens.xaml:55]  SelectionBgHover
+  [DesignTokens.xaml:108]  ShadowElev
+  [DesignTokens.xaml:110]  ShadowFocus
+  [DesignTokens.xaml:107]  ShadowSubtle
+  [DesignTokens.xaml:127]  SplitterLine
+  [DesignTokens.xaml:128]  SplitterLineHover
+  [DesignTokens.xaml:87]  StatusAmber
+  [DesignTokens.xaml:85]  StatusGreen
+  [DesignTokens.xaml:48]  SurfaceOverlay
+  [DesignTokens.xaml:42]  SurfaceTool
+  [Styles\Buttons.xaml:173]  LinearPillButton
+  [Styles\Tag.xaml:45]  LinearSectionHeaderBorder
+  [Styles\Tag.xaml:9]  LinearTag
+  [Styles\Text.xaml:37]  TextBody
+  [Styles\Text.xaml:45]  TextBodyEmphasis
+  [Styles\Text.xaml:53]  TextCaption
+  [Styles\Text.xaml:5]  TextDisplay
+  [Styles\Text.xaml:13]  TextH1
+  [Styles\Text.xaml:21]  TextH2
+  [Styles\Text.xaml:29]  TextH3
+  [Styles\Text.xaml:77]  TextLabel
+  [Styles\Text.xaml:61]  TextMicro
+  [Styles\Text.xaml:69]  TextMono
+  [Styles\TreeView.xaml:120]  LinearEmptyHint
+  [Styles\TreeView.xaml:87]  LinearSectionHeader
+  [Styles\TreeView.xaml:129]  LinearSectionHeaderContainer
+
+=== POSSIBLY_USED (manual review required) ===
+
+  [DesignTokens.xaml:74]  BorderSolid  hits=3  (P1_StaticResource=3)
+  [DesignTokens.xaml:73]  BorderStandard  hits=15  (P1_StaticResource=15)
+  [DesignTokens.xaml:72]  BorderSubtle  hits=8  (P1_StaticResource=8)
+  [DesignTokens.xaml:66]  BrandPrimary  hits=5  (P1_StaticResource=4;P4_FindResource=1)
+  [DesignTokens.xaml:79]  BtnBgGhost  hits=1  (P1_StaticResource=1)
+  [DesignTokens.xaml:81]  BtnBgHover  hits=4  (P1_StaticResource=4)
+  [DesignTokens.xaml:82]  BtnBgPress  hits=2  (P1_StaticResource=2)
+  [DesignTokens.xaml:120]  CardBgHover  hits=1  (P1_StaticResource=1)
+  [DesignTokens.xaml:121]  CardBgSelected  hits=1  (P1_StaticResource=1)
+  [DesignTokens.xaml:123]  CardBorderHover  hits=1  (P1_StaticResource=1)
+  [DesignTokens.xaml:90]  CloseBgHover  hits=1  (P1_StaticResource=1)
+  [DesignTokens.xaml:91]  CloseBgPress  hits=1  (P1_StaticResource=1)
+  [DesignTokens.xaml:96]  DestructiveBgHover  hits=3  (P1_StaticResource=3)
+  [DesignTokens.xaml:94]  DestructiveFg  hits=3  (P1_StaticResource=3)
+  [DesignTokens.xaml:99]  FocusRing  hits=2  (P1_StaticResource=2)
+  [DesignTokens.xaml:11]  FontMono  hits=7  (P1_StaticResource=7)
+  [DesignTokens.xaml:10]  FontPrimary  hits=26  (P1_StaticResource=26)
+  [DesignTokens.xaml:17]  RadiusCard  hits=4  (P1_StaticResource=4)
+  [DesignTokens.xaml:16]  RadiusComfy  hits=2  (P1_StaticResource=2)
+  [DesignTokens.xaml:18]  RadiusPanel  hits=6  (P1_StaticResource=6)
+  [DesignTokens.xaml:15]  RadiusStd  hits=2  (P1_StaticResource=2)
+  [DesignTokens.xaml:131]  ScrollBarThumb  hits=1  (P1_StaticResource=1)
+  [DesignTokens.xaml:57]  SelectionBar  hits=1  (P1_StaticResource=1)
+  [DesignTokens.xaml:54]  SelectionBg  hits=1  (P1_StaticResource=1)
+  [DesignTokens.xaml:56]  SelectionFg  hits=2  (P1_StaticResource=2)
+  [DesignTokens.xaml:109]  ShadowDialog  hits=4  (P3_ResourceKey=4)
+  [DesignTokens.xaml:86]  StatusRed  hits=1  (P1_StaticResource=1)
+  [DesignTokens.xaml:46]  SurfaceBlack  hits=1  (P4_FindResource=1)
+  [DesignTokens.xaml:40]  SurfaceCanvas  hits=5  (P1_StaticResource=5)
+  [DesignTokens.xaml:44]  SurfaceCardHover  hits=4  (P1_StaticResource=4)
+  [DesignTokens.xaml:43]  SurfaceElevated  hits=11  (P1_StaticResource=10;P4_FindResource=1)
+  [DesignTokens.xaml:45]  SurfaceFloating  hits=3  (P1_StaticResource=3)
+  [DesignTokens.xaml:47]  SurfaceHover  hits=3  (P1_StaticResource=3)
+  [DesignTokens.xaml:41]  SurfacePanel  hits=2  (P1_StaticResource=2)
+  [DesignTokens.xaml:60]  TextPrimary  hits=22  (P1_StaticResource=22)
+  [DesignTokens.xaml:63]  TextQuat  hits=9  (P1_StaticResource=8;P4_FindResource=1)
+  [DesignTokens.xaml:61]  TextSecondary  hits=15  (P1_StaticResource=15)
+  [DesignTokens.xaml:62]  TextTertiary  hits=14  (P1_StaticResource=14)
+  [Styles\Buttons.xaml:9]  LinearButton  hits=1  (P1_StaticResource=1)
+  [Styles\Buttons.xaml:147]  LinearCloseButton  hits=1  (P1_StaticResource=1)
+  [Styles\Buttons.xaml:253]  LinearEdgeButton  hits=2  (P1_StaticResource=2)
+  [Styles\Buttons.xaml:184]  LinearFloatingButton  hits=4  (P1_StaticResource=4)
+  [Styles\Buttons.xaml:298]  LinearFloatingChip  hits=2  (P1_StaticResource=2)
+  [Styles\Buttons.xaml:222]  LinearFloatingPrimary  hits=2  (P1_StaticResource=2)
+  [Styles\Buttons.xaml:59]  LinearPrimaryButton  hits=2  (P1_StaticResource=2)
+  [Styles\Buttons.xaml:105]  LinearWindowButton  hits=7  (P1_StaticResource=7)
+  [Styles\ContextMenu.xaml:182]  LinearContextMenu  hits=1  (P1_StaticResource=1)
+  [Styles\ContextMenu.xaml:17]  LinearMenuItem  hits=1  (P1_StaticResource=1)
+  [Styles\ContextMenu.xaml:163]  LinearSeparator  hits=1  (P1_StaticResource=1)
+  [Styles\ContextMenu.xaml:8]  StringNotEmptyConverter  hits=1  (P1_StaticResource=1)
+  [Styles\Popover.xaml:68]  LinearPopoverDivider  hits=2  (P1_StaticResource=2)
+  [Styles\Popover.xaml:13]  LinearPopoverEyebrow  hits=5  (P1_StaticResource=5)
+  [Styles\Popover.xaml:47]  LinearPopoverKey  hits=3  (P1_StaticResource=3)
+  [Styles\Popover.xaml:37]  LinearPopoverMono  hits=2  (P1_StaticResource=2)
+  [Styles\Popover.xaml:57]  LinearPopoverRight  hits=3  (P1_StaticResource=3)
+  [Styles\Popover.xaml:24]  LinearPopoverValue  hits=2  (P1_StaticResource=2)
+  [Styles\Tag.xaml:33]  LinearDot  hits=1  (P1_StaticResource=1)
+  [Styles\Tag.xaml:21]  LinearTagLabel  hits=1  (P1_StaticResource=1)
+  [Styles\Thumbnail.xaml:8]  BoolToVis  hits=1  (P1_StaticResource=1)
+  [Styles\Thumbnail.xaml:36]  LinearScrollBarPageButton  hits=4  (P1_StaticResource=4)
+  [Styles\Thumbnail.xaml:24]  LinearScrollBarThumb  hits=2  (P1_StaticResource=2)
+  [Styles\Thumbnail.xaml:104]  LinearScrollViewer  hits=3  (P1_StaticResource=3)
+  [Styles\Thumbnail.xaml:160]  LinearThumbnailTemplate  hits=1  (P1_StaticResource=1)
+  [Styles\Thumbnail.xaml:49]  LinearVerticalScrollBar  hits=1  (P1_StaticResource=1)
+  [Styles\Thumbnail.xaml:19]  ThumbnailHoverBg  hits=2  (P6_AppCurrentResources=1;P9_ResourcesIndexer=1)
+  [Styles\Thumbnail.xaml:18]  ThumbnailSelectedBg  hits=2  (P6_AppCurrentResources=1;P9_ResourcesIndexer=1)
+  [Styles\TreeView.xaml:10]  LinearFolderItemContainer  hits=1  (P1_StaticResource=1)
+  [Styles\TreeView.xaml:99]  LinearTreeIcon  hits=1  (P1_StaticResource=1)
+  [Styles\TreeView.xaml:110]  LinearTreeName  hits=1  (P1_StaticResource=1)
+
+=== MISSED_PATTERN_RISK (special chars in name, DO NOT delete without manual check) ===
+

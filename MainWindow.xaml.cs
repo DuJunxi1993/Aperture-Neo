@@ -1220,15 +1220,22 @@ public partial class MainWindow : FluentWindow
     /// double-click from being interpreted as two clicks on the
     /// underlying controls.
     /// </summary>
+    /// <summary>
+    /// Double-click on the viewer (outside buttons):
+    ///   - in fullscreen: exit fullscreen
+    ///   - in window mode: zoom the image to 100% (same as clicking
+    ///     the floating-bar percent label)
+    /// Preview (tunneling) phase + e.Handled=true so the event does
+    /// not bubble to underlying controls (the edge-nav arrows in
+    /// fullscreen, the floating bar in window mode).
+    /// </summary>
     private void Viewer_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
-        if (!_isFullscreen) return;
         if (e.ClickCount < 2) return;
-        // Don't trigger on the edge-nav buttons or the exit pill or
+        // Don't trigger on the edge-nav buttons, the exit pill, or
         // the floating bar — those have their own click semantics.
         if (e.OriginalSource is DependencyObject src)
         {
-            // If the click is on a Button (or inside one), skip.
             DependencyObject? walker = src;
             while (walker != null && walker != this)
             {
@@ -1239,7 +1246,15 @@ public partial class MainWindow : FluentWindow
                 walker = System.Windows.Media.VisualTreeHelper.GetParent(walker);
             }
         }
-        ToggleFullscreen();
+        if (_isFullscreen)
+        {
+            ToggleFullscreen();
+        }
+        else
+        {
+            // Window mode: zoom to 100% (matches ZoomTextBlock_Click).
+            ImageViewer.ZoomToOriginal();
+        }
         e.Handled = true;
     }
 

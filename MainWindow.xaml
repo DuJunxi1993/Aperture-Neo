@@ -569,7 +569,7 @@ AllowDrop="True">
                             <ui:SymbolIcon Symbol="ArrowMinimize20" FontSize="14"
                                            Foreground="{StaticResource TextSecondary}"
                                            VerticalAlignment="Center"/>
-                            <TextBlock Text="退出全屏 (Esc / F)"
+                            <TextBlock Text="退出全屏 (Esc / Ctrl+F)"
                                        FontSize="11" FontWeight="600"
                                        Foreground="{StaticResource TextSecondary}"
                                        VerticalAlignment="Center" Margin="6,0,0,0"/>

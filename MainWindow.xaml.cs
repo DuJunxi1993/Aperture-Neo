@@ -668,21 +668,48 @@ public partial class MainWindow : FluentWindow
     /// and ClientAreaBorder padding change that would otherwise show
     /// as a flicker.
     /// </summary>
-    /// <summary>
-    /// Enter fullscreen with the same animation shape as exit:
-    /// fade the viewer area 1 → 0 (150ms, ease-in), then in the
-    /// Completed callback switch the OS window to fullscreen +
-    /// apply chrome + refit the image, then fade back 0 → 1
-    /// (150ms, ease-out). Total 300ms — same as exit, so enter and
-    /// exit feel like mirror images of each other.
-    /// </summary>
     private void EnterFullscreen()
     {
         _prevWindowState = WindowState;
+        TransitionToFullscreen(entering: true);
+    }
 
-        // 1. Fade the windowed viewer to transparent over 150ms.
-        //    After this completes, the windowed viewer is invisible
-        //    and we can swap the OS-level state without the user
+    /// <summary>
+    /// Exit fullscreen: fade out the viewer + restore the OS window
+    /// in the Completed callback + fade back in. Viewer background
+    /// does a parallel black→white animation.
+    /// </summary>
+    private void ExitFullscreen()
+    {
+        // Pre-fade hint cleanup. Doing this BEFORE the fadeOut
+        // animation (rather than inside the Completed callback) so
+        // the exit pill starts its own fade-out in parallel with the
+        // viewer's — the user perceives a single coordinated exit.
+        HideExitFullscreenHint();
+        _exitHintHideTimer?.Stop();
+
+        TransitionToFullscreen(entering: false);
+    }
+
+    /// <summary>
+    /// Shared fullscreen transition. Mirrors the enter/exit pair so
+    /// they stay symmetric: a 150ms ease-in fade-out hides the viewer
+    /// (and any layout recompute) from the user, then the OS-level
+    /// WindowState/WindowStyle swap + chrome + UpdateLayout +
+    /// FitToScreen happens in the Completed callback while the
+    /// viewer is still invisible, then a 150ms ease-out fade-in
+    /// reveals the new layout. A 150ms background ColorAnimation
+    /// runs in parallel so the background is mid-transition when the
+    /// fade-in completes. Total 300ms either direction.
+    /// </summary>
+    private void TransitionToFullscreen(bool entering)
+    {
+        var targetBackground = entering
+            ? (System.Windows.Media.Brush)FindResource("SurfaceBlack")
+            : (System.Windows.Media.Brush)FindResource("SurfaceElevated");
+
+        // 1. Fade the viewer to 0 over 150ms (ease-in). After this
+        //    completes, swap the OS-level state without the user
         //    seeing any layout recompute.
         var fadeOut = new System.Windows.Media.Animation.DoubleAnimation(
             0d, TimeSpan.FromMilliseconds(150))
@@ -694,9 +721,21 @@ public partial class MainWindow : FluentWindow
         };
         fadeOut.Completed += (_, _) =>
         {
-            // 2. OS-level: become borderless + cover the whole screen.
-            WindowStyle = WindowStyle.None;
-            WindowState = WindowState.Maximized;
+            // 2. OS-level swap. Entering becomes borderless + covers
+            //    the whole screen. Exiting forces Normal rather than
+            //    _prevWindowState so a previous Maximized state
+            //    doesn't accidentally no-op (since the window is
+            //    currently Maximized).
+            if (entering)
+            {
+                WindowStyle = WindowStyle.None;
+                WindowState = WindowState.Maximized;
+            }
+            else
+            {
+                WindowStyle = WindowStyle.SingleBorderWindow;
+                WindowState = WindowState.Normal;
+            }
 
             // 3. Apply chrome state synchronously. ApplyColumnVisibility
             //    collapses the side columns; ResetClientAreaBorderPadding
@@ -708,34 +747,53 @@ public partial class MainWindow : FluentWindow
             // 4. Force a synchronous layout pass. WPF layout is async
             //    after WindowState change — without UpdateLayout the
             //    SkiaImageViewer's ActualWidth/ActualHeight still
-            //    reflect the pre-fullscreen size, so FitToScreen
-            //    would compute centering offsets for the old (smaller)
-            //    rect, leaving the image off-center.
+            //    reflect the pre-transition size, so FitToScreen
+            //    would compute centering offsets for the old rect.
             UpdateLayout();
 
-            // 5. Snap the image to the new fullscreen fit immediately.
-            //    ViewerColumn.Opacity is still 0 at this point (we
-            //    haven't started the fade-in yet), so the snap is
-            //    invisible. Skip the zoom animation because the
-            //    200ms slide-in would be visible through the
-            //    following 150ms opacity fade.
+            // 5. Snap the image to the new fit immediately. The viewer
+            //    is still at Opacity=0 (we haven't started the
+            //    fade-in yet), so the snap is invisible. Skip the
+            //    zoom animation because the 200ms slide-in would be
+            //    visible through the following 150ms opacity fade.
             ImageViewer.FitToScreenSkipAnimation = true;
             ImageViewer.FitToScreen();
 
-            // 6. Hide the edge nav and show the exit hint.
-            _edgeNavVisible = false;
-            EdgeNavLeftContent.Visibility = Visibility.Collapsed;
-            EdgeNavRightContent.Visibility = Visibility.Collapsed;
-            EdgeNavLeftContent.Opacity = 0;
-            EdgeNavRightContent.Opacity = 0;
-            _overlayHideTimer?.Stop();
-            ShowExitFullscreenHint();
-            _exitHintHideTimer?.Stop();
-            _exitHintHideTimer?.Start();
+            if (entering)
+            {
+                // Hide the edge nav and show the exit hint.
+                _edgeNavVisible = false;
+                EdgeNavLeftContent.Visibility = Visibility.Collapsed;
+                EdgeNavRightContent.Visibility = Visibility.Collapsed;
+                EdgeNavLeftContent.Opacity = 0;
+                EdgeNavRightContent.Opacity = 0;
+                _overlayHideTimer?.Stop();
+                ShowExitFullscreenHint();
+                _exitHintHideTimer?.Stop();
+                _exitHintHideTimer?.Start();
+            }
+            else
+            {
+                // Re-focus the window so Esc / arrow keys reach the
+                // keyboard handler after the HWND swap.
+                Focus();
 
-            // 7. Fade the viewer back in (150ms, ease-out). The image
-            //    appears in its new fullscreen fit at the new size,
-            //    on a background that's mid-transition to black.
+                // If the user had the window Maximized before fullscreen,
+                // re-maximize it on the next dispatcher cycle (deferred
+                // so it doesn't fight the WindowStyle HWND recreation
+                // happening above).
+                if (_prevWindowState == WindowState.Maximized)
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        WindowState = WindowState.Maximized;
+                    }), System.Windows.Threading.DispatcherPriority.Background);
+                }
+            }
+
+            // 6. Fade the viewer back in over 150ms (ease-out). The
+            //    image appears in its new fit at the new size, on a
+            //    background that's mid-transition.
             ViewerColumn.BeginAnimation(UIElement.OpacityProperty,
                 new System.Windows.Media.Animation.DoubleAnimation(1d, TimeSpan.FromMilliseconds(150))
                 {
@@ -747,96 +805,10 @@ public partial class MainWindow : FluentWindow
         };
         ViewerColumn.BeginAnimation(UIElement.OpacityProperty, fadeOut);
 
-        // 8. Parallel: viewer background white → pure black (150ms,
-        //    ease-in-out). Started alongside the fade-out so the
-        //    background is mid-transition when the fade-in reveals
-        //    the new fullscreen view.
-        AnimateViewerBackground(
-            (System.Windows.Media.Brush)FindResource("SurfaceBlack"), 150);
-    }
-
-    /// <summary>
-    /// Exit fullscreen with the simplest possible animation: fade the
-    /// viewer area to Opacity=0 over 150ms, then (in the Completed
-    /// event) restore the OS window to its previous state + chrome +
-    /// FitToScreen, then fade back in over 150ms. Viewer background
-    /// does a parallel 150ms ColorAnimation black→white. No flash
-    /// overlays, no extra timers — the animation's own Completed
-    /// event drives the post-fade work.
-    /// </summary>
-    private void ExitFullscreen()
-    {
-        HideExitFullscreenHint();
-        _exitHintHideTimer?.Stop();
-
-        // 1. Fade the viewer to 0 over 150ms (ease-in). After this
-        //    completes, restore the OS window.
-        var fadeOut = new System.Windows.Media.Animation.DoubleAnimation(
-            0d, TimeSpan.FromMilliseconds(150))
-        {
-            EasingFunction = new System.Windows.Media.Animation.CubicEase
-            {
-                EasingMode = System.Windows.Media.Animation.EasingMode.EaseIn
-            }
-        };
-        fadeOut.Completed += (_, _) =>
-        {
-            // 2. Restore the OS window. Force WindowState=Normal
-            //    rather than _prevWindowState so a previous Maximized
-            //    state doesn't accidentally no-op (since the window is
-            //    currently Maximized).
-            WindowStyle = WindowStyle.SingleBorderWindow;
-            WindowState = WindowState.Normal;
-            ApplyColumnVisibility();
-            UpdateOverlayVisibility();
-            ResetClientAreaBorderPadding();
-
-            // 3. Force a synchronous layout pass. Without this, the
-            //    SkiaImageViewer's ActualWidth/ActualHeight still
-            //    reflect the fullscreen size (WPF layout is async
-            //    after WindowState change), so FitToScreen would
-            //    compute centering offsets for the old (fullscreen)
-            //    rect, leaving the image off-center in the new
-            //    (windowed) rect.
-            UpdateLayout();
-
-            // 4. Snap the image to the new (windowed) fit immediately,
-            //    no animation. The viewer is still at Opacity=0
-            //    (we haven't started the fade-in yet), so the snap
-            //    is invisible. Skip the zoom animation because the
-            //    200ms slide-in would be visible through the
-            //    following 150ms opacity fade.
-            ImageViewer.FitToScreenSkipAnimation = true;
-            ImageViewer.FitToScreen();
-            Focus();
-
-            // 5. If the user had the window Maximized before fullscreen,
-            //    re-maximize it on the next dispatcher cycle (deferred
-            //    so it doesn't fight the WindowStyle HWND recreation
-            //    happening above).
-            if (_prevWindowState == WindowState.Maximized)
-            {
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    WindowState = WindowState.Maximized;
-                }), System.Windows.Threading.DispatcherPriority.Background);
-            }
-
-            // 6. Fade the viewer back in over 150ms.
-            ViewerColumn.BeginAnimation(UIElement.OpacityProperty,
-                new System.Windows.Media.Animation.DoubleAnimation(1d, TimeSpan.FromMilliseconds(150))
-                {
-                    EasingFunction = new System.Windows.Media.Animation.CubicEase
-                    {
-                        EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
-                    }
-                });
-        };
-        ViewerColumn.BeginAnimation(UIElement.OpacityProperty, fadeOut);
-
-        // 5. Parallel: viewer background black → white (150ms).
-        AnimateViewerBackground(
-            (System.Windows.Media.Brush)FindResource("SurfaceElevated"), 150);
+        // 7. Parallel: viewer background color cross-fade. Started
+        //    alongside the fade-out so the background is mid-
+        //    transition when the fade-in reveals the new view.
+        AnimateViewerBackground(targetBackground, 150);
     }
 
     /// <summary>

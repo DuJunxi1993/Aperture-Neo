@@ -333,9 +333,12 @@ public class FolderTreeView : ItemsControl
         int next = FindNextSection(idx);
         for (int i = next - 1; i > idx; i--) Items.RemoveAt(i);
         int ins = idx + 1;
+        int addedFavs = 0;
         foreach (var p in App.SettingsStore.Favorites)
-        { if (Directory.Exists(p)) Items.Insert(ins++, new FolderItemNode(p)); }
-        if (ins == idx + 1) Items.Insert(ins, new EmptyHintNode("暂无收藏"));
+        {
+            if (Directory.Exists(p)) { Items.Insert(ins++, new FolderItemNode(p)); addedFavs++; }
+        }
+        if (addedFavs == 0) Items.Insert(ins, new EmptyHintNode("暂无收藏"));
     }
 
     private void RefreshRecent()
@@ -351,9 +354,12 @@ public class FolderTreeView : ItemsControl
         int next = FindNextSection(idx);
         for (int i = next - 1; i > idx; i--) Items.RemoveAt(i);
         int ins = idx + 1;
+        int addedRecs = 0;
         foreach (var e in App.SettingsStore.Recent)
-        { if (Directory.Exists(e.Path)) Items.Insert(ins++, new RecentNode(e)); }
-        if (ins == idx + 1) Items.Insert(ins, new EmptyHintNode("暂无最近访问"));
+        {
+            if (Directory.Exists(e.Path)) { Items.Insert(ins++, new RecentNode(e)); addedRecs++; }
+        }
+        if (addedRecs == 0) Items.Insert(ins, new EmptyHintNode("暂无最近访问"));
     }
 
     private int FindSection(string name)
@@ -420,14 +426,20 @@ public class FolderTreeView : ItemsControl
         var pc = new SectionHeaderNode("此电脑"); pc.Icon = "";
 
         Items.Add(fav);
+        int addedFavs = 0;
         foreach (var p in App.SettingsStore.Favorites)
-            if (Directory.Exists(p)) Items.Add(new FolderItemNode(p));
-        if (App.SettingsStore.Favorites.Count == 0) Items.Add(new EmptyHintNode("暂无收藏"));
+        {
+            if (Directory.Exists(p)) { Items.Add(new FolderItemNode(p)); addedFavs++; }
+        }
+        if (addedFavs == 0) Items.Add(new EmptyHintNode("暂无收藏"));
 
         Items.Add(rec);
+        int addedRecs = 0;
         foreach (var e in App.SettingsStore.Recent)
-            if (Directory.Exists(e.Path)) Items.Add(new RecentNode(e));
-        if (App.SettingsStore.Recent.Count == 0) Items.Add(new EmptyHintNode("暂无最近访问"));
+        {
+            if (Directory.Exists(e.Path)) { Items.Add(new RecentNode(e)); addedRecs++; }
+        }
+        if (addedRecs == 0) Items.Add(new EmptyHintNode("暂无最近访问"));
 
         Items.Add(pc);
 

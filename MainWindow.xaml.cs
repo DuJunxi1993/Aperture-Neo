@@ -34,6 +34,7 @@ public partial class MainWindow : FluentWindow
     private bool _isThumbVisible = true;
     private WindowState _prevWindowState;
     private DispatcherTimer? _overlayHideTimer;
+    private DispatcherTimer? _exitHintHideTimer;
     private Point _lastMousePosition;
     /// <summary>
     /// True while edge-nav buttons are mid-fade or fully shown. Suppresses
@@ -121,6 +122,16 @@ public partial class MainWindow : FluentWindow
             _overlayHideTimer?.Stop();
         };
 
+        // Fullscreen: the exit-hint pill shows on entry and hides itself
+        // after 3s (no longer tied to cursor position). Reset on every
+        // fullscreen entry; cancelled on exit.
+        _exitHintHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.0) };
+        _exitHintHideTimer.Tick += (s, e) =>
+        {
+            if (_isFullscreen) HideExitFullscreenHint();
+            _exitHintHideTimer.Stop();
+        };
+
         Loaded += (_, _) =>
         {
             Focus();
@@ -179,34 +190,21 @@ public partial class MainWindow : FluentWindow
     private void OnWindowMouseMove(object sender, MouseEventArgs e)
     {
         if (!_isFullscreen) return;
-        // Goal 2 (revision): use Win32 GetCursorPos + ScreenToClient so
-        // we get a real screen-coordinate Y rather than the WPF-relative
-        // pos.Y (which can be off by a few DIPs depending on
-        // ClientAreaBorder's Padding and on where the original
-        // WM_MOUSEMOVE landed inside the WPF tree). This is the only
-        // reliable way to test "cursor in the top 300 DIPs of the
-        // window client area".
-        var pt = GetAbsoluteCursorPosRelativeToThis();
-        if (pt.HasValue &&
-            (Math.Abs(pt.Value.X - _lastMousePosition.X) > 5 ||
-             Math.Abs(pt.Value.Y - _lastMousePosition.Y) > 5))
+        var pos = e.GetPosition(this);
+        if (Math.Abs(pos.X - _lastMousePosition.X) > 5 || Math.Abs(pos.Y - _lastMousePosition.Y) > 5)
         {
-            _lastMousePosition = pt.Value;
-            // Goal 1 (revision): if the cursor is hovering over an edge-nav
-            // button, do NOT re-arm the auto-hide timer. The previous
-            // MouseEnter hook missed the case where the cursor stays
-            // *inside* the button (Border.MouseEnter only fires when the
-            // cursor crosses the Border edge, not when it stays inside
-            // a child Button). Using IsMouseOver inside the timer-loop
-            // also correctly handles the case where the cursor is
-            // moving but the button is still under the cursor.
+            _lastMousePosition = pos;
+            // Goal 1: if the cursor is hovering over an edge-nav button,
+            // do NOT re-arm the auto-hide timer. The previous MouseEnter
+            // hook missed the case where the cursor stays *inside* the
+            // button (Border.MouseEnter only fires when the cursor
+            // crosses the Border edge, not when it stays inside a
+            // child Button). IsMouseOver stays true the entire time
+            // the cursor is anywhere inside the border.
             bool cursorOverEdgeNav =
                 EdgeNavLeftContent.IsMouseOver || EdgeNavRightContent.IsMouseOver;
             if (cursorOverEdgeNav)
             {
-                // Snap opacity back to 1 in case a fade-out had started
-                // and reset the visibility, but DO NOT restart the
-                // 3-second timer.
                 EdgeNavLeftContent.BeginAnimation(UIElement.OpacityProperty, null);
                 EdgeNavRightContent.BeginAnimation(UIElement.OpacityProperty, null);
                 EdgeNavLeftContent.Opacity = 1;
@@ -219,9 +217,11 @@ public partial class MainWindow : FluentWindow
                 ShowEdgeNav();
                 ResetOverlayHideTimer();
             }
-            // Goal 2 (revision): also reveal the exit-fullscreen pill
-            // when the cursor is in the top 300 DIPs of the window.
-            UpdateExitFullscreenHint(pt.Value.Y);
+            // Goal 2 (revised): exit-pill is no longer triggered by cursor
+            // position. It now appears on fullscreen entry and auto-hides
+            // after 3s. The cursor Y mapping code is preserved below
+            // because the previous P/Invoke work is still useful and
+            // removing it would orphan the helper methods.
         }
     }
 
@@ -1041,19 +1041,14 @@ public partial class MainWindow : FluentWindow
             _prevWindowState = WindowState;
             WindowStyle = WindowStyle.None;
             WindowState = WindowState.Maximized;
-            // Goal 3: animate the viewer background from white to black over
-            // 200ms so the window→fullscreen transition doesn't pop. The
-            // actual color still snaps to a SolidColorBrush afterwards
-            // (the resources are referenced by name elsewhere).
+            // Goal 3: animate the viewer background from white to black
+            // (kept as a softer cross-fade underneath the black-flash).
             AnimateViewerBackground((System.Windows.Media.Brush)FindResource("SurfaceBlack"));
         }
         else
         {
             WindowStyle = WindowStyle.SingleBorderWindow;
             WindowState = _prevWindowState;
-            // Restore the Linear-theme white viewer background, with a
-            // 200ms cross-fade back so the fullscreen→window transition
-            // also animates.
             AnimateViewerBackground((System.Windows.Media.Brush)FindResource("SurfaceElevated"));
         }
         // ApplyColumnVisibility handles ALL chrome (side columns,
@@ -1078,6 +1073,26 @@ public partial class MainWindow : FluentWindow
             EdgeNavLeftContent.Opacity = 0;
             EdgeNavRightContent.Opacity = 0;
             _overlayHideTimer?.Stop();
+
+            // Goal 2 (revised): exit-hint pill appears on entry and
+            // auto-hides after 3s. No longer tied to cursor position.
+            ShowExitFullscreenHint();
+            _exitHintHideTimer?.Stop();
+            _exitHintHideTimer?.Start();
+
+            // Black-flash overlay covers the viewer for ~100ms during
+            // the entry transition so the snap from windowed → fullscreen
+            // viewer position is hidden behind a fade.
+            FlashBlackOverlay();
+        }
+        else
+        {
+            // Hide the exit-hint pill immediately on exit.
+            HideExitFullscreenHint();
+            _exitHintHideTimer?.Stop();
+
+            // Black-flash during exit too.
+            FlashBlackOverlay();
         }
         // WPF-UI's FluentWindow wraps the Content in a ClientAreaBorder
         // (an internal class) whose OnWindowStateChanged sets Padding to
@@ -1159,6 +1174,73 @@ public partial class MainWindow : FluentWindow
             }
         };
         current.BeginAnimation(System.Windows.Media.SolidColorBrush.ColorProperty, anim);
+    }
+
+    /// <summary>
+    /// Black-flash overlay: briefly covers the viewer with a black
+    /// rectangle (fade in 100ms → 100ms hold → fade out 200ms) so
+    /// the snap from windowed → fullscreen viewer position (or back)
+    /// is hidden behind a smooth fade instead of being a hard pop.
+    /// Used by both entry and exit of fullscreen.
+    /// </summary>
+    private void FlashBlackOverlay()
+    {
+        if (BlackFlashOverlay == null) return;
+        // Cancel any in-flight animation.
+        BlackFlashOverlay.BeginAnimation(UIElement.OpacityProperty, null);
+        BlackFlashOverlay.Visibility = Visibility.Visible;
+        BlackFlashOverlay.Opacity = 0;
+        var fadeIn = new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(100));
+        var fadeOut = new DoubleAnimation(1d, 0d, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new System.Windows.Media.Animation.CubicEase
+            {
+                EasingMode = System.Windows.Media.Animation.EasingMode.EaseInOut
+            },
+            // BeginTime shifts the start of the fade-out to after fade-in completes.
+            BeginTime = TimeSpan.FromMilliseconds(100)
+        };
+        BlackFlashOverlay.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+        BlackFlashOverlay.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+
+        // Once the fade-out completes, hide the overlay so it doesn't
+        // catch future hit-tests.
+        fadeOut.Completed += (_, _) =>
+        {
+            BlackFlashOverlay.Visibility = Visibility.Collapsed;
+            BlackFlashOverlay.Opacity = 0;
+        };
+    }
+
+    /// <summary>
+    /// Double-click anywhere on the viewer (outside the edge-nav
+    /// buttons and the exit pill) toggles fullscreen. Uses the
+    /// Preview (tunneling) phase so we can mark the event handled
+    /// before any bubbling Button.Click fires — that keeps the
+    /// double-click from being interpreted as two clicks on the
+    /// underlying controls.
+    /// </summary>
+    private void Viewer_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (!_isFullscreen) return;
+        if (e.ClickCount < 2) return;
+        // Don't trigger on the edge-nav buttons or the exit pill or
+        // the floating bar — those have their own click semantics.
+        if (e.OriginalSource is DependencyObject src)
+        {
+            // If the click is on a Button (or inside one), skip.
+            DependencyObject? walker = src;
+            while (walker != null && walker != this)
+            {
+                if (walker is System.Windows.Controls.Button)
+                    return;
+                if (walker is System.Windows.Controls.Primitives.ButtonBase)
+                    return;
+                walker = System.Windows.Media.VisualTreeHelper.GetParent(walker);
+            }
+        }
+        ToggleFullscreen();
+        e.Handled = true;
     }
 
     private static System.Windows.Controls.Border? FindClientAreaBorder(DependencyObject root)

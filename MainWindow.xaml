@@ -330,7 +330,8 @@ AllowDrop="True">
                      follows ZIndex, not the rendered pixels, so children with
                      higher ZIndex (the FloatingOverlayHost below) still receive
                      clicks on their actual painted regions. -->
-                <controls:SkiaImageViewer x:Name="ImageViewer" Panel.ZIndex="0">
+                <controls:SkiaImageViewer x:Name="ImageViewer" Panel.ZIndex="0"
+                                         PreviewMouseLeftButtonDown="Viewer_PreviewMouseLeftButtonDown">
                     <controls:SkiaImageViewer.ContextMenu>
                         <ContextMenu>
                             <MenuItem Header="复制图片路径" Click="CtxCopyPath_Click"/>
@@ -340,6 +341,17 @@ AllowDrop="True">
                         </ContextMenu>
                     </controls:SkiaImageViewer.ContextMenu>
                 </controls:SkiaImageViewer>
+
+                <!-- Black-flash overlay used during fullscreen enter/exit so
+                     the snap from windowed → fullscreen viewer position is
+                     hidden behind a smooth fade. Panel.ZIndex=5 (above the
+                     viewer, below the floating overlays) so it covers the
+                     image but not the exit pill. IsHitTestVisible=False
+                     ensures it doesn't intercept the double-click. -->
+                <Rectangle x:Name="BlackFlashOverlay" Panel.ZIndex="5"
+                           Fill="Black" Visibility="Collapsed" Opacity="0"
+                           IsHitTestVisible="False"
+                           HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
                 <!-- Floating overlays at Panel.ZIndex=10 sit ABOVE the
                      SkiaImageViewer for hit-testing. The Grid has IsHitTestVisible=True
                      (default) so it can route events to its children. Each Border
@@ -522,7 +534,7 @@ AllowDrop="True">
                          over either button (regardless of which child element
                          the cursor happens to be over). -->
                     <Border x:Name="EdgeNavLeftContent"
-                            HorizontalAlignment="Left" VerticalAlignment="Center" Margin="24,0,0,0"
+                            HorizontalAlignment="Left" VerticalAlignment="Center" Margin="48,0,0,0"
                             IsHitTestVisible="True" Visibility="Collapsed" Opacity="0">
                         <Button x:Name="BtnEdgePrev" Style="{StaticResource LinearEdgeButton}"
                                 Click="BtnPrev_Click">
@@ -531,7 +543,7 @@ AllowDrop="True">
                     </Border>
 
                     <Border x:Name="EdgeNavRightContent"
-                            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,24,0"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,48,0"
                             IsHitTestVisible="True" Visibility="Collapsed" Opacity="0">
                         <Button x:Name="BtnEdgeNext" Style="{StaticResource LinearEdgeButton}"
                                 Click="BtnNext_Click">

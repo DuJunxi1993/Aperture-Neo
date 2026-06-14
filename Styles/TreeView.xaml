@@ -80,19 +80,6 @@
         </Setter>
     </Style>
 
-    <!-- Section header label style (used inside a SectionHeaderBorder
-         with the bottom-divider). Brightened from TextQuat to
-         TextTertiary, weight 700 -> 600, and a slightly larger
-         bottom margin so the divider breathes. -->
-    <Style x:Key="LinearSectionHeader" TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
-        <Setter Property="FontSize" Value="11"/>
-        <Setter Property="FontWeight" Value="700"/>
-        <Setter Property="Foreground" Value="{StaticResource TextTertiary}"/>
-        <Setter Property="Margin" Value="6,0,0,8"/>
-        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-    </Style>
-
     <!-- Linear icon style for tree row icons. The selected-state
          foreground bump is in the ItemTemplate's DataTrigger; this
          style just sets the resting color. -->
@@ -114,24 +101,6 @@
         <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-    </Style>
-
-    <!-- Empty hint text -->
-    <Style x:Key="LinearEmptyHint" TargetType="TextBlock" BasedOn="{StaticResource LinearTreeName}">
-        <Setter Property="Foreground" Value="{StaticResource TextQuat}"/>
-        <Setter Property="FontStyle" Value="Italic"/>
-        <Setter Property="FontWeight" Value="400"/>
-    </Style>
-
-    <!-- Section header container: 1px bottom divider, generous
-         vertical padding. Used in MainWindow.xaml as the wrapper
-         around the section title TextBlock. -->
-    <Style x:Key="LinearSectionHeaderContainer" TargetType="Border">
-        <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="BorderBrush" Value="{StaticResource BorderSubtle}"/>
-        <Setter Property="BorderThickness" Value="0,0,0,1"/>
-        <Setter Property="Padding" Value="0,0,0,8"/>
-        <Setter Property="Margin" Value="12,18,12,6"/>
     </Style>
 
 </ResourceDictionary>

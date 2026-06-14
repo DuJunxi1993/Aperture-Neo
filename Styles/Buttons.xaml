@@ -169,12 +169,6 @@
         </Setter>
     </Style>
 
-    <!-- Linear Pill Button (used for chips / toggles). -->
-    <Style x:Key="LinearPillButton" TargetType="Button" BasedOn="{StaticResource LinearButton}">
-        <Setter Property="Padding" Value="12,4,12,4"/>
-        <Setter Property="FontSize" Value="12"/>
-    </Style>
-
     <!-- Linear Floating Button (40×40 over the viewer). Surface uses
          SurfaceElevated (matches the floating bar's panel) so the
          row of buttons reads as a single floating control group in

@@ -106,9 +106,15 @@ public class ThumbnailLoadCoordinator : IDisposable
     {
         if (_allRemaining == null || _allRemaining.Count == 0) return;
         _currentFocusIndex = newIndex;
-        // Trigger an EnsureVisible sweep for the new focus.
-        var span = Math.Min(2, PriorityWindow / 6);
-        EnsureVisible(newIndex - span, newIndex + span);
+        // Preload a PriorityWindow-sized band around the new focus.
+        // The old Math.Min(2, PriorityWindow/6) span (= 2 items
+        // each side) was too small: after keyboard navigation, the
+        // thumb grid's ScrollChanged never fires (no actual scroll),
+        // so the only way to populate the visible band was the
+        // preload triggered here. ±2 left several screens of blank
+        // thumbs. PriorityWindow matches the range LoadForFolder
+        // uses for its priority queue, so navigation feels symmetric.
+        EnsureVisible(newIndex - PriorityWindow, newIndex + PriorityWindow);
     }
 
     private List<ImageItem> _allRemaining = new();

@@ -1,459 +1,18 @@
 ﻿[
     {
-        "Key":  "BorderLineTint",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  76,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "BorderSolidAlt",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  75,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "BrandAccent",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  67,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "BrandHover",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  68,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "BrandLavender",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  69,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "BtnBgSubtle",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  80,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "CardBg",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  119,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "CardBorder",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  122,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "CardBorderSelected",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  124,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "DestructiveBg",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  95,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "InnerHighlight",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  102,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "MotionEmphasized",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  115,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "MotionMicro",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  113,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "MotionPress",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  116,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "MotionStandard",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  114,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "PadButton",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  32,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "PadButtonSm",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  33,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "PadLg",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  30,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "PadMd",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  29,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "PadSm",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  28,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "PadXl",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  31,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "PadXs",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  27,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "RadiusLarge",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  19,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "RadiusMicro",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  14,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "RadiusPill",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  24,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "SelectionBgHover",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  55,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "ShadowElev",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  108,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "ShadowFocus",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  110,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "ShadowSubtle",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  107,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "SplitterLine",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  127,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "SplitterLineHover",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  128,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "StatusAmber",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  87,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "StatusGreen",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  85,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "SurfaceOverlay",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  48,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "SurfaceTool",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  42,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "LinearPillButton",
+        "Key":  "LinearButton",
         "Category":  "HIGH_CONFIDENCE_UNUSED",
         "DefinedIn":  "Styles\\Buttons.xaml",
-        "DefinedAtLine":  173,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "LinearSectionHeaderBorder",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "Styles\\Tag.xaml",
-        "DefinedAtLine":  45,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "LinearTag",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "Styles\\Tag.xaml",
         "DefinedAtLine":  9,
         "PatternsHit":  "",
         "TotalHits":  0,
         "PatternDetails":  ""
     },
     {
-        "Key":  "TextBody",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "Styles\\Text.xaml",
-        "DefinedAtLine":  37,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "TextBodyEmphasis",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "Styles\\Text.xaml",
-        "DefinedAtLine":  45,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "TextCaption",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "Styles\\Text.xaml",
-        "DefinedAtLine":  53,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "TextDisplay",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "Styles\\Text.xaml",
-        "DefinedAtLine":  5,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "TextH1",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "Styles\\Text.xaml",
-        "DefinedAtLine":  13,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "TextH2",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "Styles\\Text.xaml",
-        "DefinedAtLine":  21,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "TextH3",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "Styles\\Text.xaml",
-        "DefinedAtLine":  29,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "TextLabel",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "Styles\\Text.xaml",
-        "DefinedAtLine":  77,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "TextMicro",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "Styles\\Text.xaml",
-        "DefinedAtLine":  61,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "TextMono",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "Styles\\Text.xaml",
-        "DefinedAtLine":  69,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "LinearEmptyHint",
+        "Key":  "LinearTreeName",
         "Category":  "HIGH_CONFIDENCE_UNUSED",
         "DefinedIn":  "Styles\\TreeView.xaml",
-        "DefinedAtLine":  120,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "LinearSectionHeader",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "Styles\\TreeView.xaml",
-        "DefinedAtLine":  87,
-        "PatternsHit":  "",
-        "TotalHits":  0,
-        "PatternDetails":  ""
-    },
-    {
-        "Key":  "LinearSectionHeaderContainer",
-        "Category":  "HIGH_CONFIDENCE_UNUSED",
-        "DefinedIn":  "Styles\\TreeView.xaml",
-        "DefinedAtLine":  129,
+        "DefinedAtLine":  97,
         "PatternsHit":  "",
         "TotalHits":  0,
         "PatternDetails":  ""
@@ -462,7 +21,7 @@
         "Key":  "BorderSolid",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  74,
+        "DefinedAtLine":  52,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  3,
         "PatternDetails":  "P1_StaticResource=3"
@@ -471,7 +30,7 @@
         "Key":  "BorderStandard",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  73,
+        "DefinedAtLine":  51,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  15,
         "PatternDetails":  "P1_StaticResource=15"
@@ -480,16 +39,16 @@
         "Key":  "BorderSubtle",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  72,
+        "DefinedAtLine":  50,
         "PatternsHit":  "P1_StaticResource",
-        "TotalHits":  8,
-        "PatternDetails":  "P1_StaticResource=8"
+        "TotalHits":  6,
+        "PatternDetails":  "P1_StaticResource=6"
     },
     {
         "Key":  "BrandPrimary",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  66,
+        "DefinedAtLine":  47,
         "PatternsHit":  "P1_StaticResource,P4_FindResource",
         "TotalHits":  5,
         "PatternDetails":  "P1_StaticResource=4;P4_FindResource=1"
@@ -498,7 +57,7 @@
         "Key":  "BtnBgGhost",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  79,
+        "DefinedAtLine":  58,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  1,
         "PatternDetails":  "P1_StaticResource=1"
@@ -507,7 +66,7 @@
         "Key":  "BtnBgHover",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  81,
+        "DefinedAtLine":  59,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  4,
         "PatternDetails":  "P1_StaticResource=4"
@@ -516,7 +75,7 @@
         "Key":  "BtnBgPress",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  82,
+        "DefinedAtLine":  60,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  2,
         "PatternDetails":  "P1_StaticResource=2"
@@ -525,7 +84,7 @@
         "Key":  "CardBgHover",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  120,
+        "DefinedAtLine":  88,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  1,
         "PatternDetails":  "P1_StaticResource=1"
@@ -534,7 +93,7 @@
         "Key":  "CardBgSelected",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  121,
+        "DefinedAtLine":  89,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  1,
         "PatternDetails":  "P1_StaticResource=1"
@@ -543,7 +102,7 @@
         "Key":  "CardBorderHover",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  123,
+        "DefinedAtLine":  90,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  1,
         "PatternDetails":  "P1_StaticResource=1"
@@ -552,7 +111,7 @@
         "Key":  "CloseBgHover",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  90,
+        "DefinedAtLine":  66,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  1,
         "PatternDetails":  "P1_StaticResource=1"
@@ -561,7 +120,7 @@
         "Key":  "CloseBgPress",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  91,
+        "DefinedAtLine":  67,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  1,
         "PatternDetails":  "P1_StaticResource=1"
@@ -570,7 +129,7 @@
         "Key":  "DestructiveBgHover",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  96,
+        "DefinedAtLine":  71,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  3,
         "PatternDetails":  "P1_StaticResource=3"
@@ -579,7 +138,7 @@
         "Key":  "DestructiveFg",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  94,
+        "DefinedAtLine":  70,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  3,
         "PatternDetails":  "P1_StaticResource=3"
@@ -588,7 +147,7 @@
         "Key":  "FocusRing",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  99,
+        "DefinedAtLine":  74,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  2,
         "PatternDetails":  "P1_StaticResource=2"
@@ -599,8 +158,8 @@
         "DefinedIn":  "DesignTokens.xaml",
         "DefinedAtLine":  11,
         "PatternsHit":  "P1_StaticResource",
-        "TotalHits":  7,
-        "PatternDetails":  "P1_StaticResource=7"
+        "TotalHits":  6,
+        "PatternDetails":  "P1_StaticResource=6"
     },
     {
         "Key":  "FontPrimary",
@@ -608,14 +167,14 @@
         "DefinedIn":  "DesignTokens.xaml",
         "DefinedAtLine":  10,
         "PatternsHit":  "P1_StaticResource",
-        "TotalHits":  26,
-        "PatternDetails":  "P1_StaticResource=26"
+        "TotalHits":  16,
+        "PatternDetails":  "P1_StaticResource=16"
     },
     {
         "Key":  "RadiusCard",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  17,
+        "DefinedAtLine":  16,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  4,
         "PatternDetails":  "P1_StaticResource=4"
@@ -624,16 +183,16 @@
         "Key":  "RadiusComfy",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  16,
+        "DefinedAtLine":  15,
         "PatternsHit":  "P1_StaticResource",
-        "TotalHits":  2,
-        "PatternDetails":  "P1_StaticResource=2"
+        "TotalHits":  1,
+        "PatternDetails":  "P1_StaticResource=1"
     },
     {
         "Key":  "RadiusPanel",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  18,
+        "DefinedAtLine":  17,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  6,
         "PatternDetails":  "P1_StaticResource=6"
@@ -642,7 +201,7 @@
         "Key":  "RadiusStd",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  15,
+        "DefinedAtLine":  14,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  2,
         "PatternDetails":  "P1_StaticResource=2"
@@ -651,7 +210,7 @@
         "Key":  "ScrollBarThumb",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  131,
+        "DefinedAtLine":  93,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  1,
         "PatternDetails":  "P1_StaticResource=1"
@@ -660,7 +219,7 @@
         "Key":  "SelectionBar",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  57,
+        "DefinedAtLine":  38,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  1,
         "PatternDetails":  "P1_StaticResource=1"
@@ -669,7 +228,7 @@
         "Key":  "SelectionBg",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  54,
+        "DefinedAtLine":  36,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  1,
         "PatternDetails":  "P1_StaticResource=1"
@@ -678,7 +237,7 @@
         "Key":  "SelectionFg",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  56,
+        "DefinedAtLine":  37,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  2,
         "PatternDetails":  "P1_StaticResource=2"
@@ -687,7 +246,7 @@
         "Key":  "ShadowDialog",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  109,
+        "DefinedAtLine":  81,
         "PatternsHit":  "P3_ResourceKey",
         "TotalHits":  4,
         "PatternDetails":  "P3_ResourceKey=4"
@@ -696,7 +255,7 @@
         "Key":  "StatusRed",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  86,
+        "DefinedAtLine":  63,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  1,
         "PatternDetails":  "P1_StaticResource=1"
@@ -705,7 +264,7 @@
         "Key":  "SurfaceBlack",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  46,
+        "DefinedAtLine":  29,
         "PatternsHit":  "P4_FindResource",
         "TotalHits":  1,
         "PatternDetails":  "P4_FindResource=1"
@@ -714,7 +273,7 @@
         "Key":  "SurfaceCanvas",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  40,
+        "DefinedAtLine":  24,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  5,
         "PatternDetails":  "P1_StaticResource=5"
@@ -723,7 +282,7 @@
         "Key":  "SurfaceCardHover",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  44,
+        "DefinedAtLine":  27,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  4,
         "PatternDetails":  "P1_StaticResource=4"
@@ -732,7 +291,7 @@
         "Key":  "SurfaceElevated",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  43,
+        "DefinedAtLine":  26,
         "PatternsHit":  "P1_StaticResource,P4_FindResource",
         "TotalHits":  11,
         "PatternDetails":  "P1_StaticResource=10;P4_FindResource=1"
@@ -741,7 +300,7 @@
         "Key":  "SurfaceFloating",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  45,
+        "DefinedAtLine":  28,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  3,
         "PatternDetails":  "P1_StaticResource=3"
@@ -750,7 +309,7 @@
         "Key":  "SurfaceHover",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  47,
+        "DefinedAtLine":  30,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  3,
         "PatternDetails":  "P1_StaticResource=3"
@@ -759,7 +318,7 @@
         "Key":  "SurfacePanel",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  41,
+        "DefinedAtLine":  25,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  2,
         "PatternDetails":  "P1_StaticResource=2"
@@ -768,46 +327,37 @@
         "Key":  "TextPrimary",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  60,
+        "DefinedAtLine":  41,
         "PatternsHit":  "P1_StaticResource",
-        "TotalHits":  22,
-        "PatternDetails":  "P1_StaticResource=22"
+        "TotalHits":  17,
+        "PatternDetails":  "P1_StaticResource=17"
     },
     {
         "Key":  "TextQuat",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  63,
+        "DefinedAtLine":  44,
         "PatternsHit":  "P1_StaticResource,P4_FindResource",
-        "TotalHits":  9,
-        "PatternDetails":  "P1_StaticResource=8;P4_FindResource=1"
+        "TotalHits":  7,
+        "PatternDetails":  "P1_StaticResource=6;P4_FindResource=1"
     },
     {
         "Key":  "TextSecondary",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  61,
+        "DefinedAtLine":  42,
         "PatternsHit":  "P1_StaticResource",
-        "TotalHits":  15,
-        "PatternDetails":  "P1_StaticResource=15"
+        "TotalHits":  12,
+        "PatternDetails":  "P1_StaticResource=12"
     },
     {
         "Key":  "TextTertiary",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "DesignTokens.xaml",
-        "DefinedAtLine":  62,
+        "DefinedAtLine":  43,
         "PatternsHit":  "P1_StaticResource",
-        "TotalHits":  14,
-        "PatternDetails":  "P1_StaticResource=14"
-    },
-    {
-        "Key":  "LinearButton",
-        "Category":  "POSSIBLY_USED",
-        "DefinedIn":  "Styles\\Buttons.xaml",
-        "DefinedAtLine":  9,
-        "PatternsHit":  "P1_StaticResource",
-        "TotalHits":  1,
-        "PatternDetails":  "P1_StaticResource=1"
+        "TotalHits":  12,
+        "PatternDetails":  "P1_StaticResource=12"
     },
     {
         "Key":  "LinearCloseButton",
@@ -822,7 +372,7 @@
         "Key":  "LinearEdgeButton",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "Styles\\Buttons.xaml",
-        "DefinedAtLine":  253,
+        "DefinedAtLine":  247,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  2,
         "PatternDetails":  "P1_StaticResource=2"
@@ -831,7 +381,7 @@
         "Key":  "LinearFloatingButton",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "Styles\\Buttons.xaml",
-        "DefinedAtLine":  184,
+        "DefinedAtLine":  178,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  4,
         "PatternDetails":  "P1_StaticResource=4"
@@ -840,7 +390,7 @@
         "Key":  "LinearFloatingChip",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "Styles\\Buttons.xaml",
-        "DefinedAtLine":  298,
+        "DefinedAtLine":  292,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  2,
         "PatternDetails":  "P1_StaticResource=2"
@@ -849,7 +399,7 @@
         "Key":  "LinearFloatingPrimary",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "Styles\\Buttons.xaml",
-        "DefinedAtLine":  222,
+        "DefinedAtLine":  216,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  2,
         "PatternDetails":  "P1_StaticResource=2"
@@ -966,7 +516,7 @@
         "Key":  "LinearDot",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "Styles\\Tag.xaml",
-        "DefinedAtLine":  33,
+        "DefinedAtLine":  19,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  1,
         "PatternDetails":  "P1_StaticResource=1"
@@ -975,7 +525,7 @@
         "Key":  "LinearTagLabel",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "Styles\\Tag.xaml",
-        "DefinedAtLine":  21,
+        "DefinedAtLine":  7,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  1,
         "PatternDetails":  "P1_StaticResource=1"
@@ -1065,16 +615,7 @@
         "Key":  "LinearTreeIcon",
         "Category":  "POSSIBLY_USED",
         "DefinedIn":  "Styles\\TreeView.xaml",
-        "DefinedAtLine":  99,
-        "PatternsHit":  "P1_StaticResource",
-        "TotalHits":  1,
-        "PatternDetails":  "P1_StaticResource=1"
-    },
-    {
-        "Key":  "LinearTreeName",
-        "Category":  "POSSIBLY_USED",
-        "DefinedIn":  "Styles\\TreeView.xaml",
-        "DefinedAtLine":  110,
+        "DefinedAtLine":  86,
         "PatternsHit":  "P1_StaticResource",
         "TotalHits":  1,
         "PatternDetails":  "P1_StaticResource=1"

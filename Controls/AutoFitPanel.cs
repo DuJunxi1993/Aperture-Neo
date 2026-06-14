@@ -97,6 +97,28 @@ public class AutoFitPanel : Panel
     /// </summary>
     public double ActualItemWidth => _itemWidth;
 
+    /// <summary>
+    /// Convert a vertical scroll offset + viewport height into the
+    /// index range of items currently visible in the panel. Replaces
+    /// the host-side hardcoded row-height / column-count guesses
+    /// (previously 152px / 2 cols in <c>ThumbScroller_ScrollChanged</c>)
+    /// that mis-targeted the load range on wide or narrow viewports.
+    /// Returns (-1, -1) before the panel has been measured (cell
+    /// width still 0) or when <paramref name="itemCount"/> is 0.
+    /// </summary>
+    public (int firstIdx, int lastIdx) GetVisibleIndexRange(double verticalOffset, double viewportHeight, int itemCount)
+    {
+        if (_itemWidth <= 0 || _cols <= 0 || itemCount <= 0)
+            return (-1, -1);
+
+        double rowStride = _itemWidth + Spacing;
+        int firstRow = Math.Max(0, (int)(verticalOffset / rowStride));
+        int visibleRows = Math.Max(1, (int)(viewportHeight / rowStride) + 1);
+        int firstIdx = firstRow * _cols;
+        int lastIdx = Math.Min(itemCount - 1, (firstRow + visibleRows) * _cols - 1);
+        return (firstIdx, lastIdx);
+    }
+
     protected override Size MeasureOverride(Size availableSize)
     {
         var width = double.IsInfinity(availableSize.Width) ? 1000 : availableSize.Width;

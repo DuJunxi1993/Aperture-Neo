@@ -40,6 +40,11 @@ public partial class MainWindow : FluentWindow
     private DispatcherTimer? _overlayHideTimer;
     private DispatcherTimer? _exitHintHideTimer;
     private Point _lastMousePosition;
+    // Cached in ThumbGrid_Loaded. Used by ThumbScroller_ScrollChanged to
+    // convert a scroll offset/viewport into the actual visible item
+    // range (real row height + real column count from the panel's
+    // measure pass, not hardcoded guesses).
+    private AutoFitPanel? _autoFit;
     /// <summary>
     /// True while edge-nav buttons are mid-fade or fully shown. Suppresses
     /// re-triggering the show animation on every micro mouse-move event
@@ -392,23 +397,17 @@ public partial class MainWindow : FluentWindow
     }
 
     /// <summary>
-    /// Triggered by the thumbnail ScrollViewer. Estimates which item
-    /// indices are visible based on scroll offset and the configured
-    /// thumbnail size, then asks the coordinator to load any unloaded
-    /// thumbnails in that range. Cheap O(1) work per scroll tick.
+    /// Triggered by the thumbnail ScrollViewer. Asks the panel for the
+    /// real visible index range (computed from the panel's measure
+    /// pass — actual cell size and column count) and forwards that
+    /// to the load coordinator. Cheap O(1) work per scroll tick.
     /// </summary>
     private void ThumbScroller_ScrollChanged(object sender, ScrollChangedEventArgs e)
     {
-        if (_navigation.Count == 0) return;
-        // Approximate visible range. Each row is ~152px tall (140 thumb + margins).
-        const double rowHeight = 152.0;
-        int firstRow = Math.Max(0, (int)(e.VerticalOffset / rowHeight));
-        int visibleRows = Math.Max(1, (int)(e.ViewportHeight / rowHeight) + 1);
-        // Each row has ~2 columns in a typical 360px panel — but we don't know
-        // exact column count; use a generous range so the lazy loader covers
-        // the visible band even with imprecise math.
-        int firstIdx = Math.Max(0, firstRow * 2 - 2);
-        int lastIdx = Math.Min(_navigation.Count - 1, (firstRow + visibleRows) * 2 + 1);
+        if (_navigation.Count == 0 || _autoFit == null) return;
+        var (firstIdx, lastIdx) = _autoFit.GetVisibleIndexRange(
+            e.VerticalOffset, e.ViewportHeight, _navigation.Count);
+        if (firstIdx < 0) return;
         _thumbCoordinator.EnsureVisible(firstIdx, lastIdx);
     }
 
@@ -438,10 +437,14 @@ public partial class MainWindow : FluentWindow
         // width each time a thumbnail is generated. A second
         // resolution pass on column resize re-evaluates the size
         // because the Func is captured by reference, not value.
-        var autoFit = VisualTreeHelpers.FindVisualChild<AutoFitPanel>(ThumbGrid);
-        if (autoFit != null)
+        // Also cache the panel reference so ThumbScroller_ScrollChanged
+        // can compute the actual visible item range (replaces the
+        // hardcoded 152px / 2-col guess that mis-targeted the load
+        // range on wide or narrow viewports).
+        _autoFit = VisualTreeHelpers.FindVisualChild<AutoFitPanel>(ThumbGrid);
+        if (_autoFit != null)
         {
-            App.ThumbnailCache.SetSizeProvider(() => (int)autoFit.ActualItemWidth);
+            App.ThumbnailCache.SetSizeProvider(() => (int)_autoFit.ActualItemWidth);
         }
         // Re-raise the Loaded signal so handlers that depend on
         // the inner ScrollViewer's existence can re-run. Currently

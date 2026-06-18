@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using ApertureNeo.Models;
 using ApertureNeo.Services;
+using ApertureNeo.Helpers;
 
 namespace ApertureNeo.Controls.FolderTree;
 
@@ -378,7 +379,7 @@ public class FolderTreeView : ItemsControl
         }
 
         var open = new MenuItem { Header = "在资源管理器中打开" };
-        open.Click += (_, _) => { try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{node.Path}\""); } catch { } };
+        open.Click += (_, _) => ShellHelper.RevealInExplorer(node.Path!);
         menu.Items.Add(open);
 
         menu.PlacementTarget = this;

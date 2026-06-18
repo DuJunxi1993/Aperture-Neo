@@ -200,7 +200,7 @@ public class FolderTreeView : ItemsControl
         catch { return false; }
     }
 
-    private void NavigateInto(TreeNodeBase node)
+    private void NavigateInto(TreeNodeBase node, bool fireFolderSelected = true)
     {
         SelectedNode = node;
         _navStack.Push((Items.ToList(), null));
@@ -212,11 +212,94 @@ public class FolderTreeView : ItemsControl
         var children = GetChildren(node);
         foreach (var c in children) Items.Add(c);
         var path = node.Path;
-        if (path != null)
+        if (path != null && fireFolderSelected)
         {
             FolderSelected?.Invoke(FolderSource.Subdirectory, path);
         }
         DrillModeChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Navigate the tree to <paramref name="path"/> by drilling
+    /// from root through the matching drive and subdirectory nodes
+    /// until the deepest existing ancestor is reached. The target
+    /// folder becomes the selected node and its images are loaded
+    /// via the <see cref="FolderSelected"/> event. If the path is
+    /// no longer reachable (folder renamed/deleted, drive missing)
+    /// the tree stops at the deepest ancestor that still exists —
+    /// no error is shown.
+    /// </summary>
+    /// <param name="path">Absolute path of a folder under one of
+    /// the currently-mounted drives. Typically the
+    /// <see cref="TreeNodeBase.Path"/> of a <see cref="RecentNode"/>
+    /// or a favorite <see cref="FolderItemNode"/>.</param>
+    public void JumpToDirectory(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return;
+        if (!Directory.Exists(path)) return;
+
+        ReturnToRoot();
+
+        var driveRoot = Path.GetPathRoot(path);
+        if (string.IsNullOrEmpty(driveRoot)) return;
+
+        DriveItemNode? driveNode = null;
+        foreach (var item in Items)
+        {
+            if (item is DriveItemNode d && d.Path != null &&
+                d.Path.Equals(driveRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                driveNode = d;
+                break;
+            }
+        }
+        if (driveNode == null) return;
+
+        if (!HasSubdirectories(driveNode.Path!)) return;
+        NavigateInto(driveNode, fireFolderSelected: false);
+
+        var relative = path.Substring(driveRoot.Length)
+                           .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (string.IsNullOrEmpty(relative))
+        {
+            // Target is a drive root itself (e.g. "C:\"). The drive
+            // node is now in drill mode with its children shown;
+            // select the drive row itself and stop without firing
+            // FolderSelected (a drive root can't load images).
+            SelectedNode = driveNode;
+            ScrollSelectedIntoView();
+            return;
+        }
+
+        var segments = relative.Split(new[] {
+            Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar
+        }, StringSplitOptions.RemoveEmptyEntries);
+
+        TreeNodeBase? deepest = driveNode;
+        foreach (var seg in segments)
+        {
+            FolderItemNode? match = null;
+            foreach (var item in Items)
+            {
+                if (item is FolderItemNode f &&
+                    string.Equals(System.IO.Path.GetFileName(f.Path), seg, StringComparison.OrdinalIgnoreCase))
+                {
+                    match = f;
+                    break;
+                }
+            }
+            if (match == null) break;
+            if (!HasSubdirectories(match.Path!)) { deepest = match; break; }
+            NavigateInto(match, fireFolderSelected: false);
+            deepest = match;
+        }
+
+        SelectedNode = deepest;
+        ScrollSelectedIntoView();
+        if (deepest.Path != null)
+        {
+            FolderSelected?.Invoke(FolderSource.Subdirectory, deepest.Path);
+        }
     }
 
     /// <summary>
@@ -339,12 +422,20 @@ public class FolderTreeView : ItemsControl
 
         if (section == FolderSource.Favorite)
         {
+            var jump = new MenuItem { Header = "跳转到目录" };
+            jump.Click += (_, _) => JumpToDirectory(node.Path!);
+            menu.Items.Add(jump);
+            menu.Items.Add(new Separator());
             var remove = new MenuItem { Header = "从收藏夹移除", Tag = "destructive" };
             remove.Click += (_, _) => App.SettingsStore.RemoveFavorite(node.Path);
             menu.Items.Add(remove);
         }
         else if (section == FolderSource.Recent)
         {
+            var jump = new MenuItem { Header = "跳转到目录" };
+            jump.Click += (_, _) => JumpToDirectory(node.Path!);
+            menu.Items.Add(jump);
+            menu.Items.Add(new Separator());
             if (App.SettingsStore.IsFavorite(node.Path))
             {
                 var remove = new MenuItem { Header = "从收藏夹移除", Tag = "destructive" };

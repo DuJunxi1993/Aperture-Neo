@@ -200,7 +200,7 @@ public partial class MainWindow : FluentWindow
     { if (_navigation.Current == null) return; try { Clipboard.SetText(_navigation.Current.FilePath); } catch { } }
 
     private void CtxOpenInExplorer_Click(object sender, RoutedEventArgs e)
-    { if (_navigation.Current == null) return; try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{_navigation.Current.FilePath}\""); } catch { } }
+    { if (_navigation.Current == null) return; ShellHelper.RevealInExplorer(_navigation.Current.FilePath); }
 
     private void CtxPrint_Click(object sender, RoutedEventArgs e)
     {

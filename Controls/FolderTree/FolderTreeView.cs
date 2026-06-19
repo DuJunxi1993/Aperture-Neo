@@ -606,7 +606,7 @@ public class FolderTreeView : ItemsControl
 
         if (ItemContainerGenerator.Status == System.Windows.Controls.Primitives.GeneratorStatus.ContainersGenerated)
         {
-            QueueScroll(idx);
+            EnsureContainerVisible(idx);
         }
         else
         {
@@ -615,76 +615,54 @@ public class FolderTreeView : ItemsControl
             {
                 if (ItemContainerGenerator.Status != System.Windows.Controls.Primitives.GeneratorStatus.ContainersGenerated) return;
                 ItemContainerGenerator.StatusChanged -= handler!;
-                QueueScroll(idx);
+                EnsureContainerVisible(idx);
             };
             ItemContainerGenerator.StatusChanged += handler;
         }
     }
 
     /// <summary>
-    /// Defer the actual scroll to ContextIdle so the layout pass for
-    /// this frame has completed. By ContextIdle the container has
-    /// ActualHeight and the ScrollViewer's ExtentHeight is up to date
-    /// — both required for a correct BringIntoView / offset compute.
+    /// Bring the target row into view via WPF's
+    /// <c>FrameworkElement.BringIntoView</c>, which internally
+    /// detects whether the item is already visible and only
+    /// scrolls if not — no tree-jitter when the selection was
+    /// already in the viewport.
+    ///
+    /// All previous attempts (BeginInvoke at Background /
+    /// ContextIdle, direct <c>ScrollToVerticalOffset</c> with
+    /// <c>TransformToAncestor</c>) failed because they ran
+    /// before the ScrollViewer's cascade Measure pass had
+    /// refreshed its <c>ExtentHeight</c>. The two-stage wait
+    /// below is what fixes it:
+    /// 1. StatusChanged → wait for the ItemContainerGenerator to
+    ///    finish producing containers.
+    /// 2. LayoutUpdated → wait until the container's ActualHeight
+    ///    is non-zero (its own measure ran).
+    /// 3. <c>UpdateLayout()</c> — synchronous; forces the entire
+    ///    visual tree (including the ancestor ScrollViewer) to
+    ///    re-measure, so its <c>ExtentHeight</c> is current.
+    /// 4. <c>BringIntoView()</c> — finally safe to call.
     /// </summary>
-    private void QueueScroll(int idx)
-    {
-        Dispatcher.BeginInvoke(new Action(() => ScrollContainerViaScrollViewer(idx)),
-            System.Windows.Threading.DispatcherPriority.ContextIdle);
-    }
-
-    /// <summary>
-    /// Scroll the ancestor ScrollViewer so the target row is fully
-    /// visible. We bypass <c>FrameworkElement.BringIntoView</c> and
-    /// compute <see cref="ScrollViewer.VerticalOffset"/> directly
-    /// because BringIntoView's request-bubble-to-ScrollViewer path
-    /// was unreliable when Items had just been mutated
-    /// (ScrollViewer's ExtentHeight was still stale, so the
-    /// scroll-target landed in the wrong place).
-    /// </summary>
-    private void ScrollContainerViaScrollViewer(int idx)
+    private void EnsureContainerVisible(int idx)
     {
         if (ItemContainerGenerator.ContainerFromIndex(idx) is not FrameworkElement fe) return;
 
-        var scrollViewer = FindAncestorScrollViewer(this);
-        if (scrollViewer == null)
+        if (fe.ActualHeight <= 0)
         {
-            fe.BringIntoView();
+            EventHandler? layoutHandler = null;
+            layoutHandler = (s, e) =>
+            {
+                if (fe.ActualHeight <= 0) return;
+                LayoutUpdated -= layoutHandler!;
+                UpdateLayout();
+                fe.BringIntoView();
+            };
+            LayoutUpdated += layoutHandler;
             return;
         }
 
-        // pt.Y is the container's top-left in viewport coordinates:
-        //  pt.Y < 0           -> container is above the viewport
-        //  pt.Y + h > vpH     -> container is below the viewport
-        //  otherwise          -> already visible, no scroll needed
-        var pt = fe.TransformToAncestor(scrollViewer).Transform(new Point(0, 0));
-        double itemH = fe.ActualHeight;
-        double vpH = scrollViewer.ViewportHeight;
-        double curOffset = scrollViewer.VerticalOffset;
-
-        double newOffset = curOffset;
-        if (pt.Y < 0)
-        {
-            newOffset = curOffset + pt.Y; // pt.Y is negative — scroll content down
-        }
-        else if (pt.Y + itemH > vpH)
-        {
-            newOffset = curOffset + (pt.Y + itemH - vpH); // scroll content up
-        }
-
-        newOffset = Math.Max(0, Math.Min(newOffset, scrollViewer.ScrollableHeight));
-        scrollViewer.ScrollToVerticalOffset(newOffset);
-    }
-
-    private static ScrollViewer? FindAncestorScrollViewer(DependencyObject start)
-    {
-        var current = start;
-        while (current != null)
-        {
-            if (current is ScrollViewer sv) return sv;
-            current = VisualTreeHelper.GetParent(current);
-        }
-        return null;
+        UpdateLayout();
+        fe.BringIntoView();
     }
 
     // ---- Init ----

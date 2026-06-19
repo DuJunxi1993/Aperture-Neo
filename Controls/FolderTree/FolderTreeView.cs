@@ -578,18 +578,34 @@ public class FolderTreeView : ItemsControl
     private void ScrollSelectedIntoView()
     {
         if (SelectedNode == null) return;
+        int idx = -1;
         for (int i = 0; i < Items.Count; i++)
         {
-            if (Items[i] == SelectedNode)
-            {
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    if (ItemContainerGenerator.ContainerFromIndex(i) is FrameworkElement fe)
-                        fe.BringIntoView();
-                }), System.Windows.Threading.DispatcherPriority.Background);
-                return;
-            }
+            if (Items[i] == SelectedNode) { idx = i; break; }
         }
+        if (idx < 0) return;
+
+        if (ItemContainerGenerator.Status == System.Windows.Controls.Primitives.GeneratorStatus.ContainersGenerated)
+        {
+            ScrollContainerIntoView(idx);
+        }
+        else
+        {
+            EventHandler? handler = null;
+            handler = (s, e) =>
+            {
+                if (ItemContainerGenerator.Status != System.Windows.Controls.Primitives.GeneratorStatus.ContainersGenerated) return;
+                ItemContainerGenerator.StatusChanged -= handler!;
+                ScrollContainerIntoView(idx);
+            };
+            ItemContainerGenerator.StatusChanged += handler;
+        }
+    }
+
+    private void ScrollContainerIntoView(int idx)
+    {
+        if (ItemContainerGenerator.ContainerFromIndex(idx) is FrameworkElement fe)
+            fe.BringIntoView();
     }
 
     // ---- Init ----

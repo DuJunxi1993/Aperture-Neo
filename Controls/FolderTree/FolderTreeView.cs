@@ -273,29 +273,33 @@ public class FolderTreeView : ItemsControl
         }
         if (driveNode == null) return;
 
-        if (!HasSubdirectories(driveNode.Path!)) return;
-        NavigateInto(driveNode, fireFolderSelected: false);
-
         var relative = path.Substring(driveRoot.Length)
                            .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        if (string.IsNullOrEmpty(relative))
+        var segments = string.IsNullOrEmpty(relative)
+            ? Array.Empty<string>()
+            : relative.Split(new[] {
+                Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar
+            }, StringSplitOptions.RemoveEmptyEntries);
+
+        if (segments.Length == 0)
         {
-            // Target is a drive root itself (e.g. "C:\"). The drive
-            // node is now in drill mode with its children shown;
-            // select the drive row itself and stop without firing
-            // FolderSelected (a drive root can't load images).
-            SelectedNode = driveNode;
-            ScrollSelectedIntoView();
+            // Target is a drive root itself (e.g. "C:\"). Drill into
+            // the drive and stop — no folder to highlight (the drive
+            // is no longer in Items after the drill).
+            if (HasSubdirectories(driveNode.Path!))
+                NavigateInto(driveNode, fireFolderSelected: false);
             return;
         }
 
-        var segments = relative.Split(new[] {
-            Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar
-        }, StringSplitOptions.RemoveEmptyEntries);
-
-        TreeNodeBase? deepest = driveNode;
-        foreach (var seg in segments)
+        // Drill through every segment EXCEPT the last. After this
+        // loop, Items = children of the target's parent, and the
+        // target folder itself is one of those children — so it can
+        // be selected, scrolled into view, and acted on. Drilling
+        // into the target itself would remove it from Items and
+        // make it unselectable.
+        for (int i = 0; i < segments.Length - 1; i++)
         {
+            var seg = segments[i];
             FolderItemNode? match = null;
             foreach (var item in Items)
             {
@@ -306,18 +310,27 @@ public class FolderTreeView : ItemsControl
                     break;
                 }
             }
-            if (match == null) break;
-            if (!HasSubdirectories(match.Path!)) { deepest = match; break; }
+            if (match == null) return;
+            if (!HasSubdirectories(match.Path!)) return;
             NavigateInto(match, fireFolderSelected: false);
-            deepest = match;
         }
 
-        SelectedNode = deepest;
-        ScrollSelectedIntoView();
-        if (deepest.Path != null)
+        // Find the target folder as a child of the current Items.
+        var lastSeg = segments[segments.Length - 1];
+        foreach (var item in Items)
         {
-            FolderSelected?.Invoke(FolderSource.Subdirectory, deepest.Path);
+            if (item is FolderItemNode f &&
+                string.Equals(System.IO.Path.GetFileName(f.Path), lastSeg, StringComparison.OrdinalIgnoreCase))
+            {
+                SelectedNode = f;
+                ScrollSelectedIntoView();
+                break;
+            }
         }
+
+        // Load the target folder's images into the main viewer. Use
+        // the original path so casing/whitespace is preserved.
+        FolderSelected?.Invoke(FolderSource.Subdirectory, path);
     }
 
     /// <summary>

@@ -273,6 +273,9 @@ public class FolderTreeView : ItemsControl
         }
         if (driveNode == null) return;
 
+        if (!HasSubdirectories(driveNode.Path!)) return;
+        NavigateInto(driveNode, fireFolderSelected: false);
+
         var relative = path.Substring(driveRoot.Length)
                            .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var segments = string.IsNullOrEmpty(relative)
@@ -283,11 +286,9 @@ public class FolderTreeView : ItemsControl
 
         if (segments.Length == 0)
         {
-            // Target is a drive root itself (e.g. "C:\"). Drill into
-            // the drive and stop — no folder to highlight (the drive
-            // is no longer in Items after the drill).
-            if (HasSubdirectories(driveNode.Path!))
-                NavigateInto(driveNode, fireFolderSelected: false);
+            // Target is the drive root itself (e.g. "C:\"). Nothing
+            // to highlight — the drive is no longer in Items after
+            // the drill, and a drive root has no images to load.
             return;
         }
 
@@ -297,6 +298,11 @@ public class FolderTreeView : ItemsControl
         // be selected, scrolled into view, and acted on. Drilling
         // into the target itself would remove it from Items and
         // make it unselectable.
+        //
+        // For a 1-segment path (e.g. "C:\Users") the loop body
+        // never runs; the target sits in Items as a direct child
+        // of the drive, which is the same Items we just drilled
+        // into above. Same outcome.
         for (int i = 0; i < segments.Length - 1; i++)
         {
             var seg = segments[i];

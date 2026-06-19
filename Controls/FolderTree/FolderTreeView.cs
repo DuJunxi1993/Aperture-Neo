@@ -366,6 +366,20 @@ public class FolderTreeView : ItemsControl
         // to highlight.
         if (stackBefore == 1)
         {
+            // If drives never made it into the root view (because
+            // LoadDrivesAsync bailed during the preceding drill),
+            // re-trigger the load now so 此电脑 isn't an empty section.
+            bool hasDrives = false;
+            for (int i = 0; i < Items.Count; i++)
+            {
+                if (Items[i] is DriveItemNode) { hasDrives = true; break; }
+            }
+            if (!hasDrives)
+            {
+                int newGen = Interlocked.Increment(ref _initGeneration);
+                _ = LoadDrivesAsync(newGen);
+            }
+
             Dispatcher.BeginInvoke(new Action(SelectFirstNode), System.Windows.Threading.DispatcherPriority.Background);
         }
     }
@@ -792,9 +806,18 @@ public class FolderTreeView : ItemsControl
         await Dispatcher.InvokeAsync(() =>
         {
             if (gen != Volatile.Read(ref _initGeneration)) return;
+            int ins = FindSection("此电脑");
+            if (ins < 0)
+            {
+                // Items is in drill mode (no "此电脑" section header).
+                // Skip — inserting drives at position 0 would pollute
+                // the drilled view. NavigateBack re-triggers us when
+                // the user returns to root.
+                return;
+            }
             for (int i = Items.Count - 1; i >= 0; i--)
                 if (Items[i] is DriveItemNode) Items.RemoveAt(i);
-            int ins = FindSection("此电脑") + 1;
+            ins++;
             foreach (var d in drives)
                 Items.Insert(ins++, d);
         });

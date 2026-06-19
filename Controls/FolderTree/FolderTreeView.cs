@@ -655,14 +655,85 @@ public class FolderTreeView : ItemsControl
                 if (fe.ActualHeight <= 0) return;
                 LayoutUpdated -= layoutHandler!;
                 UpdateLayout();
-                fe.BringIntoView();
+                ScrollIntoViewAdaptive(fe);
             };
             LayoutUpdated += layoutHandler;
             return;
         }
 
         UpdateLayout();
-        fe.BringIntoView();
+        ScrollIntoViewAdaptive(fe);
+    }
+
+    /// <summary>
+    /// Scroll the ancestor ScrollViewer so the target row is fully
+    /// visible. Adaptive strategy:
+    ///   - already fully visible: no-op
+    ///   - small item (h + TopMargin + BottomMargin &lt;= vpH): centered
+    ///   - large item: top-aligned with 24px margin (bottom may clip)
+    ///
+    /// Replaces <c>FrameworkElement.BringIntoView</c> which only
+    /// does the minimum scroll and was leaving the row half-clipped
+    /// at the viewport's bottom edge.
+    ///
+    /// Assumes <c>TransformToAncestor</c> returns viewport
+    /// coordinates (D - VerticalOffset). If it returns document
+    /// coordinates instead, the centering math lands wrong but the
+    /// scroll still happens (scroll offset stays stable across
+    /// re-invocation, so no infinite loop).
+    /// </summary>
+    private void ScrollIntoViewAdaptive(FrameworkElement fe)
+    {
+        var scrollViewer = FindAncestorScrollViewer(this);
+        if (scrollViewer == null) { fe.BringIntoView(); return; }
+
+        var pt = fe.TransformToAncestor(scrollViewer).Transform(new Point(0, 0));
+        double itemH = fe.ActualHeight;
+        double vpH = scrollViewer.ViewportHeight;
+        double curOffset = scrollViewer.VerticalOffset;
+        double itemTop = pt.Y;
+        double itemBottom = pt.Y + itemH;
+
+        // Already fully visible — skip the scroll entirely so we
+        // don't get a "tree jumps after I clicked" jitter when the
+        // selection was already in the viewport.
+        if (itemTop >= 0 && itemBottom <= vpH)
+            return;
+
+        const double TopMargin = 24;
+        const double BottomMargin = 24;
+
+        // itemDocTop is the item's top in the document coordinate
+        // space. TransformToAncestor returns the viewport position
+        // (D - O), so adding the current offset back yields D.
+        double itemDocTop = curOffset + itemTop;
+        double newOffset;
+
+        if (itemH + TopMargin + BottomMargin <= vpH)
+        {
+            // Small item — center it in the viewport
+            newOffset = itemDocTop - (vpH - itemH) / 2;
+        }
+        else
+        {
+            // Large item — top-align with margin (bottom may clip;
+            // adaptive strategy accepts that for oversized items)
+            newOffset = itemDocTop - TopMargin;
+        }
+
+        newOffset = Math.Max(0, Math.Min(newOffset, scrollViewer.ScrollableHeight));
+        scrollViewer.ScrollToVerticalOffset(newOffset);
+    }
+
+    private static ScrollViewer? FindAncestorScrollViewer(DependencyObject start)
+    {
+        var current = start;
+        while (current != null)
+        {
+            if (current is ScrollViewer sv) return sv;
+            current = VisualTreeHelper.GetParent(current);
+        }
+        return null;
     }
 
     // ---- Init ----

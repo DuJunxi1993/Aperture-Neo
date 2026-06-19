@@ -47,14 +47,18 @@ public class FolderTreeView : ItemsControl
     /// (Favorites/Recent/ThisPC) view. Fires
     /// <see cref="DrillModeChanged"/> if the stack was non-empty
     /// before the call so the host window can update the
-    /// "back to root" floating chip.
+    /// "back to root" floating chip. Pass
+    /// <paramref name="skipAutoSelect"/>=true to suppress the
+    /// deferred <c>SelectFirstNode</c> — useful when the caller
+    /// will drive selection itself (e.g.
+    /// <see cref="JumpToDirectory"/>).
     /// </summary>
-    public void ReturnToRoot()
+    public void ReturnToRoot(bool skipAutoSelect = false)
     {
         bool wasInDrill = _navStack.Count > 0;
         _navStack.Clear();
         _pendingRecentRefresh = false;
-        Init();
+        Init(skipAutoSelect);
         if (wasInDrill) DrillModeChanged?.Invoke();
     }
 
@@ -238,7 +242,7 @@ public class FolderTreeView : ItemsControl
         if (string.IsNullOrEmpty(path)) return;
         if (!Directory.Exists(path)) return;
 
-        ReturnToRoot();
+        ReturnToRoot(skipAutoSelect: true);
 
         var driveRoot = Path.GetPathRoot(path);
         if (string.IsNullOrEmpty(driveRoot)) return;
@@ -252,6 +256,20 @@ public class FolderTreeView : ItemsControl
                 driveNode = d;
                 break;
             }
+        }
+
+        // Cold-start race: LoadDrivesAsync runs on a background task
+        // and may not have populated Items yet when the user clicks
+        // immediately after launch. Build the DriveItemNode
+        // synchronously from DriveInfo so the jump still works.
+        if (driveNode == null)
+        {
+            try
+            {
+                var di = new DriveInfo(driveRoot);
+                if (di.IsReady) driveNode = new DriveItemNode(di);
+            }
+            catch { /* unknown drive letter / IO error — give up */ }
         }
         if (driveNode == null) return;
 
@@ -578,7 +596,7 @@ public class FolderTreeView : ItemsControl
 
     private int _initGeneration;
 
-    private void Init()
+    private void Init(bool skipAutoSelect = false)
     {
         var gen = Interlocked.Increment(ref _initGeneration);
 
@@ -609,7 +627,14 @@ public class FolderTreeView : ItemsControl
 
         // Auto-select the most relevant top-level node. Prefer the
         // first Recent ("where was I just?") over the first Favorite.
-        Dispatcher.BeginInvoke(new Action(SelectFirstNode), System.Windows.Threading.DispatcherPriority.Background);
+        // Callers that drive selection themselves (e.g.
+        // JumpToDirectory) pass skipAutoSelect=true to suppress this
+        // queued action — otherwise it would fire after the caller
+        // has drilled into a subfolder and overwrite the selection.
+        if (!skipAutoSelect)
+        {
+            Dispatcher.BeginInvoke(new Action(SelectFirstNode), System.Windows.Threading.DispatcherPriority.Background);
+        }
     }
 
     private async Task LoadDrivesAsync(int gen)

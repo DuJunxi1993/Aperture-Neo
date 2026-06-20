@@ -107,6 +107,8 @@ AllowDrop="True">
                                     <MenuItem Header="最近访问记录" Click="BtnClearRecent_Click"/>
                                 </MenuItem>
                                 <Separator/>
+                                <MenuItem Header="插件" x:Name="MenuPlugins"/>
+                                <Separator/>
                                 <MenuItem Header="关于" Click="About_Click"/>
                             </ContextMenu>
                         </Button.ContextMenu>

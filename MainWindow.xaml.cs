@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -24,7 +25,7 @@ namespace ApertureNeo;
 /// and <see cref="SlideshowService"/>; this class orchestrates
 /// them and proxies UI events.
 /// </summary>
-public partial class MainWindow : FluentWindow
+public partial class MainWindow : FluentWindow, IPluginContext
 {
     private readonly NavigationService _navigation = new();
     private readonly SlideshowService _slideshow = new();
@@ -80,6 +81,7 @@ public partial class MainWindow : FluentWindow
 
         _navigation.CollectionChanged += OnCollectionChanged;
         _navigation.CurrentImageChanged += OnCurrentImageChanged;
+        _navigation.CurrentImageChanged += item => CurrentImageChanged?.Invoke(this, item?.FilePath);
         _slideshow.NextRequested += () => Dispatcher.Invoke(() => _navigation.MoveNext());
 
         ImageViewer.ZoomChanged += zoom =>
@@ -211,4 +213,27 @@ public partial class MainWindow : FluentWindow
 
     private void CtxSetWallpaper_Click(object sender, RoutedEventArgs e)
     { if (_navigation.Current != null) WallpaperService.TrySetDesktop(_navigation.Current.FilePath); }
+
+    public string? CurrentImagePath => _navigation.Current?.FilePath;
+
+    public IReadOnlyList<string> SelectedImagePaths
+        => _navigation.Current == null ? Array.Empty<string>() : new[] { _navigation.Current.FilePath };
+
+    public event EventHandler<string?>? CurrentImageChanged;
+
+    public void RegisterMenuItem(System.Windows.Controls.MenuItem item)
+    {
+        if (MenuPlugins == null) return;
+        MenuPlugins.Items.Add(item);
+    }
+
+    public void RegisterContextMenuItem(System.Windows.Controls.MenuItem item)
+    {
+        if (ImageViewer?.ContextMenu == null) return;
+        var insertBefore = ImageViewer.ContextMenu.Items.OfType<Separator>().LastOrDefault();
+        if (insertBefore != null)
+            ImageViewer.ContextMenu.Items.Insert(ImageViewer.ContextMenu.Items.IndexOf(insertBefore), item);
+        else
+            ImageViewer.ContextMenu.Items.Add(item);
+    }
 }

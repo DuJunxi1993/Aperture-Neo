@@ -87,6 +87,13 @@ public partial class App : Application
             : new MainWindow();
 
         mainWindow.Show();
+
+        // Load plugins from bin/Plugins/*.dll. Each plugin registers its
+        // own menu items into the main window's overflow menu. Failures
+        // are isolated per-plugin so a broken plugin DLL can never
+        // prevent the app from starting.
+        var pluginsDir = Path.Combine(AppContext.BaseDirectory, "Plugins");
+        PluginLoader.LoadAll(pluginsDir, mainWindow);
     }
 
     protected override void OnExit(ExitEventArgs e)

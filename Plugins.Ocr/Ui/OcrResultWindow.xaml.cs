@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -10,8 +11,6 @@ namespace ApertureNeo.Plugins.Ocr.Ui;
 
 public partial class OcrResultWindow : Window
 {
-    private static readonly Regex MultiSpace = new(@"\s{2,}", RegexOptions.Compiled);
-
     public OcrResultWindow()
     {
         InitializeComponent();
@@ -47,47 +46,45 @@ public partial class OcrResultWindow : Window
         FileNameText.Text = fileName;
         StatusText.Text = "完成";
         StatusDot.Background = (Brush)FindResource("StatusGreen");
-        ResultBox.Text = result.FullText;
         MetaText.Text = $"{result.Lines.Count} 行 · {result.ElapsedMs:F0} ms";
         ErrorText.Visibility = Visibility.Collapsed;
+        // Default mode is 换行 (preserves \n from OCR); 不换行 strips them.
+        // Both modes render via TextWrapping=Wrap, so a single long line
+        // still wraps at the window edge in 不换行 mode.
+        if (RadioNoWrap?.IsChecked == true)
+            ResultBox.Text = result.FullText.Replace("\n", "").Replace("\r", "");
+        else
+            ResultBox.Text = result.FullText;
     }
 
     private void RadioWrap_Checked(object sender, RoutedEventArgs e)
     {
-        if (ResultBox == null) return; // XAML load fires this before wiring
-        ResultBox.TextWrapping = TextWrapping.Wrap;
-        if (TextScrollViewer != null)
-            TextScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
+        // 换行 mode: the text already has \n from OCR. The TextBox renders
+        // each line separately and wraps long lines at the window edge.
+        // No text transformation needed.
     }
 
     private void RadioNoWrap_Checked(object sender, RoutedEventArgs e)
     {
         if (ResultBox == null) return; // XAML load fires this before wiring
-        ResultBox.TextWrapping = TextWrapping.NoWrap;
-        if (TextScrollViewer != null)
-            TextScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
+        // 不换行 mode: strip \n from the current text so it becomes a single
+        // long line. TextWrapping=Wrap still wraps it visually at the
+        // window edge (like Notepad's word-wrap on a single line).
+        ResultBox.Text = ResultBox.Text.Replace("\n", "").Replace("\r", "");
     }
 
-    private void BtnCompactSpaces_Click(object sender, RoutedEventArgs e)
+    private void BtnClearSpaces_Click(object sender, RoutedEventArgs e)
     {
         if (ResultBox == null || string.IsNullOrEmpty(ResultBox.Text)) return;
-        var lines = ResultBox.Text.Split('\n')
-            .Select(l => MultiSpace.Replace(l.Trim(), " "));
-        ResultBox.Text = string.Join("\n", lines);
+        // Delete all ASCII spaces and tabs; keep newlines so the row
+        // structure is preserved.
+        ResultBox.Text = ResultBox.Text.Replace(" ", "").Replace("\t", "");
     }
 
     private void BtnCopyAll_Click(object sender, RoutedEventArgs e)
     {
         if (ResultBox == null || string.IsNullOrEmpty(ResultBox.Text)) return;
         try { Clipboard.SetText(ResultBox.Text); } catch { }
-    }
-
-    private void BtnCopyLines_Click(object sender, RoutedEventArgs e)
-    {
-        if (ResultBox == null || string.IsNullOrEmpty(ResultBox.Text)) return;
-        var lines = ResultBox.Text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        if (lines.Length == 0) return;
-        try { Clipboard.SetText(string.Join("\n", lines)); } catch { }
     }
 
     private void BtnClose_Click(object sender, RoutedEventArgs e)

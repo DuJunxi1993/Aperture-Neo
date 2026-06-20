@@ -21,6 +21,13 @@
     <PackageReference Include="WPF-UI" Version="3.0.5" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="Plugins.Ocr\**" />
+    <Page Remove="Plugins.Ocr\**" />
+    <ApplicationDefinition Remove="Plugins.Ocr\**" />
+    <Resource Remove="Plugins.Ocr\**" />
+  </ItemGroup>
+
   <!-- Main entry XAMLs -->
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml">

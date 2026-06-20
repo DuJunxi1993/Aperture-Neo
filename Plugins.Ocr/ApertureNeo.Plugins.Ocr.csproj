@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>ApertureNeo.Plugins.Ocr</RootNamespace>
+    <AssemblyName>ApertureNeo.Plugins.Ocr</AssemblyName>
+    <GenerateRequiresPreviewFeaturesAttribute>false</GenerateRequiresPreviewFeaturesAttribute>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <EnableDefaultPageItems>false</EnableDefaultPageItems>
+    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+  </PropertyGroup>
+
+  <Target Name="DeployToMain" AfterTargets="Build">
+    <PropertyGroup>
+      <MainPluginDir>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\net10.0-windows\Plugins\</MainPluginDir>
+      <OpenCvRuntimeDir>$(NuGetPackageRoot)opencvsharp4.runtime.win\4.13.0.20260528\runtimes\win-x64\native\</OpenCvRuntimeDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_DeployFiles Include="$(OutDir)**\*.*"/>
+    </ItemGroup>
+    <Copy SourceFiles="@(_DeployFiles)"
+          DestinationFiles="@(_DeployFiles->'$(MainPluginDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"/>
+    <ItemGroup>
+      <_OpenCvNative Include="$(OpenCvRuntimeDir)*.dll"/>
+    </ItemGroup>
+    <Copy SourceFiles="@(_OpenCvNative)"
+          DestinationFolder="$(MainPluginDir)"
+          SkipUnchangedFiles="true"/>
+    <Message Text="Deployed $(AssemblyName) -> $(MainPluginDir) (with OpenCV natives)" Importance="high"/>
+  </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ApertureNeo.csproj">
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="RapidOCRSharpOnnx" Version="1.2.2" />
+    <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260528" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.13.0.20260528" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.26.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Page Include="Ui\OcrResultWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Assets\models\paddleocr\*.onnx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
+

@@ -24,7 +24,20 @@ public sealed class OcrService : IDisposable
 
     public OcrService()
     {
-        ModelDirectory = Path.Combine(AppContext.BaseDirectory, "Assets", "models", "paddleocr");
+        // Models are deployed next to the plugin DLL in <bin>/Plugins/Assets/.
+        // The plugin assembly's Location points to that folder when loaded via
+        // Assembly.LoadFrom; fall back to the conventional Plugins/ path
+        // (relative to the host AppContext.BaseDirectory) if Location is empty
+        // (e.g. loaded from a single-file bundle in the future).
+        var asmDir = Path.GetDirectoryName(typeof(OcrService).Assembly.Location);
+        if (!string.IsNullOrEmpty(asmDir))
+        {
+            ModelDirectory = Path.Combine(asmDir, "Assets", "models", "paddleocr");
+        }
+        else
+        {
+            ModelDirectory = Path.Combine(AppContext.BaseDirectory, "Plugins", "Assets", "models", "paddleocr");
+        }
     }
 
     public async Task WarmupAsync(CancellationToken ct = default)

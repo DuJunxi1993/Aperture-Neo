@@ -19,6 +19,10 @@
     <PropertyGroup>
       <MainPluginDir>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\net10.0-windows\Plugins\</MainPluginDir>
       <OpenCvRuntimeDir>$(NuGetPackageRoot)opencvsharp4.runtime.win\4.13.0.20260528\runtimes\win-x64\native\</OpenCvRuntimeDir>
+      <RapidOcrRuntime>$(NuGetPackageRoot)rapidocrsharponnx\1.2.2\lib\net10.0\RapidOCRSharpOnnx.dll</RapidOcrRuntime>
+      <OpenCvSharpRuntime>$(NuGetPackageRoot)opencvsharp4\4.13.0.20260528\lib\net8.0\OpenCvSharp.dll</OpenCvSharpRuntime>
+      <OnnxRuntimeManaged>$(NuGetPackageRoot)microsoft.ml.onnxruntime.managed\1.26.0\lib\netstandard2.0\Microsoft.ML.OnnxRuntime.dll</OnnxRuntimeManaged>
+      <SkiaSharpDir>$(NuGetPackageRoot)skiasharp.nativeassets.win32\3.119.4\runtimes\win-x64\native\</SkiaSharpDir>
     </PropertyGroup>
     <ItemGroup>
       <_DeployFiles Include="$(OutDir)**\*.*"/>
@@ -32,7 +36,26 @@
     <Copy SourceFiles="@(_OpenCvNative)"
           DestinationFolder="$(MainPluginDir)"
           SkipUnchangedFiles="true"/>
-    <Message Text="Deployed $(AssemblyName) -> $(MainPluginDir) (with OpenCV natives)" Importance="high"/>
+    <ItemGroup>
+      <_ManagedRuntime Include="$(RapidOcrRuntime);$(OpenCvSharpRuntime);$(OnnxRuntimeManaged);$(NuGetPackageRoot)clipper2\2.0.0\lib\netstandard2.0\Clipper2Lib.dll;$(NuGetPackageRoot)system.numerics.tensors\8.0.0\lib\net8.0\System.Numerics.Tensors.dll"/>
+    </ItemGroup>
+    <Copy SourceFiles="@(_ManagedRuntime)"
+          DestinationFolder="$(MainPluginDir)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('%(Identity)')"/>
+    <ItemGroup>
+      <_SkiaSharpManaged Include="$(NuGetPackageRoot)skiasharp\3.119.4\lib\net10.0-windows10.0.19041\SkiaSharp.dll"/>
+      <_SkiaSharpNative Include="$(NuGetPackageRoot)skiasharp.nativeassets.win32\3.119.4\runtimes\win-x64\native\*.dll"/>
+    </ItemGroup>
+    <Copy SourceFiles="@(_SkiaSharpManaged)"
+          DestinationFolder="$(MainPluginDir)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('%(Identity)')"/>
+    <Copy SourceFiles="@(_SkiaSharpNative)"
+          DestinationFolder="$(MainPluginDir)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('%(Identity)')"/>
+    <Message Text="Deployed $(AssemblyName) -> $(MainPluginDir) (with OpenCV + managed + SkiaSharp runtimes)" Importance="high"/>
   </Target>
 
   <ItemGroup>

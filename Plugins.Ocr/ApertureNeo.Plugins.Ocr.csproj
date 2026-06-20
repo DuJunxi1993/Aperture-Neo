@@ -45,7 +45,8 @@
           Condition="Exists('%(Identity)')"/>
     <ItemGroup>
       <_SkiaSharpManaged Include="$(NuGetPackageRoot)skiasharp\3.119.4\lib\net10.0-windows10.0.19041\SkiaSharp.dll"/>
-      <_SkiaSharpNative Include="$(NuGetPackageRoot)skiasharp.nativeassets.win32\3.119.4\runtimes\win-x64\native\*.dll"/>
+      <_SkiaSharpNative Include="$(SkiaSharpDir)*.dll"/>
+      <_WinRtRuntime Include="$(NuGetPackageRoot)microsoft.windows.sdk.net.ref\10.0.26100.57\lib\net8.0\WinRT.Runtime.dll"/>
     </ItemGroup>
     <Copy SourceFiles="@(_SkiaSharpManaged)"
           DestinationFolder="$(MainPluginDir)"
@@ -55,7 +56,11 @@
           DestinationFolder="$(MainPluginDir)"
           SkipUnchangedFiles="true"
           Condition="Exists('%(Identity)')"/>
-    <Message Text="Deployed $(AssemblyName) -> $(MainPluginDir) (with OpenCV + managed + SkiaSharp runtimes)" Importance="high"/>
+    <Copy SourceFiles="@(_WinRtRuntime)"
+          DestinationFolder="$(MainPluginDir)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('%(Identity)')"/>
+    <Message Text="Deployed $(AssemblyName) -> $(MainPluginDir) (with OpenCV + managed + SkiaSharp + WinRT runtimes)" Importance="high"/>
   </Target>
 
   <ItemGroup>
@@ -70,6 +75,7 @@
     <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260528" />
     <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.13.0.20260528" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.26.0" />
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
   </ItemGroup>
 
   <ItemGroup>
@@ -86,4 +92,3 @@
   </ItemGroup>
 
 </Project>
-

@@ -12,7 +12,6 @@ namespace ApertureNeo.Plugins.Ocr;
 public sealed class OcrPlugin : IPlugin
 {
     private OcrService? _service;
-    private OcrResultWindow? _window;
 
     public string Name => "PaddleOCR 文字提取";
 
@@ -23,11 +22,11 @@ public sealed class OcrPlugin : IPlugin
         _service = new OcrService();
 
         var item = new System.Windows.Controls.MenuItem { Header = "提取当前图片文字 (OCR)" };
-        item.Click += async (_, _) => await OnExtractAsync(context).ConfigureAwait(false);
+        item.Click += async (_, _) => await OnExtractAsync(context);
         context.RegisterMenuItem(item);
 
         var ctxItem = new System.Windows.Controls.MenuItem { Header = "提取当前图片文字" };
-        ctxItem.Click += async (_, _) => await OnExtractAsync(context).ConfigureAwait(false);
+        ctxItem.Click += async (_, _) => await OnExtractAsync(context);
         context.RegisterContextMenuItem(ctxItem);
 
         _ = Task.Run(() => _service.WarmupAsync());
@@ -41,23 +40,34 @@ public sealed class OcrPlugin : IPlugin
             MessageBox.Show("当前没有打开图片。", "PaddleOCR", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
-
         if (_service == null) return;
 
-        _window ??= new OcrResultWindow();
-        _window.SetStatus("识别中…");
-        _window.Show();
-        _window.Activate();
-
-        var result = await _service.ExtractAsync(path).ConfigureAwait(false);
-        if (_window == null) return;
-
-        if (!result.IsSuccess)
+        var window = new OcrResultWindow();
+        try
         {
-            _window.SetError(result.ErrorMessage ?? "识别失败");
+            window.SetStatus("识别中…");
+            window.Show();
+            window.Activate();
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write("OcrPlugin", $"show failed: {ex.GetType().Name}: {ex.Message}");
             return;
         }
 
-        _window.SetResult(result, Path.GetFileName(path));
+        try
+        {
+            var result = await _service.ExtractAsync(path);
+
+            if (!result.IsSuccess)
+                window.SetError(result.ErrorMessage ?? "识别失败");
+            else
+                window.SetResult(result, Path.GetFileName(path));
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write("OcrPlugin", $"extract failed: {ex.GetType().Name}: {ex.Message}");
+            try { window.SetError(ex.Message); } catch { }
+        }
     }
 }

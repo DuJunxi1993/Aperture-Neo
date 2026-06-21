@@ -122,6 +122,14 @@ public partial class OcrResultWindow : Window
         ResultBox.Text = ResultBox.Text.Replace(" ", "").Replace("\t", "");
     }
 
+    private void BtnCopy_Click(object sender, RoutedEventArgs e)
+    {
+        if (ResultBox != null && !string.IsNullOrEmpty(ResultBox.Text))
+        {
+            try { Clipboard.SetText(ResultBox.Text); } catch { }
+        }
+    }
+
     private void BtnCopyAndClose_Click(object sender, RoutedEventArgs e)
     {
         if (ResultBox != null && !string.IsNullOrEmpty(ResultBox.Text))

@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="文字提取"
-        Width="560" Height="480"
+        Width="560" Height="380"
         MinWidth="400" MinHeight="320"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
@@ -272,11 +272,12 @@
     </Window.Resources>
 
     <WindowChrome.WindowChrome>
-        <!-- CornerRadius=10 makes the OS draw rounded corners + drop shadow.
-             Combined with ResizeBorderThickness=0 the window is non-resizable
-             and behaves like a fixed-size card. CaptionHeight=44 lets the
-             custom 44px title bar double as the drag region. -->
-        <shell:WindowChrome CaptionHeight="44" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="10"/>
+        <!-- CaptionHeight=0 (like AboutWindow) so the OS doesn't treat the
+             top of the window as a native drag region — that was
+             interfering with the close button's click handling and clipping
+             the DropShadowEffect. The custom title bar Border's
+             MouseLeftButtonDown still drives DragMove. -->
+        <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="10"/>
     </WindowChrome.WindowChrome>
 
     <Border Background="{StaticResource SurfaceCanvas}" CornerRadius="10">
@@ -290,14 +291,19 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- 44px title bar (Linear: 12px text, drag region) -->
+            <!-- 44px title bar: app label + file name (left), close button (right) -->
             <Border Grid.Row="0" Background="{StaticResource SurfaceCanvas}"
                     BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,0,0,1"
                     MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid>
-                    <TextBlock Text="文字提取" VerticalAlignment="Center" HorizontalAlignment="Left"
-                               Margin="20,0,0,0" FontSize="12" FontWeight="700"
-                               Foreground="{StaticResource TextSecondary}"/>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                HorizontalAlignment="Left" Margin="20,0,0,0">
+                        <TextBlock Text="文字提取" FontSize="12" FontWeight="700"
+                                   Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="HeaderFileName" Text="" FontSize="12" FontWeight="400"
+                                   Foreground="{StaticResource TextTertiary}" VerticalAlignment="Center"
+                                   Margin="10,0,0,0" TextTrimming="CharacterEllipsis" MaxWidth="320"/>
+                    </StackPanel>
                     <Button HorizontalAlignment="Right" Width="28" Height="28" Margin="0,0,8,0"
                             Style="{StaticResource LinearIconButton}" Click="BtnClose_Click"
                             ToolTip="关闭">
@@ -307,29 +313,18 @@
                 </Grid>
             </Border>
 
-            <!-- Body: eyebrow / value pairs in the same rhythm as
-                 AboutWindow's "关键能力" section. 32px side padding matches
-                 AboutWindow's main panel. -->
+            <!-- Body: status + toolbar + edit box. No separate "文件" section —
+                 the file name now lives in the title bar. -->
             <Grid Grid.Row="1" Margin="32,20,32,12">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- File name -->
-                <StackPanel Grid.Row="0">
-                    <TextBlock Text="文件" Style="{StaticResource LinearEyebrow}"/>
-                    <TextBlock x:Name="FileNameText" Text="—" Style="{StaticResource LinearValue}"/>
-                </StackPanel>
-
-                <Border Grid.Row="1" Style="{StaticResource LinearHairline}" Margin="0,12,0,12"/>
-
                 <!-- Status row: dot + label + meta (lines · ms) -->
-                <StackPanel Grid.Row="2">
+                <StackPanel Grid.Row="0">
                     <TextBlock Text="状态" Style="{StaticResource LinearEyebrow}"/>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Border x:Name="StatusDot" Style="{StaticResource LinearDot}"
@@ -340,8 +335,8 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Formatting toolbar (segmented + compress) -->
-                <Grid Grid.Row="3" Margin="0,16,0,0">
+                <!-- Formatting toolbar: 换行/不换行 + 有空格/清除空格 (both segmented) -->
+                <Grid Grid.Row="1" Margin="0,16,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
@@ -362,21 +357,29 @@
                                              Checked="RadioNoWrap_Checked" Content="不换行"/>
                             </StackPanel>
                         </Border>
-                    </StackPanel>
 
-                    <Button Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                            Margin="0,0,0,2"
-                            Style="{StaticResource LinearGhostButton}"
-                            Click="BtnClearSpaces_Click" Content="清除空格"
-                            ToolTip="删除文本中所有的 ASCII 空格和 Tab,保留换行符"/>
+                        <TextBlock Text="空格" Style="{StaticResource LinearEyebrow}"
+                                   VerticalAlignment="Center" Margin="14,0,10,6"/>
+                        <Border BorderBrush="{StaticResource BorderStandard}" BorderThickness="1"
+                                CornerRadius="6" Background="{StaticResource SurfacePanel}" Padding="2">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton x:Name="RadioWithSpaces" GroupName="SpaceMode"
+                                             Style="{StaticResource LinearSegmentedItem}"
+                                             IsChecked="True"
+                                             Checked="RadioWithSpaces_Checked" Content="有空格"/>
+                                <RadioButton x:Name="RadioClearSpaces" GroupName="SpaceMode"
+                                             Style="{StaticResource LinearSegmentedItem}"
+                                             Checked="RadioClearSpaces_Checked" Content="清除空格"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
                 </Grid>
 
-                <!-- Result box (the actual OCR text, editable).
-                     TextWrapping is always Wrap: in 换行 mode each \n starts a
-                     new line; in 不换行 mode the text is one long line and the
-                     TextBox wraps it at the window edge (like Notepad's
-                     "word wrap" on a single long line). -->
-                <Border Grid.Row="4" BorderBrush="{StaticResource BorderStandard}" BorderThickness="1"
+                <!-- Result box (the actual OCR text, editable). TextWrapping is
+                     always Wrap: in 换行 mode each \n starts a new line; in
+                     不换行 mode the text is one long line and the TextBox
+                     wraps it at the window edge. -->
+                <Border Grid.Row="2" BorderBrush="{StaticResource BorderStandard}" BorderThickness="1"
                         Background="{StaticResource SurfaceElevated}" CornerRadius="{StaticResource RadiusCard}"
                         Margin="0,10,0,0">
                     <ScrollViewer Padding="0" VerticalScrollBarVisibility="Auto"
@@ -400,7 +403,7 @@
                 </Border>
 
                 <!-- Error message + edit hint -->
-                <Grid Grid.Row="5" Margin="0,8,0,0">
+                <Grid Grid.Row="3" Margin="0,8,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>

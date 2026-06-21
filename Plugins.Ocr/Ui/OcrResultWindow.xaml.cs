@@ -18,13 +18,24 @@ public partial class OcrResultWindow : Window
 
     private void TitleBar_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
-        // The title bar's MouseLeftButtonDown bubbles from any child, including
-        // the close button. DragMove() would consume the MouseUp and prevent
-        // the button's Click from firing. Skip dragging when the click
-        // originated on a button so it can handle its own click.
-        if (e.OriginalSource is System.Windows.Controls.Button) return;
+        // If the click originated on a Button (or any descendant of a
+        // Button — the × glyph is a TextBlock inside the close button),
+        // let the button handle its own Click. DragMove() would otherwise
+        // consume the MouseUp and the button's Click would never fire.
+        if (IsClickOnButton(e.OriginalSource)) return;
         if (e.ClickCount == 2) return;
         try { DragMove(); } catch { /* DragMove throws if released outside the title bar — safe to ignore */ }
+    }
+
+    private static bool IsClickOnButton(object source)
+    {
+        var dep = source as DependencyObject;
+        while (dep != null)
+        {
+            if (dep is System.Windows.Controls.Button) return true;
+            dep = System.Windows.Media.VisualTreeHelper.GetParent(dep);
+        }
+        return false;
     }
 
     public void SetStatus(string status)
@@ -48,41 +59,66 @@ public partial class OcrResultWindow : Window
 
     public void SetResult(OcrResult result, string fileName)
     {
-        FileNameText.Text = fileName;
+        HeaderFileName.Text = fileName;
         StatusText.Text = "完成";
         StatusDot.Background = (Brush)FindResource("StatusGreen");
         MetaText.Text = $"{result.Lines.Count} 行 · {result.ElapsedMs:F0} ms";
         ErrorText.Visibility = Visibility.Collapsed;
-        // Default mode is 换行 (preserves \n from OCR); 不换行 strips them.
-        // Both modes render via TextWrapping=Wrap, so a single long line
-        // still wraps at the window edge in 不换行 mode.
-        if (RadioNoWrap?.IsChecked == true)
-            ResultBox.Text = result.FullText.Replace("\n", "").Replace("\r", "");
-        else
-            ResultBox.Text = result.FullText;
+        // Cache the wrapped text so toggling back from 不换行 restores
+        // the original \n structure. The 当前 toggle state determines
+        // whether to display wrapped or unwrapped.
+        _wrappedText = result.FullText;
+        _withSpacesText = result.FullText;
+        ApplyCurrentMode();
     }
 
+    private void ApplyCurrentMode()
+    {
+        if (ResultBox == null || _wrappedText == null) return;
+        var text = _withSpacesText ?? _wrappedText;
+        if (RadioClearSpaces?.IsChecked == true)
+            text = text.Replace(" ", "").Replace("\t", "");
+        if (RadioNoWrap?.IsChecked == true)
+            text = text.Replace("\n", "").Replace("\r", "");
+        ResultBox.Text = text;
+    }
+
+    // 换行/不换行 toggle — 换行 restores the cached wrapped text so
+    // toggling back recovers the OCR \n structure.
     private void RadioWrap_Checked(object sender, RoutedEventArgs e)
     {
-        // 换行 mode: the text already has \n from OCR. The TextBox renders
-        // each line separately and wraps long lines at the window edge.
-        // No text transformation needed.
+        if (ResultBox == null) return;
+        if (_wrappedText != null)
+        {
+            _withSpacesText = _wrappedText;
+            ApplyCurrentMode();
+        }
     }
 
     private void RadioNoWrap_Checked(object sender, RoutedEventArgs e)
     {
         if (ResultBox == null) return; // XAML load fires this before wiring
-        // 不换行 mode: strip \n from the current text so it becomes a single
-        // long line. TextWrapping=Wrap still wraps it visually at the
-        // window edge (like Notepad's word-wrap on a single line).
+        // 不换行: strip \n from current text. We deliberately don't save
+        // this as a new baseline — toggling back to 换行 should restore
+        // the OCR original, not the user's nowrap-edited version.
         ResultBox.Text = ResultBox.Text.Replace("\n", "").Replace("\r", "");
     }
 
-    private void BtnClearSpaces_Click(object sender, RoutedEventArgs e)
+    // 有空格/清除空格 toggle — 清除空格 stores the current (with-spaces)
+    // text and displays a stripped version. 有空格 restores it.
+    private void RadioWithSpaces_Checked(object sender, RoutedEventArgs e)
     {
-        if (ResultBox == null || string.IsNullOrEmpty(ResultBox.Text)) return;
-        // Delete all ASCII spaces and tabs; keep newlines so the row
-        // structure is preserved.
+        if (ResultBox == null) return;
+        if (_withSpacesText != null)
+        {
+            ResultBox.Text = _withSpacesText;
+        }
+    }
+
+    private void RadioClearSpaces_Checked(object sender, RoutedEventArgs e)
+    {
+        if (ResultBox == null) return;
+        _withSpacesText = ResultBox.Text;
         ResultBox.Text = ResultBox.Text.Replace(" ", "").Replace("\t", "");
     }
 
@@ -96,4 +132,8 @@ public partial class OcrResultWindow : Window
     {
         Close();
     }
+
+    // Cached OCR outputs used by the toggles. Null until SetResult runs.
+    private string? _wrappedText;   // contains the \n separators
+    private string? _withSpacesText; // contains the original spaces/tabs
 }

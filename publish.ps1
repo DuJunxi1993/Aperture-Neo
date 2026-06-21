@@ -58,6 +58,33 @@ $publishArgs = @(
 & dotnet @publishArgs
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed with exit code $LASTEXITCODE" }
 
+# Build Plugins.Ocr and copy its deploy-target output (plugin DLL +
+# ONNX models + native deps) into publish\win-x64\Plugins\ so the
+# installer bundles everything for an out-of-the-box OCR experience.
+# Plugins.Ocr's DeployToMain target writes to <root>/bin/<Config>/
+# net10.0-windows/Plugins/, not into publish output, so we copy
+# from there after the dotnet build step.
+Write-Host "[2.5/4] Building Plugins.Ocr (deploys to main app Plugins folder)..." -ForegroundColor Cyan
+$ocrProj = Join-Path $root 'Plugins.Ocr\ApertureNeo.Plugins.Ocr.csproj'
+if (-not (Test-Path $ocrProj)) {
+    Write-Host "  Plugins.Ocr project not found at $ocrProj — skipping (OCR plugin not in this build)." -ForegroundColor DarkYellow
+} else {
+    & dotnet build $ocrProj -c $Configuration -v:q
+    if ($LASTEXITCODE -ne 0) { throw "Plugins.Ocr build failed with exit code $LASTEXITCODE" }
+
+    $pluginSrc = Join-Path $root "bin\$Configuration\net10.0-windows\Plugins"
+    $pluginDst = Join-Path $publishDir "Plugins"
+    if (-not (Test-Path $pluginSrc)) {
+        throw "Plugins.Ocr deploy target didn't produce $pluginSrc (DeployToMain target missing?)"
+    }
+    if (Test-Path $pluginDst) { Remove-Item $pluginDst -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path $pluginDst | Out-Null
+    Copy-Item -Path (Join-Path $pluginSrc '*') -Destination $pluginDst -Recurse -Force
+    $modelDir = Join-Path $pluginDst 'Assets\models\paddleocr'
+    $modelCount = (Get-ChildItem $modelDir -Filter '*.onnx' -ErrorAction SilentlyContinue | Measure-Object).Count
+    Write-Host "  Plugins copied to $pluginDst ($modelCount ONNX model(s) bundled)" -ForegroundColor DarkGray
+}
+
 if ($SkipInstaller) {
     Write-Host "[done] publish only (SkipInstaller set)." -ForegroundColor Green
     Write-Host "Output: $publishDir"

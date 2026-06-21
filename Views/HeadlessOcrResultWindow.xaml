@@ -17,16 +17,52 @@
         FontFamily="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial"
         Foreground="#FF1a1a1a">
 
-    <!-- Reuse the main app's Linear design tokens. The tokens are
-         already merged into Application.Resources via App.xaml
-         MergedDictionaries, so StaticResource keys resolve here
-         without re-declaring them. -->
+    <!-- The Linear design tokens and button styles are merged into
+         Application.Resources by App.xaml (Styles/Buttons.xaml,
+         Styles/Tag.xaml for LinearDot, plus DesignTokens.xaml).
+         WPF's StaticResource lookup walks up the visual/logical
+         tree, so all StaticResource references in this Window
+         resolve from the application scope.
+
+         Note: this Window uses the main exe's button styles
+         (LinearPrimaryButton / LinearCloseButton / LinearWindowButton),
+         NOT the OCR plugin's identically-named-but-different styles
+         (LinearPrimaryCta / LinearCloseIconButton / LinearGhostButton
+         in Plugins.Ocr.Ui/DesignTokens.xaml). The two naming
+         conventions diverged before this window was written. The
+         main exe styles are visually similar — same 28px height,
+         12px font, indigo primary — so the look is consistent
+         across single-file and multi-file OCR windows. -->
+
     <Window.Resources>
-        <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="/DesignTokens.xaml"/>
-            </ResourceDictionary.MergedDictionaries>
-        </ResourceDictionary>
+        <!-- LinearDot (Styles/Tag.xaml) and all Brushes/Fonts/
+             CornerRadius (DesignTokens.xaml) are found in
+             Application.Resources via WPF's StaticResource lookup.
+             The eyebrow/value/monoValue text styles below mirror
+             the OCR plugin's DesignTokens so this window's subtitle
+             reads identically to the single-file OcrResultWindow.
+             They're inlined here because the main exe doesn't have
+             its own LinearEyebrow/LinearValue/LinearMonoValue
+             styles (those names live in the OCR UI's dictionary). -->
+        <Style x:Key="LinearEyebrow" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="510"/>
+            <Setter Property="Foreground" Value="{StaticResource TextTertiary}"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+        <Style x:Key="LinearValue" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="510"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
+        <Style x:Key="LinearMonoValue" TargetType="TextBlock" BasedOn="{StaticResource LinearValue}">
+            <Setter Property="FontFamily" Value="{StaticResource FontMono}"/>
+            <Setter Property="FontWeight" Value="400"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+        </Style>
     </Window.Resources>
 
     <!-- Same custom Window.Template as OcrResultWindow: single Border
@@ -71,7 +107,7 @@
                                Margin="10,0,0,0" TextTrimming="CharacterEllipsis" MaxWidth="400"/>
                 </StackPanel>
                 <Button HorizontalAlignment="Right" Width="28" Height="28" Margin="0,0,8,0"
-                        Style="{StaticResource LinearCloseIconButton}" Click="BtnClose_Click">
+                        Style="{StaticResource LinearCloseButton}" Click="BtnClose_Click">
                     <TextBlock Text="×" FontSize="16" FontWeight="400"
                                Foreground="{StaticResource TextSecondary}"/>
                 </Button>
@@ -111,9 +147,10 @@
                 CornerRadius="0,0,8,8"
                 Padding="20,12,32,12">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button x:Name="BtnCopyAll" Style="{StaticResource LinearGhostButton}"
-                        Content="复制全部" Click="BtnCopyAll_Click" Margin="0,0,8,0"/>
-                <Button x:Name="BtnClose" Style="{StaticResource LinearPrimaryCta}"
+                <Button x:Name="BtnCopyAll" Style="{StaticResource LinearWindowButton}"
+                        Content="复制全部" Click="BtnCopyAll_Click" Margin="0,0,8,0"
+                        Padding="10,0" Width="Auto" Height="28"/>
+                <Button x:Name="BtnClose" Style="{StaticResource LinearPrimaryButton}"
                         Content="关闭" Click="BtnClose_Click" IsDefault="True"/>
             </StackPanel>
         </Border>

@@ -9,6 +9,7 @@ using System.Windows;
 using ApertureNeo.Plugins.Ocr.Core.Models;
 using ApertureNeo.Plugins.Ocr.Core.Services;
 using ApertureNeo.Plugins.Ocr.Ui;
+using ApertureNeo.Services;
 using ApertureNeo.Views;
 
 namespace ApertureNeo.Cli;
@@ -159,6 +160,7 @@ public sealed class OcrCommand : Command
             }
             catch (Exception ex)
             {
+                DebugLog.Write("OcrCommand", "ShowMultiGui failed", ex);
                 tcs.TrySetException(ex);
             }
         });

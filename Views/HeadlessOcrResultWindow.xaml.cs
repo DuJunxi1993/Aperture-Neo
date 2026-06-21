@@ -99,10 +99,16 @@ public partial class HeadlessOcrResultWindow : Window
 
         var copyBtn = new Button
         {
-            Style = (Style)FindResource("LinearGhostButton"),
+            // LinearWindowButton is the main exe's ghost-style button
+            // (transparent bg, hover/press states); the OCR plugin's
+            // identically-named-different LinearGhostButton isn't
+            // visible from the main exe.
+            Style = (Style)FindResource("LinearWindowButton"),
             Content = "复制",
             Tag = index,
             VerticalAlignment = VerticalAlignment.Center,
+            Width = double.NaN,
+            Padding = new Thickness(10, 0, 10, 0),
         };
         copyBtn.Click += PerFileCopy_Click;
         Grid.SetColumn(copyBtn, 2);

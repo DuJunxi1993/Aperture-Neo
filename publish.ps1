@@ -40,23 +40,41 @@ Write-Host "[1/4] Cleaning previous publish output..." -ForegroundColor Cyan
 if (Test-Path $publishDir) { Remove-Item -Recurse -Force $publishDir }
 
 Write-Host "[2/4] dotnet publish (self-contained, win-x64)..." -ForegroundColor Cyan
-$publishArgs = @(
-    'publish'
-    $root
-    '-c', $Configuration
-    '-r', 'win-x64'
-    '--self-contained', 'true'
-    '-p:PublishSingleFile=true'
-    '-p:IncludeNativeLibrariesForSelfExtract=true'
-    '-p:EnableCompressionInSingleFile=true'
-    '-p:DebugType=embedded'
-    "-p:Version=$Version"
-    "-p:AssemblyVersion=$Version"
-    "-p:FileVersion=$Version"
-    '-o', $publishDir
-)
-& dotnet @publishArgs
-if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed with exit code $LASTEXITCODE" }
+# Temporarily rename the .sln so `dotnet publish <csproj>` resolves
+# to JUST the ApertureNeo.csproj (no sln → no Plugins.Ocr in publish
+# scope → no NETSDK1099 "single-file publish is only valid for exe"
+# on the class library). The sln is restored after publish.
+$sln = Join-Path $root 'ApertureNeo.sln'
+$slnHidden = "$sln.publish-hidden"
+$slnWasRenamed = $false
+if (Test-Path $sln) {
+    Move-Item -LiteralPath $sln -Destination $slnHidden -Force
+    $slnWasRenamed = $true
+}
+try {
+    $publishArgs = @(
+        'publish'
+        $root
+        '-c', $Configuration
+        '-r', 'win-x64'
+        '--self-contained', 'true'
+        '-p:PublishSingleFile=true'
+        '-p:IncludeNativeLibrariesForSelfExtract=true'
+        '-p:EnableCompressionInSingleFile=true'
+        '-p:DebugType=embedded'
+        "-p:Version=$Version"
+        "-p:AssemblyVersion=$Version"
+        "-p:FileVersion=$Version"
+        '-o', $publishDir
+    )
+    & dotnet @publishArgs
+    if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed with exit code $LASTEXITCODE" }
+}
+finally {
+    if ($slnWasRenamed -and (Test-Path $slnHidden)) {
+        Move-Item -LiteralPath $slnHidden -Destination $sln -Force
+    }
+}
 
 # Build Plugins.Ocr and copy its deploy-target output (plugin DLL +
 # ONNX models + native deps) into publish\win-x64\Plugins\ so the

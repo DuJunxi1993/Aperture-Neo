@@ -50,6 +50,14 @@
     <SolidColorBrush x:Key="BorderSubtle"   Color="#12000000"/>
     <SolidColorBrush x:Key="BorderStandard" Color="#1F000000"/>
     <SolidColorBrush x:Key="BorderSolid"    Color="#FFE5E5E8"/>
+    <!-- BorderStrong: clearly visible window outline. Matches the
+         visual weight of the OS-chrome border on MainWindow /
+         AboutWindow (which use WindowStyle=SingleBorderWindow).
+         BorderStandard (12% black) is too subtle for a window
+         outline — it reads as borderless, not as a defined
+         stroke. BorderStrong uses TextPrimary (#1a1a1a, ~95%
+         black) to give windows a clear 1px hairline. -->
+    <SolidColorBrush x:Key="BorderStrong"   Color="#FF1a1a1a"/>
 
     <!-- Button backgrounds: nearly transparent black for light mode.
          BtnBgGhost is the resting state (used by the title-bar

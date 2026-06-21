@@ -49,6 +49,7 @@
         <SolidColorBrush x:Key="BorderSubtle"   Color="#12000000"/>
         <SolidColorBrush x:Key="BorderStandard" Color="#1F000000"/>
         <SolidColorBrush x:Key="BorderSolid"    Color="#FFE5E5E8"/>
+        <SolidColorBrush x:Key="BorderStrong"   Color="#FF1a1a1a"/>
 
         <SolidColorBrush x:Key="BtnBgGhost"  Color="#08000000"/>
         <SolidColorBrush x:Key="BtnBgHover"  Color="#14000000"/>
@@ -329,16 +330,21 @@
          compromise; we standardize on 8 to match the design tokens
          the rest of the app uses.
 
-         BorderBrush = BorderStandard (1px hairline, 12% black)
-         matches the floating bar, info pill, and popover in the
-         main interface. The 1px hairline is the Linear "描边"
-         (stroke) — subtle, present, not loud. -->
+         BorderBrush = BorderStrong (1px hairline, ~95% black =
+         TextPrimary). Matches the visual weight of the OS-chrome
+         border on the main interface's windows (MainWindow and
+         AboutWindow use WindowStyle=SingleBorderWindow, which
+         draws a 1px system border). BorderStandard (12% black)
+         was too subtle for a window outline — it read as
+         borderless. BorderStrong gives the OCR window the same
+         clearly-visible 1px hairline as the rest of the app's
+         windows. -->
     <Window.Template>
         <ControlTemplate TargetType="{x:Type Window}">
             <Grid Margin="16">
                 <Border CornerRadius="8"
                         Background="{StaticResource SurfaceCanvas}"
-                        BorderBrush="{StaticResource BorderStandard}"
+                        BorderBrush="{StaticResource BorderStrong}"
                         BorderThickness="1"
                         SnapsToDevicePixels="True">
                     <Border.Effect>

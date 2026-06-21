@@ -25,20 +25,21 @@ public sealed class OcrService : IDisposable
 
     public OcrService()
     {
-        // Models are deployed next to the plugin DLL in <bin>/Plugins/Assets/.
-        // The plugin assembly's Location points to that folder when loaded via
-        // Assembly.LoadFrom; fall back to the conventional Plugins/ path
-        // (relative to the host AppContext.BaseDirectory) if Location is empty
-        // (e.g. loaded from a single-file bundle in the future).
+        // Models live in Assets/models/paddleocr next to the DLL
+        // containing this type. Two copy paths land them there:
+        //   1. Plugin path: the plugin's DeployToMain target copies
+        //      Core's $(OutDir) (which includes Assets/models/* via
+        //      CopyToOutputDirectory) into bin/Plugins/. Core.dll +
+        //      models end up side-by-side.
+        //   2. Main-exe CLI path: ApertureNeo.csproj has a
+        //      CopyOcrModelsForCli target that copies the same
+        //      models into the main exe's bin folder so `aperture
+        //      ocr ...` can find them when Ocr.Core is referenced
+        //      directly (not via PluginLoadContext).
         var asmDir = Path.GetDirectoryName(typeof(OcrService).Assembly.Location);
-        if (!string.IsNullOrEmpty(asmDir))
-        {
-            ModelDirectory = Path.Combine(asmDir, "Assets", "models", "paddleocr");
-        }
-        else
-        {
-            ModelDirectory = Path.Combine(AppContext.BaseDirectory, "Plugins", "Assets", "models", "paddleocr");
-        }
+        ModelDirectory = !string.IsNullOrEmpty(asmDir)
+            ? Path.Combine(asmDir, "Assets", "models", "paddleocr")
+            : Path.Combine(AppContext.BaseDirectory, "Assets", "models", "paddleocr");
     }
 
     public async Task WarmupAsync(CancellationToken ct = default)

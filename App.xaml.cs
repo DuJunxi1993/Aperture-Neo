@@ -1,7 +1,10 @@
 using System;
+using System.CommandLine;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Windows;
+using ApertureNeo.Cli;
 using ApertureNeo.Helpers;
 using ApertureNeo.Services;
 using SQLitePCL;
@@ -19,7 +22,17 @@ public partial class App : Application
     public static ThumbnailCache ThumbnailCache { get; private set; } = null!;
     public static SettingsStore SettingsStore { get; private set; } = null!;
 
-    protected override void OnStartup(StartupEventArgs e)
+    /// <summary>
+    /// First-position argument tokens that route the process into the
+    /// CLI dispatcher instead of the image viewer. We check the
+    /// first arg only — System.CommandLine does the rest of the
+    /// parsing inside InvokeAsync (including --help / --version,
+    /// which RootCommand auto-handles).
+    /// </summary>
+    private static readonly System.Collections.Generic.HashSet<string> CommandTokens =
+        new(System.StringComparer.OrdinalIgnoreCase) { "ocr" /*, "convert" (future) */ };
+
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
@@ -47,10 +60,26 @@ public partial class App : Application
 
         Batteries_V2.Init();
 
-        // v2.0: Migrate legacy data from the two pre-rename
-        // app names ("ImageViewerNeo" and "HighSpeedImageViewer") to
-        // the current "ApertureNeo" paths. One-shot on first run
-        // after the rename — subsequent runs are no-ops.
+        // CLI dispatch: if the first arg is a registered subcommand
+        // (or --help / --version), hand the full args array to
+        // System.CommandLine and skip the viewer init entirely.
+        // The command handler is responsible for showing its own
+        // window or shutting down. This makes the CLI entry point
+        // independent of the in-app OCR plugin's opt-in toggle.
+        var firstArg = e.Args.FirstOrDefault();
+        if (IsCliInvocation(firstArg))
+        {
+            var root = new RootCommand("Aperture Neo - image viewer with OCR.")
+            {
+                new OcrCommand(this),
+                // future: new ConvertCommand(),
+            };
+            var exitCode = await root.InvokeAsync(e.Args);
+            Shutdown(exitCode);
+            return;
+        }
+
+        // Viewer mode: legacy init (migrate + cache + settings + plugins).
         MigrateLegacyData();
 
         var cacheDir = Path.Combine(Path.GetTempPath(), "ApertureNeo", "thumbs");
@@ -99,6 +128,19 @@ public partial class App : Application
         var available = PluginLoader.Discover(pluginsDir);
         mainWindow.SetAvailablePlugins(available);
         mainWindow.RestoreEnabledPlugins();
+    }
+
+    /// <summary>
+    /// True if the process should route into the CLI dispatcher.
+    /// Matches the first arg against the registered command tokens
+    /// OR the global --help / --version flags that RootCommand
+    /// auto-handles.
+    /// </summary>
+    private static bool IsCliInvocation(string? firstArg)
+    {
+        if (string.IsNullOrEmpty(firstArg)) return false;
+        if (CommandTokens.Contains(firstArg)) return true;
+        return firstArg is "--help" or "-h" or "--version";
     }
 
     protected override void OnExit(ExitEventArgs e)

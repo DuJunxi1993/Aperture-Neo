@@ -36,9 +36,26 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.10" />
-    <PackageReference Include="SkiaSharp" Version="3.116.1" />
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.10" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
     <PackageReference Include="WPF-UI" Version="3.0.5" />
+  </ItemGroup>
+
+  <!-- OCR plugin split (commits 1+2): the engine lives in
+       Plugins.Ocr.Core and the WPF result window lives in
+       Plugins.Ocr.Ui. The main exe references both so the
+       headless `ocr` CLI subcommand (commit 3) can use them
+       directly — bypassing the plugin's opt-in toggle — and
+       the future Plugins.Screenshot can share the same window
+       via the same project references. -->
+  <ItemGroup>
+    <ProjectReference Include="Plugins.Ocr.Core\ApertureNeo.Plugins.Ocr.Core.csproj">
+      <Private>true</Private>
+    </ProjectReference>
+    <ProjectReference Include="Plugins.Ocr.Ui\ApertureNeo.Plugins.Ocr.Ui.csproj">
+      <Private>true</Private>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>
@@ -67,6 +84,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="AboutWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\HeadlessOcrResultWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -119,5 +140,27 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <!-- Copy the OCR model files into the main exe's output folder so
+       the headless `aperture ocr ...` CLI can find them. Without
+       this, OcrService's ModelDirectory (which points to the folder
+       next to OcrService's assembly) would resolve to the main exe
+       directory and fail with "model files not found" when Ocr.Core
+       is referenced directly instead of via the plugin's
+       PluginLoadContext. The plugin path still works because the
+       plugin's own DeployToMain target copies models into bin/Plugins/.
+
+       16 MB total (3 ONNX models); the disk waste is acceptable for
+       keeping OcrService's path-resolution logic dead simple. -->
+  <Target Name="CopyOcrModelsForCli" AfterTargets="Build">
+    <ItemGroup>
+      <_OcrModelFiles Include="Plugins.Ocr.Core\Assets\models\paddleocr\*.onnx"/>
+    </ItemGroup>
+    <Copy SourceFiles="@(_OcrModelFiles)"
+          DestinationFolder="$(OutDir)Assets\models\paddleocr"
+          SkipUnchangedFiles="true"
+          Condition="Exists('%(Identity)')"/>
+    <Message Text="Copied OCR models to $(OutDir)Assets\models\paddleocr (for CLI)" Importance="low"/>
+  </Target>
 
 </Project>

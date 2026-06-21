@@ -88,12 +88,17 @@ public partial class App : Application
 
         mainWindow.Show();
 
-        // Load plugins from bin/Plugins/*.dll. Each plugin registers its
-        // own menu items into the main window's overflow menu. Failures
-        // are isolated per-plugin so a broken plugin DLL can never
-        // prevent the app from starting.
+        // Discover plugins from bin/Plugins/*.dll. We only LOAD the
+        // assemblies (so Name/Description can be read for the menu
+        // checkboxes) — Activate is NOT called, so the plugin's
+        // heavy resources (ONNX models, native deps initialization)
+        // stay unloaded until the user opts in via the 插件 submenu.
+        // The main window then wires the checkboxes and calls
+        // Activate/Deactivate based on the user's choice.
         var pluginsDir = Path.Combine(AppContext.BaseDirectory, "Plugins");
-        PluginLoader.LoadAll(pluginsDir, mainWindow);
+        var available = PluginLoader.Discover(pluginsDir);
+        mainWindow.SetAvailablePlugins(available);
+        mainWindow.RestoreEnabledPlugins();
     }
 
     protected override void OnExit(ExitEventArgs e)

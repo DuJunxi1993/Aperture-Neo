@@ -52,6 +52,11 @@ public partial class MainWindow : FluentWindow, IPluginContext
     /// (otherwise the Opacity would fight the timer restart constantly).
     /// </summary>
     private bool _edgeNavVisible;
+    // Discovered plugins (set once at startup by App.xaml.cs via
+    // SetAvailablePlugins). We hold them so the 插件 submenu can
+    // build a checkbox per plugin, and so check/uncheck handlers
+    // can call PluginLoader.Activate/Deactivate.
+    private IReadOnlyList<PluginInfo> _availablePlugins = Array.Empty<PluginInfo>();
 
     public MainWindow()
     {
@@ -235,5 +240,120 @@ public partial class MainWindow : FluentWindow, IPluginContext
             ImageViewer.ContextMenu.Items.Insert(ImageViewer.ContextMenu.Items.IndexOf(insertBefore), item);
         else
             ImageViewer.ContextMenu.Items.Add(item);
+    }
+
+    public void UnregisterPluginMenuItems(object pluginTag)
+    {
+        if (MenuPlugins != null)
+        {
+            for (int i = MenuPlugins.Items.Count - 1; i >= 0; i--)
+            {
+                if (MenuPlugins.Items[i] is System.Windows.Controls.MenuItem mi && Equals(mi.Tag, pluginTag))
+                    MenuPlugins.Items.RemoveAt(i);
+            }
+        }
+        if (ImageViewer?.ContextMenu != null)
+        {
+            for (int i = ImageViewer.ContextMenu.Items.Count - 1; i >= 0; i--)
+            {
+                if (ImageViewer.ContextMenu.Items[i] is System.Windows.Controls.MenuItem mi && Equals(mi.Tag, pluginTag))
+                    ImageViewer.ContextMenu.Items.RemoveAt(i);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Called by App.xaml.cs after PluginLoader.Discover. Builds a
+    /// checkbox MenuItem per discovered plugin in the 插件 submenu.
+    /// Plugins are not activated yet — the user has to check the
+    /// box (or the box is auto-checked by RestoreEnabledPlugins if
+    /// the plugin was enabled in a previous session).
+    /// </summary>
+    public void SetAvailablePlugins(IReadOnlyList<PluginInfo> plugins)
+    {
+        _availablePlugins = plugins;
+        if (MenuPlugins == null) return;
+
+        // Clear any existing items (e.g. leftover from a previous
+        // call in a test scenario).
+        MenuPlugins.Items.Clear();
+
+        // Sync checkbox visuals when the submenu is first opened.
+        // WPF ContextMenus don't realize their child items until
+        // the menu is shown, so we can't set IsChecked in
+        // SetAvailablePlugins/RestoreEnabledPlugins — the property
+        // setter is a no-op on an unrealized MenuItem. Instead we
+        // hook SubmenuOpened and apply the checked state from the
+        // SettingsStore at that point.
+        MenuPlugins.SubmenuOpened += MenuPlugins_SubmenuOpened;
+
+        foreach (var info in plugins)
+        {
+            var item = new System.Windows.Controls.MenuItem
+            {
+                Header = info.Name,
+                ToolTip = info.Description,
+                IsCheckable = true,
+                Tag = info,
+            };
+            item.Checked += PluginItem_Checked;
+            item.Unchecked += PluginItem_Unchecked;
+            MenuPlugins.Items.Add(item);
+        }
+    }
+
+    /// <summary>
+    /// When the 插件 submenu is first opened, sync each plugin
+    /// toggle's IsChecked with the persisted SettingsStore state.
+    /// WPF ContextMenus don't realize their child MenuItems until
+    /// the menu is shown, so this is the first point where the
+    /// IsChecked setter actually takes effect.
+    /// </summary>
+    private void MenuPlugins_SubmenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (MenuPlugins == null) return;
+        foreach (var item in MenuPlugins.Items.OfType<System.Windows.Controls.MenuItem>())
+        {
+            if (item.Tag is not PluginInfo info) continue;
+            // IsChecked setter suppresses re-entrancy if the value
+            // doesn't change, so calling this on every open is safe
+            // and cheap.
+            item.IsChecked = App.SettingsStore.IsPluginEnabled(info.Name);
+        }
+    }
+
+    /// <summary>
+    /// Read the persisted enabled-plugins list from SettingsStore and
+    /// activate the previously-enabled plugins. The visual checkbox
+    /// state is synced lazily by MenuPlugins_SubmenuOpened when the
+    /// user first opens the menu.
+    /// </summary>
+    public void RestoreEnabledPlugins()
+    {
+        foreach (var info in _availablePlugins)
+        {
+            if (!App.SettingsStore.IsPluginEnabled(info.Name)) continue;
+            // Activate the plugin directly. We can't set IsChecked
+            // here (the ContextMenu is unrealized, so the setter is
+            // a no-op) — the visual state gets applied in
+            // MenuPlugins_SubmenuOpened.
+            PluginLoader.Activate(info, this);
+        }
+    }
+
+    private void PluginItem_Checked(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.MenuItem item) return;
+        if (item.Tag is not PluginInfo info) return;
+        PluginLoader.Activate(info, this);
+        App.SettingsStore.SetPluginEnabled(info.Name, true);
+    }
+
+    private void PluginItem_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.MenuItem item) return;
+        if (item.Tag is not PluginInfo info) return;
+        PluginLoader.Deactivate(info);
+        App.SettingsStore.SetPluginEnabled(info.Name, false);
     }
 }

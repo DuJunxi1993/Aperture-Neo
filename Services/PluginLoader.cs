@@ -10,20 +10,35 @@ namespace ApertureNeo.Services;
 
 public static class PluginLoader
 {
-    public static IReadOnlyList<PluginLoadResult> LoadAll(string pluginsDirectory, IPluginContext context)
+    // Shared ALC for all plugins — assemblies can't be unloaded
+    // (managed + native deps would leak), so we keep one context alive
+    // for the app's lifetime. The instance cache in PluginInfo lets us
+    // re-use the same IPlugin object across discover+activate cycles
+    // without re-loading the DLL.
+    private static PluginLoadContext? _alc;
+
+    // Tracks which plugins have been Activate()'d so repeated
+    // Activate calls are no-ops (each Activate would otherwise
+    // re-register menu items).
+    private static readonly HashSet<IPlugin> _active = new();
+
+    /// <summary>
+    /// Scan <paramref name="pluginsDirectory"/> for IPlugin DLLs, load
+    /// each assembly (this brings in native deps like RapidOCR and
+    /// OpenCV), and instantiate the IPlugin type. Activate is NOT
+    /// called — the plugin's heavy resources (ONNX models, etc.)
+    /// stay unloaded until the user opts in.
+    /// </summary>
+    public static IReadOnlyList<PluginInfo> Discover(string pluginsDirectory)
     {
-        var results = new List<PluginLoadResult>();
+        var results = new List<PluginInfo>();
         if (!Directory.Exists(pluginsDirectory))
         {
             DebugLog.Write("Plugin", $"plugins directory not found: {pluginsDirectory}");
             return results;
         }
 
-        // Plugins are loaded into an isolated AssemblyLoadContext so their
-        // transitive dependencies (e.g. SkiaSharp 3.119 required by RapidOCR)
-        // don't conflict with the main app's own versions (e.g. SkiaSharp 3.116).
-        var alc = new PluginLoadContext(pluginsDirectory);
-        _ = alc; // kept alive by the static field below via captured references
+        if (_alc == null) _alc = new PluginLoadContext(pluginsDirectory);
 
         foreach (var dll in Directory.EnumerateFiles(pluginsDirectory, "*.dll", SearchOption.TopDirectoryOnly))
         {
@@ -31,7 +46,7 @@ public static class PluginLoader
             Assembly assembly;
             try
             {
-                assembly = alc.LoadFromAssemblyPath(dll);
+                assembly = _alc.LoadFromAssemblyPath(dll);
             }
             catch (BadImageFormatException)
             {
@@ -40,14 +55,14 @@ public static class PluginLoader
             catch (Exception ex)
             {
                 DebugLog.Write("Plugin", $"load failed: {name}: {ex.GetType().Name}: {ex.Message}");
-                results.Add(new PluginLoadResult(null, dll, ex));
                 continue;
             }
 
-            // Install a per-assembly native DLL resolver so P/Invoke calls
-            // inside plugin code (e.g. OpenCV's Mat() constructor) can find
-            // OpenCvSharpExtern.dll / libSkiaSharp.dll / onnxruntime.dll next
-            // to the plugin DLL.
+            // Per-assembly native DLL resolver so plugin P/Invoke calls
+            // (OpenCV's Mat(), etc.) find their native deps in the
+            // plugin folder. Install once per assembly; idempotent
+            // (SetDllImportResolver throws on second call for the same
+            // assembly, so we swallow the error).
             try
             {
                 NativeLibrary.SetDllImportResolver(assembly, (libraryName, asm, dllPath) =>
@@ -73,34 +88,66 @@ public static class PluginLoader
             {
                 var inner = rtex.LoaderExceptions.FirstOrDefault()?.Message ?? "loader exceptions";
                 DebugLog.Write("Plugin", $"reflection failed: {name}: {inner}");
-                results.Add(new PluginLoadResult(null, dll, rtex));
                 continue;
             }
 
-            if (pluginType == null)
-            {
-                // Not a plugin (transitive dep like RapidOCRSharpOnnx.dll)
-                continue;
-            }
+            if (pluginType == null) continue; // transitive dep, not a plugin
 
             IPlugin plugin;
             try
             {
                 plugin = (IPlugin)Activator.CreateInstance(pluginType)!;
-                plugin.Initialize(context);
             }
             catch (Exception ex)
             {
-                DebugLog.Write("Plugin", $"init failed: {name}: {ex.GetType().Name}: {ex.Message}");
-                results.Add(new PluginLoadResult(null, dll, ex));
+                DebugLog.Write("Plugin", $"construct failed: {name}: {ex.GetType().Name}: {ex.Message}");
                 continue;
             }
 
-            DebugLog.Write("Plugin", $"loaded: {name} -> {plugin.Name}");
-            results.Add(new PluginLoadResult(plugin, dll, null));
+            DebugLog.Write("Plugin", $"discovered: {name} -> {plugin.Name}");
+            results.Add(new PluginInfo(plugin.Name, plugin.Description, plugin, dll));
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Activate a discovered plugin — calls its IPlugin.Activate so it
+    /// can load heavy resources and register menu items. Idempotent:
+    /// a no-op if the plugin is already active.
+    /// </summary>
+    public static void Activate(PluginInfo info, IPluginContext context)
+    {
+        if (_active.Contains(info.Instance)) return;
+        try
+        {
+            info.Instance.Activate(context);
+            _active.Add(info.Instance);
+            DebugLog.Write("Plugin", $"activated: {info.Name}");
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write("Plugin", $"activate failed: {info.Name}: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Deactivate an active plugin — calls its IPlugin.Deactivate so
+    /// it can release heavy resources and unregister menu items.
+    /// </summary>
+    public static void Deactivate(PluginInfo info)
+    {
+        if (!_active.Contains(info.Instance)) return;
+        try
+        {
+            info.Instance.Deactivate();
+            _active.Remove(info.Instance);
+            DebugLog.Write("Plugin", $"deactivated: {info.Name}");
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write("Plugin", $"deactivate failed: {info.Name}: {ex.GetType().Name}: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -150,9 +197,9 @@ public static class PluginLoader
         {
             // Search native deps in the plugin folder first, then main app dir.
             var pluginCandidate = Path.Combine(_pluginDir, unmanagedDllName);
-            if (NativeLibrary.TryLoad(pluginCandidate, out var handle)) return handle;
+            if (NativeLibrary.TryLoad(pluginCandidate, out var pluginHandle)) return pluginHandle;
             var mainCandidate = Path.Combine(_mainDir, unmanagedDllName);
-            if (NativeLibrary.TryLoad(mainCandidate, out handle)) return handle;
+            if (NativeLibrary.TryLoad(mainCandidate, out var mainHandle)) return mainHandle;
             return IntPtr.Zero;
         }
 

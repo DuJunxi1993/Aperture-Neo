@@ -12,24 +12,60 @@ namespace ApertureNeo.Plugins.Ocr;
 public sealed class OcrPlugin : IPlugin
 {
     private OcrService? _service;
+    private IPluginContext? _context;
 
     public string Name => "PaddleOCR 文字提取";
 
     public string Description => "使用 PaddleOCR v4 提取图片中的中英文";
 
-    public void Initialize(IPluginContext context)
+    /// <summary>
+    /// Called when the user enables the plugin via the 插件 submenu
+    /// checkbox. Creates the OcrService (ONNX engine is loaded
+    /// lazily on first use, but the OcrService itself is cheap),
+    /// registers menu items, and kicks off a background warmup so
+    /// the first OCR run is fast.
+    /// </summary>
+    public void Activate(IPluginContext context)
     {
+        _context = context;
         _service = new OcrService();
 
-        var item = new System.Windows.Controls.MenuItem { Header = "提取当前图片文字 (OCR)" };
+        // Tag = this so MainWindow.UnregisterPluginMenuItems can find
+        // and remove these items when the user disables the plugin.
+        var item = new System.Windows.Controls.MenuItem
+        {
+            Header = "提取当前图片文字 (OCR)",
+            Tag = this,
+        };
         item.Click += async (_, _) => await OnExtractAsync(context);
         context.RegisterMenuItem(item);
 
-        var ctxItem = new System.Windows.Controls.MenuItem { Header = "提取当前图片文字" };
+        var ctxItem = new System.Windows.Controls.MenuItem
+        {
+            Header = "提取当前图片文字",
+            Tag = this,
+        };
         ctxItem.Click += async (_, _) => await OnExtractAsync(context);
         context.RegisterContextMenuItem(ctxItem);
 
+        // Background warmup: load the 3 ONNX models (~16MB) into
+        // memory now so the first OCR run is fast. Fire-and-forget;
+        // the user can still use the rest of the app while this
+        // runs.
         _ = Task.Run(() => _service.WarmupAsync());
+    }
+
+    /// <summary>
+    /// Called when the user disables the plugin. Disposes the
+    /// OcrService (releases the ONNX engine + model memory) and
+    /// asks the context to remove our menu items.
+    /// </summary>
+    public void Deactivate()
+    {
+        _service?.Dispose();
+        _service = null;
+        _context?.UnregisterPluginMenuItems(this);
+        _context = null;
     }
 
     private async Task OnExtractAsync(IPluginContext context)

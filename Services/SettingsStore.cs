@@ -30,6 +30,12 @@ public class SettingsStore
     private readonly object _lock = new();
     private readonly List<string> _favorites = new();
     private readonly List<RecentEntry> _recent = new();
+    // Plugins the user has enabled via the 插件 submenu checkbox.
+    // Opt-in: a fresh settings.json (or a settings.json that
+    // predates this feature) starts with an empty list, so no
+    // plugins are auto-enabled — the user has to opt in once and
+    // the choice persists across sessions.
+    private readonly HashSet<string> _enabledPlugins = new();
     private CancellationTokenSource? _saveCts;
     private int _saveGeneration;
 
@@ -74,6 +80,9 @@ public class SettingsStore
                 _favorites.AddRange(data.Favorites ?? new List<string>());
                 _recent.Clear();
                 _recent.AddRange(data.Recent ?? new List<RecentEntry>());
+                _enabledPlugins.Clear();
+                foreach (var p in data.EnabledPlugins ?? new List<string>())
+                    _enabledPlugins.Add(p);
             }
             LastOpenedImage = data.LastOpenedImage;
         }
@@ -95,11 +104,13 @@ public class SettingsStore
         {
             List<string> favs;
             List<RecentEntry> recs;
+            List<string> enabled;
             string? lastImage;
             lock (_lock)
             {
                 favs = _favorites.ToList();
                 recs = _recent.ToList();
+                enabled = _enabledPlugins.ToList();
                 lastImage = LastOpenedImage;
             }
             Directory.CreateDirectory(AppDataDir);
@@ -108,6 +119,7 @@ public class SettingsStore
                 {
                     Favorites = favs,
                     Recent = recs,
+                    EnabledPlugins = enabled,
                     LastOpenedImage = lastImage
                 },
                 new JsonSerializerOptions { WriteIndented = true });
@@ -124,6 +136,30 @@ public class SettingsStore
     {
         lock (_lock)
             return _favorites.Any(p => p.Equals(path, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>True if <paramref name="pluginName"/> is in the
+    /// enabled-plugins list. Plugins are opt-in: the user has to
+    /// check the box in the 插件 submenu to enable them, and the
+    /// choice persists across sessions.</summary>
+    public bool IsPluginEnabled(string pluginName)
+    {
+        lock (_lock)
+            return _enabledPlugins.Any(p => p == pluginName);
+    }
+
+    /// <summary>Add or remove <paramref name="pluginName"/> from the
+    /// enabled-plugins list. Triggers a debounced save.</summary>
+    public void SetPluginEnabled(string pluginName, bool enabled)
+    {
+        bool changed;
+        lock (_lock)
+        {
+            changed = enabled
+                ? _enabledPlugins.Add(pluginName)
+                : _enabledPlugins.Remove(pluginName);
+        }
+        if (changed) ScheduleSave();
     }
 
     /// <summary>Add <paramref name="path"/> to favorites if not
@@ -233,6 +269,12 @@ public class SettingsStore
     {
         public List<string>? Favorites { get; set; }
         public List<RecentEntry>? Recent { get; set; }
+
+        /// <summary>
+        /// Plugin names the user has enabled via the 插件 submenu
+        /// checkbox. Empty by default — plugins are opt-in.
+        /// </summary>
+        public List<string>? EnabledPlugins { get; set; }
 
         /// <summary>
         /// Path of the last image the user was viewing, persisted so a

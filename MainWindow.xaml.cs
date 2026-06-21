@@ -302,7 +302,6 @@ public partial class MainWindow : FluentWindow, IPluginContext
                 // entirely and lays out the dot + text exactly the
                 // way we want.
                 Header = BuildPluginHeader(info),
-                ToolTip = info.Description,
                 IsCheckable = true,
                 // Greyed-out checkbox when the plugin can't run
                 // (e.g. missing ONNX model files). The user can

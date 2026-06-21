@@ -395,8 +395,7 @@
                                    Margin="10,0,0,0" TextTrimming="CharacterEllipsis" MaxWidth="320"/>
                     </StackPanel>
                     <Button HorizontalAlignment="Right" Width="28" Height="28" Margin="0,0,8,0"
-                            Style="{StaticResource LinearCloseIconButton}" Click="BtnClose_Click"
-                            ToolTip="关闭">
+                            Style="{StaticResource LinearCloseIconButton}" Click="BtnClose_Click">
                         <TextBlock Text="×" FontSize="16" FontWeight="400"
                                    Foreground="{StaticResource TextSecondary}"/>
                     </Button>

@@ -1,4 +1,4 @@
-namespace ApertureNeo.Plugins.Ocr.Models;
+namespace ApertureNeo.Plugins.Ocr.Core.Models;
 
 public sealed class OcrLine
 {

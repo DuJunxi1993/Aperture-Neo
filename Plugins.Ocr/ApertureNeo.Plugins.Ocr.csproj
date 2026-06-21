@@ -15,6 +15,12 @@
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
   </PropertyGroup>
 
+  <!-- After the Ocr.Core extraction (commit 1), this project's job is
+       just the plugin shell + WPF window. The OCR engine (RapidOCR +
+       OpenCV + ONNX runtime) lives in Plugins.Ocr.Core and its native
+       deps + ONNX model files are transitively copied into this
+       project's $(OutDir) via the ProjectReference, so DeployToMain
+       still ships the right payload to bin/Plugins/. -->
   <Target Name="DeployToMain" AfterTargets="Build">
     <PropertyGroup>
       <MainPluginDir>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\net10.0-windows\Plugins\</MainPluginDir>
@@ -60,10 +66,14 @@
           DestinationFolder="$(MainPluginDir)"
           SkipUnchangedFiles="true"
           Condition="Exists('%(Identity)')"/>
-    <Message Text="Deployed $(AssemblyName) -> $(MainPluginDir) (with OpenCV + managed + SkiaSharp + WinRT runtimes)" Importance="high"/>
+    <Message Text="Deployed $(AssemblyName) -> $(MainPluginDir) (with Ocr.Core + OpenCV + managed + SkiaSharp + WinRT runtimes)" Importance="high"/>
   </Target>
 
   <ItemGroup>
+    <ProjectReference Include="..\Plugins.Ocr.Core\ApertureNeo.Plugins.Ocr.Core.csproj">
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <Private>true</Private>
+    </ProjectReference>
     <ProjectReference Include="..\ApertureNeo.csproj">
       <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
       <Private>false</Private>
@@ -71,24 +81,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="RapidOCRSharpOnnx" Version="1.2.2" />
-    <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260528" />
-    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.13.0.20260528" />
-    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.26.0" />
-    <PackageReference Include="SkiaSharp" Version="3.119.4" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Page Include="Ui\OcrResultWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="Assets\models\paddleocr\*.onnx">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
 </Project>

@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using ApertureNeo.Plugins.Ocr.Models;
+using ApertureNeo.Plugins.Ocr.Core.Models;
 
 namespace ApertureNeo.Plugins.Ocr.Ui;
 

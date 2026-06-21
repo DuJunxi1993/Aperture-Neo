@@ -4,13 +4,13 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using ApertureNeo.Plugins.Ocr.Models;
+using ApertureNeo.Plugins.Ocr.Core.Models;
 using RapidOCRSharpOnnx.Configurations;
 using RapidOCRSharpOnnx.Providers;
 using RapidOCRSharpOnnx.Utils;
-using OcrResult = ApertureNeo.Plugins.Ocr.Models.OcrResult;
+using OcrResult = ApertureNeo.Plugins.Ocr.Core.Models.OcrResult;
 
-namespace ApertureNeo.Plugins.Ocr.Services;
+namespace ApertureNeo.Plugins.Ocr.Core.Services;
 
 public sealed class OcrService : IDisposable
 {

@@ -46,6 +46,10 @@
     <Page Remove="Plugins.Ocr\**" />
     <ApplicationDefinition Remove="Plugins.Ocr\**" />
     <Resource Remove="Plugins.Ocr\**" />
+    <Compile Remove="Plugins.Ocr.Core\**" />
+    <Page Remove="Plugins.Ocr.Core\**" />
+    <ApplicationDefinition Remove="Plugins.Ocr.Core\**" />
+    <Resource Remove="Plugins.Ocr.Core\**" />
   </ItemGroup>
 
   <!-- Main entry XAMLs -->

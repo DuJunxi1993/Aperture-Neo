@@ -109,7 +109,17 @@ AllowDrop="True">
                                 <Separator/>
                                 <MenuItem Header="插件" x:Name="MenuPlugins"/>
                                 <Separator/>
-                                <MenuItem Header="关于" Click="About_Click"/>
+                                <MenuItem x:Name="MenuAbout" Click="About_Click">
+                                    <MenuItem.Header>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="关于" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="AboutUpdateSuffix" Text=""
+                                                       Margin="8,0,0,0" FontSize="11" FontWeight="700"
+                                                       Foreground="#FF16a34a" VerticalAlignment="Center"
+                                                       Visibility="Collapsed"/>
+                                        </StackPanel>
+                                    </MenuItem.Header>
+                                </MenuItem>
                             </ContextMenu>
                         </Button.ContextMenu>
                     </Button>

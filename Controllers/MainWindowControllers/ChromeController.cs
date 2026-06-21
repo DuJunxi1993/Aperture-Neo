@@ -244,10 +244,62 @@ public partial class MainWindow
     /// About dialog. The app is Linear light-mode only; the previous
     /// theme switcher menu and ApplyTheme / ThemeDark / ThemeLight /
     /// ThemeSystem handlers were removed in the "light-only" cleanup.
+    ///
+    /// The About window also drives the in-app update flow: it
+    /// queries GitHub Releases on open and raises UpdateAvailableChanged
+    /// whenever the state flips. We subscribe to that event so the
+    /// "（有版本更新）" suffix appears next to this menu item the
+    /// moment the user opens About and a new version is detected.
     /// </summary>
     private void About_Click(object sender, RoutedEventArgs e)
     {
-        new AboutWindow(this).ShowDialog();
+        var win = new AboutWindow(this);
+        win.UpdateAvailableChanged += OnAboutUpdateAvailableChanged;
+        win.ShowDialog();
+    }
+
+    /// <summary>
+    /// Toggle the "（有版本更新）" suffix on the 关于 menu item. The
+    /// About window raises this event after every check (idle load
+    /// + 重新检查 click) and again on close with the last-known
+    /// state so the badge doesn't outlive the dialog.
+    /// </summary>
+    private void OnAboutUpdateAvailableChanged(object? sender, bool available)
+    {
+        if (MenuAbout == null) return;
+        var suffix = FindAboutUpdateSuffix();
+        if (suffix == null) return;
+        if (available)
+        {
+            suffix.Text = "（有版本更新）";
+            suffix.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            suffix.Text = "";
+            suffix.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    /// <summary>
+    /// Walk the MenuItem's Header (a StackPanel) to find the
+    /// suffix TextBlock by name. Cached on first hit so we don't
+    /// re-walk the visual tree on every event.
+    /// </summary>
+    private System.Windows.Controls.TextBlock? _aboutUpdateSuffixCache;
+    private System.Windows.Controls.TextBlock? FindAboutUpdateSuffix()
+    {
+        if (_aboutUpdateSuffixCache != null) return _aboutUpdateSuffixCache;
+        if (MenuAbout?.Header is not System.Windows.Controls.StackPanel stack) return null;
+        foreach (var child in stack.Children)
+        {
+            if (child is System.Windows.Controls.TextBlock tb && tb.Name == "AboutUpdateSuffix")
+            {
+                _aboutUpdateSuffixCache = tb;
+                return tb;
+            }
+        }
+        return null;
     }
 
     private void BtnOpen_Click(object sender, RoutedEventArgs e)

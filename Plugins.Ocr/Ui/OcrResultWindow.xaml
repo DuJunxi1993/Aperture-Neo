@@ -49,7 +49,7 @@
         <SolidColorBrush x:Key="BorderSubtle"   Color="#12000000"/>
         <SolidColorBrush x:Key="BorderStandard" Color="#1F000000"/>
         <SolidColorBrush x:Key="BorderSolid"    Color="#FFE5E5E8"/>
-        <SolidColorBrush x:Key="BorderStrong"   Color="#FF1a1a1a"/>
+        <SolidColorBrush x:Key="BorderStrong"   Color="#80000000"/>
 
         <SolidColorBrush x:Key="BtnBgGhost"  Color="#08000000"/>
         <SolidColorBrush x:Key="BtnBgHover"  Color="#14000000"/>

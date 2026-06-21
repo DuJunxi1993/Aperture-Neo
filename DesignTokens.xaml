@@ -55,9 +55,10 @@
          AboutWindow (which use WindowStyle=SingleBorderWindow).
          BorderStandard (12% black) is too subtle for a window
          outline — it reads as borderless, not as a defined
-         stroke. BorderStrong uses TextPrimary (#1a1a1a, ~95%
-         black) to give windows a clear 1px hairline. -->
-    <SolidColorBrush x:Key="BorderStrong"   Color="#FF1a1a1a"/>
+         stroke. 50% black (#80000000) gives windows a clear
+         1px hairline without going to the heavy near-black
+         (~95%) that TextPrimary provides. -->
+    <SolidColorBrush x:Key="BorderStrong"   Color="#80000000"/>
 
     <!-- Button backgrounds: nearly transparent black for light mode.
          BtnBgGhost is the resting state (used by the title-bar

@@ -1,0 +1,242 @@
+<Window x:Class="ApertureNeo.Plugins.Ocr.Ui.OcrResultWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="文字提取"
+        Width="560" Height="560"
+        MinWidth="480" MinHeight="440"
+        WindowStartupLocation="CenterOwner"
+        AllowsTransparency="True"
+        Background="Transparent"
+        WindowStyle="None"
+        ShowInTaskbar="True"
+        SizeToContent="Manual"
+        ResizeMode="CanResize"
+        Topmost="True"
+        TextOptions.TextFormattingMode="Ideal"
+        UseLayoutRounding="True"
+        FontFamily="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial"
+        Foreground="#FF1a1a1a">
+
+    <Window.Resources>
+        <!-- Linear design tokens live in DesignTokens.xaml as a
+             ResourceDictionary so the same tokens can be reused by
+             the future Plugins.Screenshot (or any other plugin that
+             wants a Linear-styled UI) without copy-pasting the full
+             block into every window's Window.Resources. -->
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="DesignTokens.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <!-- Custom Window.Template: a single content Border with rounded
+         corners, SurfaceCanvas background, and DropShadowEffect. The
+         outer margin (16 top/left/right, 32 bottom) gives the
+         24px-blur + 8px-depth shadow room to render within the
+         window's bounds (without being clipped at the window edge).
+         The asymmetric margin accounts for ShadowDepth=8, which
+         offsets the shadow 8px down — the bottom needs extra room
+         for the full blur+depth to render. With WindowStyle=None +
+         AllowsTransparency=True, the OS draws no chrome and WPF
+         owns the entire visual, so the shadow renders against the
+         desktop.
+
+         CornerRadius = 8 = RadiusCard. The main interface's
+         design-token radius scale is {4, 6, 8, 12} (Std, Comfy,
+         Card, Panel). Strict Linear style uses RadiusCard (8) for
+         card-like surfaces. The AboutWindow's 10 was a custom
+         compromise; we standardize on 8 to match the design tokens
+         the rest of the app uses.
+
+         BorderBrush = BorderStrong (1px hairline, #BBBBBB = solid
+         color matching the OS-chrome border on MainWindow /
+         AboutWindow, sampled directly from a rendered About
+         window's left edge). -->
+    <Window.Template>
+        <ControlTemplate TargetType="{x:Type Window}">
+            <Grid Margin="16,16,16,32">
+                <Border CornerRadius="8"
+                        Background="{StaticResource SurfaceCanvas}"
+                        BorderBrush="{StaticResource BorderStrong}"
+                        BorderThickness="1"
+                        SnapsToDevicePixels="True">
+                    <Border.Effect>
+                        <StaticResource ResourceKey="ShadowDialog"/>
+                    </Border.Effect>
+                    <ContentPresenter/>
+                </Border>
+            </Grid>
+        </ControlTemplate>
+    </Window.Template>
+
+    <!-- Content body. The Border.ClipToBounds (default True) clips our
+         3-row Grid to the rounded shape, restoring the rounded look that
+         the previous attempt lost. -->
+    <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="44"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 44px title bar: app label + file name (left), close button (right).
+                 CornerRadius rounds ONLY the top corners (8,8,0,0) to
+                 match the outer Window.Template Border (RadiusCard=8)
+                 so the opaque SurfaceCanvas background doesn't cover
+                 the outer rounded top corners. WPF's Border only clips
+                 its own Background to CornerRadius; child elements
+                 (and nested Border backgrounds) are NOT clipped to
+                 the outer shape by default, so without this the
+                 title bar's rectangle would cover the rounded corner
+                 pixels and create a visible straight edge. The bottom
+                 corners stay sharp so the title bar's bottom hairline
+                 meets the body cleanly. -->
+            <Border Grid.Row="0" Background="{StaticResource SurfaceCanvas}"
+                    BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,0,0,1"
+                    CornerRadius="8,8,0,0"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                HorizontalAlignment="Left" Margin="20,0,0,0">
+                        <TextBlock Text="文字提取" FontSize="12" FontWeight="700"
+                                   Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="HeaderFileName" Text="" FontSize="12" FontWeight="400"
+                                   Foreground="{StaticResource TextTertiary}" VerticalAlignment="Center"
+                                   Margin="10,0,0,0" TextTrimming="CharacterEllipsis" MaxWidth="320"/>
+                    </StackPanel>
+                    <Button HorizontalAlignment="Right" Width="28" Height="28" Margin="0,0,8,0"
+                            Style="{StaticResource LinearCloseIconButton}" Click="BtnClose_Click">
+                        <TextBlock Text="×" FontSize="16" FontWeight="400"
+                                   Foreground="{StaticResource TextSecondary}"/>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Body: status + toolbar + edit box. No separate "文件" section —
+                 the file name now lives in the title bar. -->
+            <Grid Grid.Row="1" Margin="32,20,32,12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Status row: dot + label + meta (lines · ms) -->
+                <StackPanel Grid.Row="0">
+                    <TextBlock Text="状态" Style="{StaticResource LinearEyebrow}"/>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border x:Name="StatusDot" Style="{StaticResource LinearDot}"
+                                VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock x:Name="StatusText" Text="就绪" Style="{StaticResource LinearValue}"/>
+                        <TextBlock x:Name="MetaText" Style="{StaticResource LinearMonoValue}" Margin="14,0,0,0"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Formatting toolbar: 换行/不换行 + 有空格/清除空格 (both segmented) -->
+                <Grid Grid.Row="1" Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Bottom">
+                        <TextBlock Text="排版" Style="{StaticResource LinearEyebrow}"
+                                   VerticalAlignment="Center" Margin="0,0,10,6"/>
+                        <Border BorderBrush="{StaticResource BorderStandard}" BorderThickness="1"
+                                CornerRadius="6" Background="{StaticResource SurfacePanel}" Padding="2">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton x:Name="RadioWrap" GroupName="LayoutMode"
+                                             Style="{StaticResource LinearSegmentedItem}"
+                                             IsChecked="True"
+                                             Checked="RadioWrap_Checked" Content="换行"/>
+                                <RadioButton x:Name="RadioNoWrap" GroupName="LayoutMode"
+                                             Style="{StaticResource LinearSegmentedItem}"
+                                             Checked="RadioNoWrap_Checked" Content="不换行"/>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="空格" Style="{StaticResource LinearEyebrow}"
+                                   VerticalAlignment="Center" Margin="14,0,10,6"/>
+                        <Border BorderBrush="{StaticResource BorderStandard}" BorderThickness="1"
+                                CornerRadius="6" Background="{StaticResource SurfacePanel}" Padding="2">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton x:Name="RadioWithSpaces" GroupName="SpaceMode"
+                                             Style="{StaticResource LinearSegmentedItem}"
+                                             IsChecked="True"
+                                             Checked="RadioWithSpaces_Checked" Content="有空格"/>
+                                <RadioButton x:Name="RadioClearSpaces" GroupName="SpaceMode"
+                                             Style="{StaticResource LinearSegmentedItem}"
+                                             Checked="RadioClearSpaces_Checked" Content="清除空格"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Result box (the actual OCR text, editable). TextWrapping is
+                     always Wrap: in 换行 mode each \n starts a new line; in
+                     不换行 mode the text is one long line and the TextBox
+                     wraps it at the window edge. -->
+                <Border Grid.Row="2" BorderBrush="{StaticResource BorderStandard}" BorderThickness="1"
+                        Background="{StaticResource SurfaceElevated}" CornerRadius="{StaticResource RadiusCard}"
+                        Margin="0,10,0,0">
+                    <ScrollViewer Padding="0" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <TextBox x:Name="ResultBox"
+                                 IsReadOnly="False"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 Padding="12,10"
+                                 FontFamily="{StaticResource FontPrimary}"
+                                 FontSize="13"
+                                 Foreground="{StaticResource TextPrimary}"
+                                 VerticalScrollBarVisibility="Disabled"
+                                 HorizontalScrollBarVisibility="Disabled"
+                                 TextOptions.TextFormattingMode="Ideal"
+                                 UseLayoutRounding="True"
+                                 SpellCheck.IsEnabled="False"/>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- Error message + edit hint -->
+                <Grid Grid.Row="3" Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="ErrorText" Foreground="{StaticResource StatusRed}"
+                               FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="文本可直接编辑" Style="{StaticResource LinearEyebrow}"
+                               Margin="0,0,2,0" VerticalAlignment="Center"/>
+                </Grid>
+            </Grid>
+
+            <!-- Bottom action bar: 1px hairline top, two CTAs.
+                 CornerRadius rounds ONLY the bottom corners (0,0,8,8)
+                 to match the outer Window.Template Border (RadiusCard=8)
+                 so the opaque SurfaceCanvas background doesn't cover
+                 the outer rounded bottom corners. The top corners stay
+                 sharp so the top hairline meets the body cleanly.
+
+                 Right padding (32) matches the body's right margin
+                 (32) so the 复制并退出 button's right edge aligns with
+                 the result box's right edge — the elements above and
+                 below the button sit on the same vertical line. -->
+            <Border Grid.Row="2" Background="{StaticResource SurfaceCanvas}"
+                    BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,1,0,0"
+                    CornerRadius="0,0,8,8"
+                    Padding="20,12,32,12">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="BtnCopy" Style="{StaticResource LinearGhostButton}"
+                            Content="复制" Click="BtnCopy_Click" Margin="0,0,8,0"/>
+                    <Button x:Name="BtnCopyAndClose" Style="{StaticResource LinearPrimaryCta}"
+                            Content="复制并退出" Click="BtnCopyAndClose_Click" IsDefault="True"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+</Window>

@@ -15,12 +15,12 @@
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
   </PropertyGroup>
 
-  <!-- After the Ocr.Core extraction (commit 1), this project's job is
-       just the plugin shell + WPF window. The OCR engine (RapidOCR +
-       OpenCV + ONNX runtime) lives in Plugins.Ocr.Core and its native
-       deps + ONNX model files are transitively copied into this
-       project's $(OutDir) via the ProjectReference, so DeployToMain
-       still ships the right payload to bin/Plugins/. -->
+  <!-- After the Ocr.Core extraction (commit 1) and Ocr.Ui extraction
+       (commit 2), this project is just the plugin shell — the OCR
+       engine lives in Plugins.Ocr.Core and the WPF result window
+       lives in Plugins.Ocr.Ui. Both are ProjectReference'd here so
+       their DLLs are transitively copied to this project's $(OutDir)
+       and then shipped to bin/Plugins/ via DeployToMain. -->
   <Target Name="DeployToMain" AfterTargets="Build">
     <PropertyGroup>
       <MainPluginDir>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\net10.0-windows\Plugins\</MainPluginDir>
@@ -74,17 +74,14 @@
       <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
       <Private>true</Private>
     </ProjectReference>
+    <ProjectReference Include="..\Plugins.Ocr.Ui\ApertureNeo.Plugins.Ocr.Ui.csproj">
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <Private>true</Private>
+    </ProjectReference>
     <ProjectReference Include="..\ApertureNeo.csproj">
       <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
       <Private>false</Private>
     </ProjectReference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Page Include="Ui\OcrResultWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
   </ItemGroup>
 
 </Project>

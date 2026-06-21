@@ -4,9 +4,39 @@ using System.Collections.Generic;
 namespace ApertureNeo.Services;
 
 /// <summary>
+/// Plugin lifecycle status. The 插件 submenu shows a small colored
+/// dot to the left of each plugin name based on this value so the
+/// user can tell at a glance whether a plugin is on / off /
+/// unusable. <see cref="IPlugin.Status"/> is read at menu-open time
+/// so it always reflects the current state (e.g. if a dependency
+/// goes missing, the next menu open shows red).
+/// </summary>
+public enum PluginStatus
+{
+    /// <summary>
+    /// Plugin was discovered successfully and can be enabled. Not
+    /// currently active. Shows a gray dot.
+    /// </summary>
+    Disabled,
+
+    /// <summary>
+    /// Plugin is currently enabled and its heavy resources are
+    /// loaded. Shows a green dot.
+    /// </summary>
+    Enabled,
+
+    /// <summary>
+    /// Plugin can't run (e.g. its model files or native dependencies
+    /// are missing). The toggle in the 插件 submenu is disabled so
+    /// the user can't enable it. Shows a red dot.
+    /// </summary>
+    Unavailable,
+}
+
+/// <summary>
 /// Plugin contract. Plugins are discovered at startup (DLLs are loaded
-/// so Name/Description can be read) but NOT activated — the user opts
-/// in via a checkbox in the 插件 submenu. Activation triggers the
+/// so Name/Description/Status can be read) but NOT activated — the user
+/// opts in via a checkbox in the 插件 submenu. Activation triggers the
 /// plugin's heavy work (loading native deps, ONNX models, etc.) and
 /// registers its menu items. Deactivation reverses both.
 /// </summary>
@@ -15,6 +45,14 @@ public interface IPlugin
     string Name { get; }
 
     string Description { get; }
+
+    /// <summary>
+    /// Current lifecycle status. The 插件 submenu reads this on every
+    /// open (via SubmenuOpened) to sync the colored status dot, so
+    /// the property should return the live state — not a cached
+    /// snapshot. Cheap to call; no IO expected on the read path.
+    /// </summary>
+    PluginStatus Status { get; }
 
     /// <summary>
     /// Called when the user enables the plugin. The plugin should

@@ -284,16 +284,31 @@ public partial class MainWindow : FluentWindow, IPluginContext
         // SetAvailablePlugins/RestoreEnabledPlugins — the property
         // setter is a no-op on an unrealized MenuItem. Instead we
         // hook SubmenuOpened and apply the checked state from the
-        // SettingsStore at that point.
+        // SettingsStore at that point. The same handler also
+        // refreshes the status dot so any change since last open
+        // (e.g. model files copied in) is reflected immediately.
         MenuPlugins.SubmenuOpened += MenuPlugins_SubmenuOpened;
 
         foreach (var info in plugins)
         {
             var item = new System.Windows.Controls.MenuItem
             {
-                Header = info.Name,
+                // Build the header as a horizontal Grid: [dot] [name].
+                // We don't use MenuItem.Icon for the dot because
+                // WPF's default MenuItem template wraps non-Image
+                // icons in a ContentPresenter that doesn't size the
+                // child correctly — the dot either doesn't render
+                // or gets stretched. A Grid header sidesteps this
+                // entirely and lays out the dot + text exactly the
+                // way we want.
+                Header = BuildPluginHeader(info),
                 ToolTip = info.Description,
                 IsCheckable = true,
+                // Greyed-out checkbox when the plugin can't run
+                // (e.g. missing ONNX model files). The user can
+                // still see what's installed but can't toggle it on
+                // until the missing files are restored.
+                IsEnabled = info.Instance.Status != PluginStatus.Unavailable,
                 Tag = info,
             };
             item.Checked += PluginItem_Checked;
@@ -303,11 +318,52 @@ public partial class MainWindow : FluentWindow, IPluginContext
     }
 
     /// <summary>
+    /// Build the [dot] [plugin name] header layout for a plugin
+    /// toggle. The dot is stored as the Border's Tag so
+    /// SubmenuOpened / Checked / Unchecked can find it and swap the
+    /// Background brush when the status changes.
+    /// </summary>
+    private static System.Windows.Controls.Grid BuildPluginHeader(PluginInfo info)
+    {
+        var grid = new System.Windows.Controls.Grid();
+        grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = System.Windows.GridLength.Auto });
+        grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+
+        // 8×8 dot with 4 corner-radius = circle. Same proportions
+        // as the LinearDot style in Styles/Tag.xaml.
+        var dot = new System.Windows.Controls.Border
+        {
+            Width = 8,
+            Height = 8,
+            CornerRadius = new System.Windows.CornerRadius(4),
+            Background = GetStatusBrush(info.Instance.Status),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new System.Windows.Thickness(0, 0, 8, 0),
+            // Tag the dot so refresh handlers can find it.
+            Tag = "PluginStatusDot",
+        };
+        System.Windows.Controls.Grid.SetColumn(dot, 0);
+        grid.Children.Add(dot);
+
+        var text = new System.Windows.Controls.TextBlock
+        {
+            Text = info.Name,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        System.Windows.Controls.Grid.SetColumn(text, 1);
+        grid.Children.Add(text);
+
+        return grid;
+    }
+
+    /// <summary>
     /// When the 插件 submenu is first opened, sync each plugin
-    /// toggle's IsChecked with the persisted SettingsStore state.
-    /// WPF ContextMenus don't realize their child MenuItems until
-    /// the menu is shown, so this is the first point where the
-    /// IsChecked setter actually takes effect.
+    /// toggle's IsChecked with the persisted SettingsStore state
+    /// and refresh the status dot (which can change between opens
+    /// — e.g. the user copied model files in, or the warmup
+    /// finished). WPF ContextMenus don't realize their child
+    /// MenuItems until the menu is shown, so this is the first
+    /// point where the IsChecked setter actually takes effect.
     /// </summary>
     private void MenuPlugins_SubmenuOpened(object sender, RoutedEventArgs e)
     {
@@ -319,6 +375,8 @@ public partial class MainWindow : FluentWindow, IPluginContext
             // doesn't change, so calling this on every open is safe
             // and cheap.
             item.IsChecked = App.SettingsStore.IsPluginEnabled(info.Name);
+            RefreshPluginDot(item, info);
+            item.IsEnabled = info.Instance.Status != PluginStatus.Unavailable;
         }
     }
 
@@ -347,6 +405,9 @@ public partial class MainWindow : FluentWindow, IPluginContext
         if (item.Tag is not PluginInfo info) return;
         PluginLoader.Activate(info, this);
         App.SettingsStore.SetPluginEnabled(info.Name, true);
+        // Refresh the dot — status may have transitioned to
+        // Enabled (green). SetChecked doesn't fire SubmenuOpened.
+        RefreshPluginDot(item, info);
     }
 
     private void PluginItem_Unchecked(object sender, RoutedEventArgs e)
@@ -355,5 +416,45 @@ public partial class MainWindow : FluentWindow, IPluginContext
         if (item.Tag is not PluginInfo info) return;
         PluginLoader.Deactivate(info);
         App.SettingsStore.SetPluginEnabled(info.Name, false);
+        // Refresh the dot — status transitioned back to
+        // Disabled (gray). SetChecked doesn't fire SubmenuOpened.
+        RefreshPluginDot(item, info);
+    }
+
+    /// <summary>
+    /// Find the status dot inside the item's Grid header and update
+    /// its Background brush. The dot is tagged "PluginStatusDot" in
+    /// BuildPluginHeader so we can find it without walking every
+    /// Border descendant.
+    /// </summary>
+    private static void RefreshPluginDot(System.Windows.Controls.MenuItem item, PluginInfo info)
+    {
+        if (item.Header is not System.Windows.Controls.Grid grid) return;
+        foreach (var child in grid.Children)
+        {
+            if (child is System.Windows.Controls.Border dot
+                && Equals(dot.Tag, "PluginStatusDot"))
+            {
+                dot.Background = GetStatusBrush(info.Instance.Status);
+                return;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Map PluginStatus → the brush for the status dot. Reuses the
+    /// design tokens the rest of the app uses for status colors so
+    /// the dot visually matches the main interface's status
+    /// indicators (info pill dot, status pills, etc.).
+    /// </summary>
+    private static System.Windows.Media.Brush GetStatusBrush(PluginStatus status)
+    {
+        var key = status switch
+        {
+            PluginStatus.Enabled => "StatusGreen",
+            PluginStatus.Unavailable => "StatusRed",
+            _ => "TextTertiary",  // gray for Disabled
+        };
+        return (System.Windows.Media.Brush)Application.Current.Resources[key];
     }
 }

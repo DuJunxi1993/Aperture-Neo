@@ -18,6 +18,11 @@ public partial class OcrResultWindow : Window
 
     private void TitleBar_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
+        // The title bar's MouseLeftButtonDown bubbles from any child, including
+        // the close button. DragMove() would consume the MouseUp and prevent
+        // the button's Click from firing. Skip dragging when the click
+        // originated on a button so it can handle its own click.
+        if (e.OriginalSource is System.Windows.Controls.Button) return;
         if (e.ClickCount == 2) return;
         try { DragMove(); } catch { /* DragMove throws if released outside the title bar — safe to ignore */ }
     }

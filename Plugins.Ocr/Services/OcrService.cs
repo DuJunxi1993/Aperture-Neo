@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ApertureNeo.Plugins.Ocr.Models;
@@ -74,7 +75,13 @@ public sealed class OcrService : IDisposable
                 return new OcrResult
                 {
                     IsSuccess = true,
-                    FullText = raw.TextBlocks?.Trim() ?? string.Empty,
+                    // RapidOCRSharpOnnx's TextBlocks is space-joined, not
+                    // newline-joined, so 换行 / 不换行 toggling has nothing
+                    // to do. Build FullText from the per-line recognition
+                    // results instead — one \n per detected text row.
+                    FullText = lines.Count > 0
+                        ? string.Join("\n", lines.Select(l => l.Text))
+                        : (raw.TextBlocks?.Trim() ?? string.Empty),
                     Lines = lines,
                     ElapsedMs = sw.ElapsedMilliseconds
                 };

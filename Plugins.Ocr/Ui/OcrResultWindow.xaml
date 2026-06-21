@@ -55,6 +55,12 @@
         <SolidColorBrush x:Key="StatusRed"   Color="#FFdc2626"/>
         <SolidColorBrush x:Key="StatusGreen" Color="#FF16a34a"/>
 
+        <!-- Card shadow: matches DesignTokens.xaml's ShadowDialog in the main
+             project (BlurRadius=24, ShadowDepth=8, Opacity=0.18). WPF
+             draws this directly so the shadow is visible without depending
+             on DWM. -->
+        <DropShadowEffect x:Key="ShadowDialog" BlurRadius="24" ShadowDepth="8" Opacity="0.18" Color="Black"/>
+
         <!-- Linear focus visual: 2px indigo ring -->
         <Style x:Key="LinearFocusVisual">
             <Setter Property="Control.Template">
@@ -274,6 +280,9 @@
     </WindowChrome.WindowChrome>
 
     <Border Background="{StaticResource SurfaceCanvas}" CornerRadius="10">
+        <Border.Effect>
+            <StaticResource ResourceKey="ShadowDialog"/>
+        </Border.Effect>
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="44"/>

@@ -18,6 +18,10 @@
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0"/>
     </WindowChrome.WindowChrome>
 
+    <Border Background="{StaticResource SurfaceCanvas}" CornerRadius="10">
+        <Border.Effect>
+            <StaticResource ResourceKey="ShadowDialog"/>
+        </Border.Effect>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="44"/>
@@ -114,4 +118,5 @@
             </Grid>
         </Border>
     </Grid>
+    </Border>
 </ui:FluentWindow>

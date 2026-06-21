@@ -1,7 +1,6 @@
 <Window x:Class="ApertureNeo.Plugins.Ocr.Ui.OcrResultWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="文字提取"
         Width="560" Height="380"
         MinWidth="400" MinHeight="320"
@@ -58,11 +57,22 @@
         <SolidColorBrush x:Key="StatusRed"   Color="#FFdc2626"/>
         <SolidColorBrush x:Key="StatusGreen" Color="#FF16a34a"/>
 
-        <!-- Card shadow: matches DesignTokens.xaml's ShadowDialog in the main
-             project (BlurRadius=24, ShadowDepth=8, Opacity=0.18). WPF
-             draws this directly so the shadow is visible without depending
-             on DWM. -->
-        <DropShadowEffect x:Key="ShadowDialog" BlurRadius="24" ShadowDepth="8" Opacity="0.18" Color="Black"/>
+        <!-- Selection (matches main project's SelectionBg/SelectionFg — light
+             indigo tint for selected segmented items). -->
+        <SolidColorBrush x:Key="SelectionBg"   Color="#FFe0e1ff"/>
+        <SolidColorBrush x:Key="SelectionFg"   Color="#FF3a4099"/>
+
+        <!-- Close-button hover/press (matches main project's CloseBgHover/Press
+             + the #ef4444 foreground used by LinearCloseButton). -->
+        <SolidColorBrush x:Key="CloseBgHover" Color="#1AE81123"/>
+        <SolidColorBrush x:Key="CloseBgPress" Color="#3CE81123"/>
+        <SolidColorBrush x:Key="CloseFgHover" Color="#FFef4444"/>
+
+        <!-- Card shadow: stronger opacity than the main project's ShadowDialog
+             so the shadow is visible against any background. The shadow renders
+             from a dedicated shadow-hosting Border inside the Window.Template,
+             with a 12px margin giving the blur room to render. -->
+        <DropShadowEffect x:Key="ShadowDialog" BlurRadius="24" ShadowDepth="0" Opacity="0.40" Color="Black"/>
 
         <!-- Linear focus visual: 2px indigo ring -->
         <Style x:Key="LinearFocusVisual">
@@ -183,6 +193,35 @@
             </Setter>
         </Style>
 
+        <!-- Close icon button (28x28, subtle red wash on hover/press) — the
+             destructive variant of LinearIconButton, matching the main
+             project's LinearCloseButton. The red wash + red glyph gives
+             the user a clear hint that this action closes the window. -->
+        <Style x:Key="LinearCloseIconButton" TargetType="Button" BasedOn="{StaticResource LinearIconButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource CloseBgHover}"/>
+                                <Setter Property="Foreground" Value="{StaticResource CloseFgHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource CloseBgPress}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Ghost (text) button — flat, hover steps up. -->
         <Style x:Key="LinearGhostButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
@@ -224,8 +263,9 @@
 
         <!-- Segmented item (single RadioButton in a group). Sits in a
              container Border that provides the 1px outline + 2px inner
-             padding. Selected item gets SurfaceElevated bg + lifts to
-             TextPrimary foreground. -->
+             padding. Selected item gets the light-indigo selection
+             background (SelectionBg) + darker indigo foreground
+             (SelectionFg) — matching the main app's selection style. -->
         <Style x:Key="LinearSegmentedItem" TargetType="RadioButton">
             <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
             <Setter Property="FontSize" Value="12"/>
@@ -254,8 +294,8 @@
                                 <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource SurfaceElevated}"/>
-                                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource SelectionBg}"/>
+                                <Setter Property="Foreground" Value="{StaticResource SelectionFg}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -274,20 +314,31 @@
         </Style>
     </Window.Resources>
 
-    <WindowChrome.WindowChrome>
-        <!-- CaptionHeight=0 (like AboutWindow) so the OS doesn't treat the
-             top of the window as a native drag region — that was
-             interfering with the close button's click handling and clipping
-             the DropShadowEffect. The custom title bar Border's
-             MouseLeftButtonDown still drives DragMove. -->
-        <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="10"/>
-    </WindowChrome.WindowChrome>
+    <!-- Custom Window.Template: a shadow-hosting Border sits behind the
+         content with a 12px outer margin that gives the DropShadowEffect
+         room to render. The shadow-host Border has CornerRadius=10 so the
+         shadow follows the rounded-rectangle shape. With
+         WindowStyle=None + AllowsTransparency=True, the OS draws no chrome
+         and WPF owns the entire visual, so the shadow is reliably visible
+         against any background. -->
+    <Window.Template>
+        <ControlTemplate TargetType="{x:Type Window}">
+            <Grid Margin="12">
+                <Border CornerRadius="10" IsHitTestVisible="False">
+                    <Border.Effect>
+                        <StaticResource ResourceKey="ShadowDialog"/>
+                    </Border.Effect>
+                </Border>
+                <ContentPresenter/>
+            </Grid>
+        </ControlTemplate>
+    </Window.Template>
 
-    <Border Background="{StaticResource SurfaceCanvas}" CornerRadius="10">
-        <Border.Effect>
-            <StaticResource ResourceKey="ShadowDialog"/>
-        </Border.Effect>
-        <Grid>
+    <!-- Content body. The Grid carries the visible SurfaceCanvas background
+         so the window's interior is opaque (the outer 12px margin in the
+         Window.Template is the only transparent gutter, where the shadow
+         renders against the desktop). -->
+    <Grid Background="{StaticResource SurfaceCanvas}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="44"/>
                 <RowDefinition Height="*"/>
@@ -308,7 +359,7 @@
                                    Margin="10,0,0,0" TextTrimming="CharacterEllipsis" MaxWidth="320"/>
                     </StackPanel>
                     <Button HorizontalAlignment="Right" Width="28" Height="28" Margin="0,0,8,0"
-                            Style="{StaticResource LinearIconButton}" Click="BtnClose_Click"
+                            Style="{StaticResource LinearCloseIconButton}" Click="BtnClose_Click"
                             ToolTip="关闭">
                         <TextBlock Text="×" FontSize="16" FontWeight="400"
                                    Foreground="{StaticResource TextSecondary}"/>
@@ -431,5 +482,4 @@
                 </StackPanel>
             </Border>
         </Grid>
-    </Border>
 </Window>

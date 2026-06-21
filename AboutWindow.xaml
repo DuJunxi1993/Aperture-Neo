@@ -140,7 +140,7 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="© 2026 DJx · HarmoryOS Sans SC (System) · JetBrains Mono OFL"
+                    <TextBlock Grid.Column="0" Text="© 2026 DU Junxi · Powered by HarmonyOS Sans &amp; JetBrains Mono · Inspired by Apple Aperture"
                                FontSize="11" Foreground="{StaticResource TextQuat}" FontWeight="600"
                                VerticalAlignment="Center"/>
                     <Button Grid.Column="1" x:Name="BtnOk" Click="BtnOk_Click"

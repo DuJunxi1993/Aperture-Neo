@@ -30,7 +30,7 @@ public partial class App : Application
     /// which RootCommand auto-handles).
     /// </summary>
     private static readonly System.Collections.Generic.HashSet<string> CommandTokens =
-        new(System.StringComparer.OrdinalIgnoreCase) { "ocr" /*, "convert" (future) */ };
+        new(System.StringComparer.OrdinalIgnoreCase) { "ocr", "plugin-list" /*, "convert" (future) */ };
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -72,6 +72,7 @@ public partial class App : Application
             var root = new RootCommand("Aperture Neo - image viewer with OCR.")
             {
                 new OcrCommand(this),
+                new PluginListCommand(),
                 // future: new ConvertCommand(),
             };
             var exitCode = await root.InvokeAsync(e.Args);

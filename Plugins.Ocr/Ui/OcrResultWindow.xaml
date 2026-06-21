@@ -69,11 +69,15 @@
         <SolidColorBrush x:Key="CloseBgPress" Color="#3CE81123"/>
         <SolidColorBrush x:Key="CloseFgHover" Color="#FFef4444"/>
 
-        <!-- Card shadow: stronger opacity than the main project's ShadowDialog
-             so the shadow is visible against any background. The shadow renders
-             from a dedicated shadow-hosting Border inside the Window.Template,
-             with a 12px margin giving the blur room to render. -->
-        <DropShadowEffect x:Key="ShadowDialog" BlurRadius="24" ShadowDepth="0" Opacity="0.40" Color="Black"/>
+        <!-- Card shadow: matches the main project's ShadowDialog token
+             (DesignTokens.xaml) so the OCR window's drop shadow is
+             visually consistent with the About window and the floating
+             panels. BlurRadius=24 ShadowDepth=8 Opacity=0.18.
+             ShadowDepth=8 means the shadow is offset 8px down from the
+             element, so the Window.Template margin is asymmetric
+             (16 on top/left/right, 32 on bottom) to give the shadow
+             room to render without being clipped at the window edge. -->
+        <DropShadowEffect x:Key="ShadowDialog" BlurRadius="24" ShadowDepth="8" Opacity="0.18" Color="Black"/>
 
         <!-- Linear focus visual: 2px indigo ring -->
         <Style x:Key="LinearFocusVisual">
@@ -317,11 +321,15 @@
 
     <!-- Custom Window.Template: a single content Border with rounded
          corners, SurfaceCanvas background, and DropShadowEffect. The
-         16px outer margin gives the 24px-blur shadow room to render
-         within the window's bounds (without being clipped by the window
-         edge). With WindowStyle=None + AllowsTransparency=True, the OS
-         draws no chrome and WPF owns the entire visual, so the shadow
-         renders against the desktop.
+         outer margin (16 top/left/right, 32 bottom) gives the
+         24px-blur + 8px-depth shadow room to render within the
+         window's bounds (without being clipped at the window edge).
+         The asymmetric margin accounts for ShadowDepth=8, which
+         offsets the shadow 8px down — the bottom needs extra room
+         for the full blur+depth to render. With WindowStyle=None +
+         AllowsTransparency=True, the OS draws no chrome and WPF
+         owns the entire visual, so the shadow renders against the
+         desktop.
 
          CornerRadius = 8 = RadiusCard. The main interface's
          design-token radius scale is {4, 6, 8, 12} (Std, Comfy,
@@ -330,18 +338,13 @@
          compromise; we standardize on 8 to match the design tokens
          the rest of the app uses.
 
-         BorderBrush = BorderStrong (1px hairline, ~95% black =
-         TextPrimary). Matches the visual weight of the OS-chrome
-         border on the main interface's windows (MainWindow and
-         AboutWindow use WindowStyle=SingleBorderWindow, which
-         draws a 1px system border). BorderStandard (12% black)
-         was too subtle for a window outline — it read as
-         borderless. BorderStrong gives the OCR window the same
-         clearly-visible 1px hairline as the rest of the app's
-         windows. -->
+         BorderBrush = BorderStrong (1px hairline, #BBBBBB = solid
+         color matching the OS-chrome border on MainWindow /
+         AboutWindow, sampled directly from a rendered About
+         window's left edge). -->
     <Window.Template>
         <ControlTemplate TargetType="{x:Type Window}">
-            <Grid Margin="16">
+            <Grid Margin="16,16,16,32">
                 <Border CornerRadius="8"
                         Background="{StaticResource SurfaceCanvas}"
                         BorderBrush="{StaticResource BorderStrong}"

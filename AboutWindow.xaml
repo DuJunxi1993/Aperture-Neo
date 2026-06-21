@@ -131,18 +131,29 @@
                 </Grid>
             </Grid>
 
-            <!-- Bottom bar: 1px hairline top border, copyright left, OK button right -->
+            <!-- Bottom bar: 1px hairline top border, two-line credits left, OK button right.
+                 Two lines so the credits don't have to be jammed onto one. Line 1 is
+                 the primary attribution (copyright + which fonts are referenced);
+                 line 2 is the secondary note (design inspiration + license), set
+                 smaller and a bit more muted to read as a sub-line. -->
             <Border Grid.Row="2" Background="{StaticResource SurfaceCanvas}"
                     BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,1,0,0"
-                    Padding="20,12">
+                    Padding="20,10">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="© 2026 DU Junxi · Powered by HarmonyOS Sans &amp; JetBrains Mono · Inspired by Apple Aperture"
-                               FontSize="11" Foreground="{StaticResource TextQuat}" FontWeight="600"
-                               VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="© 2026 DU Junxi · Powered by HarmonyOS Sans &amp; JetBrains Mono"
+                                   FontSize="11" FontWeight="600"
+                                   Foreground="{StaticResource TextQuat}"/>
+                        <TextBlock Text="Inspired by Apple Aperture · MIT License"
+                                   FontSize="10" FontWeight="400"
+                                   Foreground="{StaticResource TextQuat}"
+                                   Opacity="0.7"
+                                   Margin="0,1,0,0"/>
+                    </StackPanel>
                     <Button Grid.Column="1" x:Name="BtnOk" Click="BtnOk_Click"
                             MinWidth="80" Cursor="Hand" IsDefault="True"
                             Style="{StaticResource LinearPrimaryButton}">

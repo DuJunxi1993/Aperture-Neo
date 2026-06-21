@@ -349,9 +349,20 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- 44px title bar: app label + file name (left), close button (right) -->
+            <!-- 44px title bar: app label + file name (left), close button (right).
+                 CornerRadius rounds ONLY the top corners (14,14,0,0) so the
+                 opaque SurfaceCanvas background doesn't cover the outer
+                 Window.Template Border's rounded top corners. WPF's Border
+                 only clips its own Background to CornerRadius; child
+                 elements (and the Background of nested Borders) are NOT
+                 clipped to the outer shape by default, so without this
+                 the title bar's rectangle would cover the rounded
+                 corner pixels and create a visible straight edge. The
+                 bottom corners stay sharp so the title bar's bottom
+                 hairline meets the body cleanly. -->
             <Border Grid.Row="0" Background="{StaticResource SurfaceCanvas}"
                     BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,0,0,1"
+                    CornerRadius="14,14,0,0"
                     MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
@@ -474,9 +485,16 @@
                 </Grid>
             </Grid>
 
-            <!-- Bottom action bar: 1px hairline top, single primary CTA -->
+            <!-- Bottom action bar: 1px hairline top, single primary CTA.
+                 CornerRadius rounds ONLY the bottom corners (0,0,14,14)
+                 for the same reason as the title bar — without this,
+                 the bottom bar's opaque SurfaceCanvas background would
+                 cover the outer Window.Template Border's rounded bottom
+                 corners. The top corners stay sharp so the bottom
+                 bar's top hairline meets the body cleanly. -->
             <Border Grid.Row="2" Background="{StaticResource SurfaceCanvas}"
                     BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,1,0,0"
+                    CornerRadius="0,0,14,14"
                     Padding="20,12">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button x:Name="BtnCopyAndClose" Style="{StaticResource LinearPrimaryCta}"

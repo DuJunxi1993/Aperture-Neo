@@ -320,18 +320,25 @@
          within the window's bounds (without being clipped by the window
          edge). With WindowStyle=None + AllowsTransparency=True, the OS
          draws no chrome and WPF owns the entire visual, so the shadow
-         renders against the desktop. The 1px BorderSolid outline makes
-         the rounded edge unambiguous against any background.
+         renders against the desktop.
 
-         CornerRadius uses RadiusPanel (12) to match the main
-         interface's floating panels and popovers (LinearWindow uses
-         the same value for the floating bar, info pill, etc.). -->
+         CornerRadius = 8 = RadiusCard. The main interface's
+         design-token radius scale is {4, 6, 8, 12} (Std, Comfy,
+         Card, Panel). Strict Linear style uses RadiusCard (8) for
+         card-like surfaces. The AboutWindow's 10 was a custom
+         compromise; we standardize on 8 to match the design tokens
+         the rest of the app uses.
+
+         BorderBrush = BorderStandard (1px hairline, 12% black)
+         matches the floating bar, info pill, and popover in the
+         main interface. The 1px hairline is the Linear "描边"
+         (stroke) — subtle, present, not loud. -->
     <Window.Template>
         <ControlTemplate TargetType="{x:Type Window}">
             <Grid Margin="16">
-                <Border CornerRadius="{StaticResource RadiusPanel}"
+                <Border CornerRadius="8"
                         Background="{StaticResource SurfaceCanvas}"
-                        BorderBrush="{StaticResource BorderSolid}"
+                        BorderBrush="{StaticResource BorderStandard}"
                         BorderThickness="1"
                         SnapsToDevicePixels="True">
                     <Border.Effect>
@@ -354,20 +361,20 @@
             </Grid.RowDefinitions>
 
             <!-- 44px title bar: app label + file name (left), close button (right).
-                 CornerRadius rounds ONLY the top corners (12,12,0,0) to
-                 match the outer Window.Template Border (RadiusPanel=12)
+                 CornerRadius rounds ONLY the top corners (8,8,0,0) to
+                 match the outer Window.Template Border (RadiusCard=8)
                  so the opaque SurfaceCanvas background doesn't cover
                  the outer rounded top corners. WPF's Border only clips
                  its own Background to CornerRadius; child elements
-                 (and nested Border backgrounds) are NOT clipped to the
-                 outer shape by default, so without this the title
-                 bar's rectangle would cover the rounded corner pixels
-                 and create a visible straight edge. The bottom corners
-                 stay sharp so the title bar's bottom hairline meets
-                 the body cleanly. -->
+                 (and nested Border backgrounds) are NOT clipped to
+                 the outer shape by default, so without this the
+                 title bar's rectangle would cover the rounded corner
+                 pixels and create a visible straight edge. The bottom
+                 corners stay sharp so the title bar's bottom hairline
+                 meets the body cleanly. -->
             <Border Grid.Row="0" Background="{StaticResource SurfaceCanvas}"
                     BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,0,0,1"
-                    CornerRadius="12,12,0,0"
+                    CornerRadius="8,8,0,0"
                     MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
@@ -491,11 +498,11 @@
             </Grid>
 
             <!-- Bottom action bar: 1px hairline top, two CTAs.
-                 CornerRadius rounds ONLY the bottom corners (0,0,12,12)
-                 to match the outer Window.Template Border (RadiusPanel=12)
-                 so the opaque SurfaceCanvas background doesn't cover the
-                 outer rounded bottom corners. The top corners stay sharp
-                 so the top hairline meets the body cleanly.
+                 CornerRadius rounds ONLY the bottom corners (0,0,8,8)
+                 to match the outer Window.Template Border (RadiusCard=8)
+                 so the opaque SurfaceCanvas background doesn't cover
+                 the outer rounded bottom corners. The top corners stay
+                 sharp so the top hairline meets the body cleanly.
 
                  Right padding (32) matches the body's right margin
                  (32) so the 复制并退出 button's right edge aligns with
@@ -503,7 +510,7 @@
                  below the button sit on the same vertical line. -->
             <Border Grid.Row="2" Background="{StaticResource SurfaceCanvas}"
                     BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,1,0,0"
-                    CornerRadius="0,0,12,12"
+                    CornerRadius="0,0,8,8"
                     Padding="20,12,32,12">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button x:Name="BtnCopy" Style="{StaticResource LinearGhostButton}"

@@ -314,31 +314,31 @@
         </Style>
     </Window.Resources>
 
-    <!-- Custom Window.Template: a shadow-hosting Border sits behind the
-         content with a 12px outer margin that gives the DropShadowEffect
-         room to render. The shadow-host Border has CornerRadius=10 so the
-         shadow follows the rounded-rectangle shape. With
-         WindowStyle=None + AllowsTransparency=True, the OS draws no chrome
-         and WPF owns the entire visual, so the shadow is reliably visible
-         against any background. -->
+    <!-- Custom Window.Template: a single content Border with rounded
+         corners, SurfaceCanvas background, and DropShadowEffect. The
+         16px outer margin gives the 24px-blur shadow room to render
+         within the window's bounds (without being clipped by the window
+         edge). With WindowStyle=None + AllowsTransparency=True, the OS
+         draws no chrome and WPF owns the entire visual, so the shadow
+         renders against the desktop. -->
     <Window.Template>
         <ControlTemplate TargetType="{x:Type Window}">
-            <Grid Margin="12">
-                <Border CornerRadius="10" IsHitTestVisible="False">
+            <Grid Margin="16">
+                <Border CornerRadius="10"
+                        Background="{StaticResource SurfaceCanvas}">
                     <Border.Effect>
                         <StaticResource ResourceKey="ShadowDialog"/>
                     </Border.Effect>
+                    <ContentPresenter/>
                 </Border>
-                <ContentPresenter/>
             </Grid>
         </ControlTemplate>
     </Window.Template>
 
-    <!-- Content body. The Grid carries the visible SurfaceCanvas background
-         so the window's interior is opaque (the outer 12px margin in the
-         Window.Template is the only transparent gutter, where the shadow
-         renders against the desktop). -->
-    <Grid Background="{StaticResource SurfaceCanvas}">
+    <!-- Content body. The Border.ClipToBounds (default True) clips our
+         3-row Grid to the rounded shape, restoring the rounded look that
+         the previous attempt lost. -->
+    <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="44"/>
                 <RowDefinition Height="*"/>

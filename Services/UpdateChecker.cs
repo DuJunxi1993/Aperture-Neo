@@ -40,6 +40,29 @@ public sealed class UpdateChecker
     public Version CurrentVersion =>
         Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0);
 
+    /// <summary>
+    /// Human-readable version string for display (e.g. "2.0.3" or
+    /// "2.0.3-debug"). Reads <see cref="AssemblyInformationalVersionAttribute"/>
+    /// which the SDK populates from &lt;Version&gt; (and appends a
+    /// "+&lt;git-hash&gt;" suffix in Debug). We strip the hash so the
+    /// About page shows the clean "2.0.3-debug" form. The integer
+    /// <see cref="CurrentVersion"/> is what the IsNewerThan
+    /// comparison actually uses — keeping these separate means a
+    /// "-debug" suffix never accidentally reads as "newer" or
+    /// "older" than a release.
+    /// </summary>
+    public string CurrentVersionDisplay
+    {
+        get
+        {
+            var info = Assembly.GetExecutingAssembly()
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+            var raw = info?.InformationalVersion ?? CurrentVersion.ToString(3);
+            var plus = raw.IndexOf('+');
+            return plus > 0 ? raw[..plus] : raw;
+        }
+    }
+
     private UpdateCheckResult? _cachedMainAppResult;
 
     /// <summary>

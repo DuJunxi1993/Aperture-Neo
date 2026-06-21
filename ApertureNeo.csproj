@@ -12,6 +12,26 @@
     <ApplicationIcon>Assets\apertureneo.ico</ApplicationIcon>
     <EnableDefaultPageItems>false</EnableDefaultPageItems>
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+    <!-- Versioning. The OCR plugin release (independent version) is
+         v1.0.0; the last main-app release on GitHub is v2.0.2, so
+         we bump to v2.0.3 — a patch above the released tag so the
+         update check correctly reports "已是最新版本" until a
+         future release. <Version> drives <InformationalVersion>
+         and <AssemblyVersion>; <FileVersion> feeds the EXE/Win32
+         version tab. publish.ps1 overrides all three via -p: flags
+         for the release build. -->
+    <Version>2.0.3</Version>
+    <AssemblyVersion>$(Version).0</AssemblyVersion>
+    <FileVersion>$(Version).0</FileVersion>
+  </PropertyGroup>
+  <!-- Debug builds: append "-debug" to InformationalVersion so
+       the About page can show "v2.0.3-debug 当前版本" and the
+       user can tell at a glance whether they're on a dev or
+       release build. Release builds keep the clean "2.0.3" (the
+       SDK falls back to <Version> when InformationalVersion is
+       not explicitly set). -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <InformationalVersion>$(Version)-debug</InformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>

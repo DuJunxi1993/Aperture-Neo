@@ -42,7 +42,7 @@ public partial class AboutWindow : FluentWindow
 
     private async void AboutWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        CurrentVersionText.Text = $"v{_checker.CurrentVersion.ToString(3)}  当前版本";
+        CurrentVersionText.Text = $"v{_checker.CurrentVersionDisplay}  当前版本";
         await CheckForUpdateAsync(forceRefresh: false);
     }
 

@@ -63,6 +63,13 @@ WelcomeLabel2=This will install [name/ver] on your computer.%n%nAperture Neo is 
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Shortcuts:"
 Name: "fileassoc"; Description: "Register as a supported image viewer (adds to 'Open With')"; GroupDescription: "File associations:"
 Name: "setdefault"; Description: "Set as the &default image viewer for all supported types"; GroupDescription: "File associations:"
+; Adds "OCR文字提取" to the right-click menu for every supported
+; extension. The verb invokes ApertureNeo.exe with the `ocr -g`
+; subcommand, which (for single files) reuses the existing
+; OcrResultWindow from Plugins.Ocr.Ui. The OCR feature depends
+; on the bundled PaddleOCR engine and ONNX models, so users who
+; don't want OCR can simply uncheck this option at install time.
+Name: "ocrverb"; Description: "Add 'OCR &文字提取' to the right-click menu"; GroupDescription: "Shell integration:"
 
 [Files]
 ; Self-contained publish output. The path is overridden at compile time via:
@@ -116,6 +123,39 @@ Root: HKCU; Subkey: "Software\Classes\.heic"; ValueType: string; ValueName: ""; 
 Root: HKCU; Subkey: "Software\Classes\.heif"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
 Root: HKCU; Subkey: "Software\Classes\.avif"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
 Root: HKCU; Subkey: "Software\Classes\.ico"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
+
+; OCR shell verb: adds "OCR文字提取" to the right-click menu for every
+; supported extension. The verb invokes the headless `ocr -g` CLI
+; subcommand (single-file GUI reuses OcrResultWindow). Multi-file
+; selection invokes the verb once per file (Windows shell verb
+; semantics) — each file gets its own OCR result window. If the
+; OCR plugin's ONNX models are missing, the verb's process exits
+; with an error message in the result window, which is harmless.
+; Gated behind the `ocrverb` task so users can opt out.
+Root: HKCU; Subkey: "Software\Classes\.jpg\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.jpg\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.jpeg\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.jpeg\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.png\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.png\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.bmp\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.bmp\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.gif\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.gif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.tiff\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.tiff\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.tif\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.tif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.webp\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.webp\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.heic\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.heic\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.heif\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.heif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.avif\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.avif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.ico\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.ico\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
 
 ; Per-user font registration under HKCU\Software\Microsoft\Windows NT\CurrentVersion\Fonts.
 ; Windows automatically loads any .ttf from %LOCALAPPDATA%\Microsoft\Windows\Fonts\
@@ -307,6 +347,9 @@ begin
         // Use RegDeleteValue-if-matches; Inno Setup only has RegDeleteValue.
         // The (default) value is removed via the uninsdeletevalue flag on the [Registry] entry.
       end;
+      // Clean OCR shell verb (per-extension \shell\ocr subkey).
+      // The uninsdeletekey flag handles the parent \shell\ocr key.
+      RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\' + Ext + '\shell\ocr');
     end;
     RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\{#ProgId}');
 

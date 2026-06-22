@@ -88,34 +88,34 @@ public partial class MainWindow : FluentWindow, IPluginContext
             }
         };
 
+        // ---- P1: wire up the 9 extracted UserControls ----
+        // The UserControls own their own click handlers for
+        // self-contained state changes (drag-to-move, Min/Max/Close,
+        // double-click maximize). For actions that need MainWindow
+        // services, the UserControls raise plain .NET events that
+        // we subscribe to here.
+        WireTitleBarEvents();
+        WireFloatingBarEvents();
+        WireInfoPillEvents();
+        WireImageViewerEvents();
+        WireTreePanelEvents();
+        WireThumbPanelEvents();
+
         _navigation.CollectionChanged += OnCollectionChanged;
         _navigation.CurrentImageChanged += OnCurrentImageChanged;
         _navigation.CurrentImageChanged += item => CurrentImageChanged?.Invoke(this, item?.FilePath);
         _slideshow.NextRequested += () => Dispatcher.Invoke(() => _navigation.MoveNext());
 
-        ImageViewer.ZoomChanged += zoom =>
-            Dispatcher.Invoke(() => ZoomTextBlock.Text = $"{zoom * 100:F0}%");
-        // StatusChanged events are no longer surfaced — the previous StatusPill
-        // UI was removed; LoadImage progress messages no longer reach the user.
-        // ImageLoaded fires after a successful load; copy authoritative
-        // dimensions onto the corresponding ImageItem so the info pill
-        // (and any other bound consumers) reflect the right values
-        // without us touching the file twice.
-        ImageViewer.ImageLoaded += result =>
+        ViewerPanel.ImageViewerRef.ZoomChanged += zoom =>
+            Dispatcher.Invoke(() => FloatingBar.ZoomTextBlockRef.Text = $"{zoom * 100:F0}%");
+        ViewerPanel.ImageViewerRef.ImageLoaded += result =>
         {
             var item = _navigation.Items.FirstOrDefault(i => i.FilePath == result.FilePath);
             if (item == null) return;
             item.SetDimensions(result.Width, result.Height);
-            // If this is the currently-displayed image, refresh the info
-            // pill right away — the lazy property probe and the authoritative
-            // decode can both leave the pill empty until we reformat it.
             if (ReferenceEquals(item, _navigation.Current))
                 UpdateCurrentImageInfo(item);
         };
-        // When the lazy header-probe on the current item finishes, ImageItem
-        // raises PropertyChanged on Width/Height — refresh the pill then so
-        // the text updates from "?" to the real value without waiting for
-        // the full decode.
         _navigation.CurrentImageChanged += item =>
         {
             if (item == null) return;
@@ -126,25 +126,17 @@ public partial class MainWindow : FluentWindow, IPluginContext
             };
         };
 
-        FolderTree.FolderSelected += OnFolderSelected;
-        FolderTree.DrillModeChanged += UpdateReturnToRootVisibility;
-        ThumbGrid.ItemClicked += OnThumbClicked;
+        TreePanelView.FolderTreeRef.FolderSelected += OnFolderSelected;
+        TreePanelView.FolderTreeRef.DrillModeChanged += UpdateReturnToRootVisibility;
+        ThumbPanelView.ThumbGridRef.ItemClicked += OnThumbClicked;
 
         _overlayHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.0) };
         _overlayHideTimer.Tick += (s, e) =>
         {
-            // Fullscreen only: fade the edge-nav buttons out after 3s of
-            // mouse inactivity. The TitleBar/FloatingBar/InfoPill are NOT
-            // re-shown by the timer — they stay collapsed the whole time
-            // the window is in fullscreen, and are restored synchronously
-            // on exit (see ExitFullscreenMode).
             if (_isFullscreen) HideEdgeNav();
             _overlayHideTimer?.Stop();
         };
 
-        // Fullscreen: the exit-hint pill shows on entry and hides itself
-        // after 3s (no longer tied to cursor position). Reset on every
-        // fullscreen entry; cancelled on exit.
         _exitHintHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.0) };
         _exitHintHideTimer.Tick += (s, e) =>
         {
@@ -167,14 +159,8 @@ public partial class MainWindow : FluentWindow, IPluginContext
             }), DispatcherPriority.Loaded);
         };
 
-        // Adorners auto-follow the window via the visual tree — no event handlers needed.
-
         Closed += (_, _) =>
         {
-            // Persist the currently displayed image so a theme switch
-            // (which closes+reopens the window) can restore position.
-            // We write directly to the static SettingsStore so it
-            // doesn't race with App.OnExit's save.
             var current = _navigation.Current;
             if (current != null)
                 App.SettingsStore.LastOpenedImage = current.FilePath;
@@ -191,6 +177,110 @@ public partial class MainWindow : FluentWindow, IPluginContext
 
         UpdateThemeMenuChecks();
     }
+
+    // ---- P1: UserControl event wiring ----
+    // The UserControls are passive — they raise events; this
+    // window routes them to the existing controller methods
+    // (which are still partial classes of MainWindow).
+
+    private void WireTitleBarEvents()
+    {
+        TitleBar.OpenRequested += (_, _) => BtnOpen_Click(this, new RoutedEventArgs());
+        TitleBar.ToggleTreeRequested += (_, _) => BtnToggleTree_Click(this, new RoutedEventArgs());
+        TitleBar.ToggleThumbRequested += (_, _) => BtnToggleThumb_Click(this, new RoutedEventArgs());
+        TitleBar.MenuRequested += (_, _) => BtnMenu_Click(this, new RoutedEventArgs());
+        TitleBar.ClearCacheRequested += (_, _) => BtnClearCache_Click(this, new RoutedEventArgs());
+        TitleBar.ClearRecentRequested += (_, _) => BtnClearRecent_Click(this, new RoutedEventArgs());
+        TitleBar.AboutRequested += (_, _) => About_Click(this, new RoutedEventArgs());
+    }
+
+    private void WireFloatingBarEvents()
+    {
+        FloatingBar.PrevClicked += (_, _) => BtnPrev_Click(this, new RoutedEventArgs());
+        FloatingBar.NextClicked += (_, _) => BtnNext_Click(this, new RoutedEventArgs());
+        FloatingBar.FitClicked += (_, _) => BtnFit_Click(this, new RoutedEventArgs());
+        FloatingBar.SlideshowClicked += (_, _) => BtnSlideshow_Click(this, new RoutedEventArgs());
+        FloatingBar.FullscreenClicked += (_, _) => BtnFullscreen_Click(this, new RoutedEventArgs());
+        // ZoomTextBlock_Click (in FullscreenController) just calls
+        // ImageViewer.ZoomToOriginal; route directly.
+        FloatingBar.ZoomTextClicked += (_, _) => ViewerPanel.ImageViewerRef.ZoomToOriginal();
+    }
+
+    private void WireInfoPillEvents()
+    {
+        // InfoPillContent_MouseLeftButtonUp (in InfoPopoverController)
+        // reads the current item and toggles the popover. We can
+        // call the same code path directly: read the current
+        // image, populate the popover, open it.
+        InfoPill.TogglePopoverRequested += (_, _) =>
+        {
+            if (InfoPopover.IsOpen)
+            {
+                InfoPopover.IsOpen = false;
+                return;
+            }
+            var item = _navigation.Current;
+            if (item == null) return;
+            PopulateInfoPopover(item);
+            InfoPopover.StaysOpen = true;
+            InfoPopover.HorizontalOffset = 0;
+            InfoPopover.IsOpen = true;
+            Dispatcher.BeginInvoke(new Action(AlignPopoverToPillRight), DispatcherPriority.Loaded);
+        };
+    }
+
+    private void WireImageViewerEvents()
+    {
+        ViewerPanel.CopyPathRequested += (_, _) => CtxCopyPath_Click(this, new RoutedEventArgs());
+        ViewerPanel.OpenInExplorerRequested += (_, _) => CtxOpenInExplorer_Click(this, new RoutedEventArgs());
+        ViewerPanel.PrintRequested += (_, _) => CtxPrint_Click(this, new RoutedEventArgs());
+        ViewerPanel.SetWallpaperRequested += (_, _) => CtxSetWallpaper_Click(this, new RoutedEventArgs());
+        ViewerPanel.ViewerPreviewMouseLeftButtonDown += (_, e) => Viewer_PreviewMouseLeftButtonDown(this, e);
+    }
+
+    private void WireTreePanelEvents()
+    {
+        TreePanelView.BackRequested += (_, _) => BtnTreeBack_Click(this, new RoutedEventArgs());
+        TreePanelView.ReturnToRootRequested += (_, _) => BtnReturnToRoot_Click(this, new RoutedEventArgs());
+    }
+
+    private void WireThumbPanelEvents()
+    {
+        ThumbPanelView.ThumbGridReady += (_, _) => ThumbGrid_Loaded(ThumbPanelView.ThumbGridRef, new RoutedEventArgs());
+    }
+
+    // Convenience properties for the controllers (which still
+    // reach into XAML elements). These forward to the
+    // UserControl property accessors so the controllers can
+    // stay self-contained (they don't need to know about the
+    // UserControl wrapper layer).
+
+    private System.Windows.Controls.Button BtnOpen => TitleBar.BtnOpenRef;
+    private System.Windows.Controls.Button BtnToggleTree => TitleBar.BtnToggleTreeRef;
+    private System.Windows.Controls.Button BtnToggleThumb => TitleBar.BtnToggleThumbRef;
+    private System.Windows.Controls.MenuItem MenuPlugins => TitleBar.MenuPluginsRef;
+    private System.Windows.Controls.MenuItem MenuAbout => TitleBar.MenuAboutRef;
+    private System.Windows.Controls.TextBlock AboutUpdateSuffix => TitleBar.AboutUpdateSuffixRef;
+    private Wpf.Ui.Controls.SymbolIcon MaximizeIcon => TitleBar.MaximizeIconRef;
+    private Wpf.Ui.Controls.SymbolIcon SlideshowIcon => FloatingBar.SlideshowIconRef;
+    private System.Windows.Controls.Border TitleBarArea => TitleBar.TitleBarAreaRef;
+    private System.Windows.Controls.Border FloatingBarContent => FloatingBar.FloatingBarContentRef;
+    private System.Windows.Controls.Border InfoPillContent => InfoPill.InfoPillContentRef;
+    private System.Windows.Controls.Border InfoPillDot => InfoPill.InfoPillDotRef;
+    private System.Windows.Controls.TextBlock ImageInfo => InfoPill.ImageInfoRef;
+    private System.Windows.Controls.TextBlock ImageIndexInfo => FloatingBar.ImageIndexInfoRef;
+    private System.Windows.Controls.TextBlock ZoomTextBlock => FloatingBar.ZoomTextBlockRef;
+    private System.Windows.Controls.Border EdgeNavLeftContent => EdgeNavLeft.EdgeNavBorderRef;
+    private System.Windows.Controls.Border EdgeNavRightContent => EdgeNavRight.EdgeNavBorderRef;
+    private System.Windows.Controls.Border ExitFullscreenHint => ExitFullscreenHintView.HintBorderRef;
+    private System.Windows.Media.TranslateTransform ExitFullscreenTransform => ExitFullscreenHintView.TransformRef;
+    private System.Windows.Controls.Grid ViewerColumn => ViewerPanel.ViewerColumnRef;
+    private ApertureNeo.Controls.SkiaImageViewer ImageViewer => ViewerPanel.ImageViewerRef;
+    private ApertureNeo.Controls.FolderTree.FolderTreeView FolderTree => TreePanelView.FolderTreeRef;
+    private System.Windows.Controls.Button BtnTreeBack => TreePanelView.BtnTreeBackRef;
+    private System.Windows.Controls.Button BtnReturnToRoot => TreePanelView.BtnReturnToRootRef;
+    private ApertureNeo.Controls.ThumbnailGrid ThumbGrid => ThumbPanelView.ThumbGridRef;
+    private System.Windows.Controls.StackPanel ThumbEmpty => ThumbPanelView.ThumbEmptyRef;
 
     public MainWindow(string filePath) : this()
     {
@@ -238,30 +328,33 @@ public partial class MainWindow : FluentWindow, IPluginContext
 
     public void RegisterContextMenuItem(System.Windows.Controls.MenuItem item)
     {
-        if (ImageViewer?.ContextMenu == null) return;
-        var insertBefore = ImageViewer.ContextMenu.Items.OfType<Separator>().LastOrDefault();
+        var viewer = ViewerPanel?.ImageViewerRef;
+        if (viewer?.ContextMenu == null) return;
+        var insertBefore = viewer.ContextMenu.Items.OfType<Separator>().LastOrDefault();
         if (insertBefore != null)
-            ImageViewer.ContextMenu.Items.Insert(ImageViewer.ContextMenu.Items.IndexOf(insertBefore), item);
+            viewer.ContextMenu.Items.Insert(viewer.ContextMenu.Items.IndexOf(insertBefore), item);
         else
-            ImageViewer.ContextMenu.Items.Add(item);
+            viewer.ContextMenu.Items.Add(item);
     }
 
     public void UnregisterPluginMenuItems(object pluginTag)
     {
-        if (MenuPlugins != null)
+        var menuPlugins = TitleBar?.MenuPluginsRef;
+        if (menuPlugins != null)
         {
-            for (int i = MenuPlugins.Items.Count - 1; i >= 0; i--)
+            for (int i = menuPlugins.Items.Count - 1; i >= 0; i--)
             {
-                if (MenuPlugins.Items[i] is System.Windows.Controls.MenuItem mi && Equals(mi.Tag, pluginTag))
-                    MenuPlugins.Items.RemoveAt(i);
+                if (menuPlugins.Items[i] is System.Windows.Controls.MenuItem mi && Equals(mi.Tag, pluginTag))
+                    menuPlugins.Items.RemoveAt(i);
             }
         }
-        if (ImageViewer?.ContextMenu != null)
+        var viewer = ViewerPanel?.ImageViewerRef;
+        if (viewer?.ContextMenu != null)
         {
-            for (int i = ImageViewer.ContextMenu.Items.Count - 1; i >= 0; i--)
+            for (int i = viewer.ContextMenu.Items.Count - 1; i >= 0; i--)
             {
-                if (ImageViewer.ContextMenu.Items[i] is System.Windows.Controls.MenuItem mi && Equals(mi.Tag, pluginTag))
-                    ImageViewer.ContextMenu.Items.RemoveAt(i);
+                if (viewer.ContextMenu.Items[i] is System.Windows.Controls.MenuItem mi && Equals(mi.Tag, pluginTag))
+                    viewer.ContextMenu.Items.RemoveAt(i);
             }
         }
     }

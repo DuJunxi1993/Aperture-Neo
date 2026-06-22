@@ -1,0 +1,68 @@
+<UserControl x:Class="ApertureNeo.Views.InfoPopoverView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             mc:Ignorable="d"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DesignHeight="200" d:DesignWidth="280">
+    <Border Background="{StaticResource SurfaceElevated}"
+            BorderBrush="{StaticResource BorderStandard}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource RadiusPanel}"
+            Padding="14,12"
+            MinWidth="240" MaxWidth="320">
+        <StackPanel>
+            <!-- Section 1: File name -->
+            <TextBlock Text="文件" Style="{StaticResource LinearPopoverEyebrow}"/>
+            <TextBlock x:Name="PopoverFileName" Text="—"
+                       Style="{StaticResource LinearPopoverValue}"/>
+
+            <Border Style="{StaticResource LinearPopoverDivider}"/>
+
+            <!-- Section 2: Size + dimensions -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="大小" Style="{StaticResource LinearPopoverEyebrow}"/>
+                    <TextBlock x:Name="PopoverSize" Text="—"
+                               Style="{StaticResource LinearPopoverMono}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                    <TextBlock Text="尺寸" Style="{StaticResource LinearPopoverEyebrow}"/>
+                    <TextBlock x:Name="PopoverDimensions" Text="—"
+                               Style="{StaticResource LinearPopoverMono}"/>
+                </StackPanel>
+            </Grid>
+
+            <Border Style="{StaticResource LinearPopoverDivider}"/>
+
+            <!-- Section 3: EXIF -->
+            <StackPanel>
+                <TextBlock Text="EXIF" Style="{StaticResource LinearPopoverEyebrow}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="相机" Style="{StaticResource LinearPopoverKey}"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="PopoverExifMake" Text="—"
+                               Style="{StaticResource LinearPopoverRight}"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="镜头" Style="{StaticResource LinearPopoverKey}"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="PopoverExifModel" Text="—"
+                               Style="{StaticResource LinearPopoverRight}"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="拍摄" Style="{StaticResource LinearPopoverKey}"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="PopoverExifDate" Text="—"
+                               Style="{StaticResource LinearPopoverRight}"/>
+                </Grid>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

@@ -259,18 +259,22 @@ public partial class MainWindow
     /// </summary>
     private void PopulateInfoPopover(ImageItem item)
     {
+        // The popover body lives in InfoPopoverView (extracted in P1);
+        // route the field assignments through its property accessors.
+        var body = InfoPopoverBody;
+
         // Section 1: file name (single line, ellipsized at the right)
-        PopoverFileName.Text = string.IsNullOrEmpty(item.FileName) ? "—" : item.FileName;
+        body.PopoverFileNameRef.Text = string.IsNullOrEmpty(item.FileName) ? "—" : item.FileName;
 
         // Section 2: size + dimensions
-        PopoverSize.Text = ImageFormatHelper.FormatFileSize(item.FileSize);
+        body.PopoverSizeRef.Text = ImageFormatHelper.FormatFileSize(item.FileSize);
         if (item.Width.HasValue && item.Height.HasValue)
         {
-            PopoverDimensions.Text = $"{item.Width} × {item.Height}";
+            body.PopoverDimensionsRef.Text = $"{item.Width} × {item.Height}";
         }
         else
         {
-            PopoverDimensions.Text = "—";
+            body.PopoverDimensionsRef.Text = "—";
         }
 
         // Section 3: EXIF (Make/Model/DateTaken)
@@ -284,16 +288,18 @@ public partial class MainWindow
             var make = item.GetExifValue("/app1/ifd/{ushort=271}");
             var model = item.GetExifValue("/app1/ifd/{ushort=272}");
             var dateTaken = item.GetExifValue("/app1/ifd/{ushort=306}");
-            PopoverExifMake.Text = string.IsNullOrEmpty(make) ? "—" : make;
-            PopoverExifModel.Text = string.IsNullOrEmpty(model) ? "—" : model;
+            body.PopoverExifMakeRef.Text = string.IsNullOrEmpty(make) ? "—" : make;
+            body.PopoverExifModelRef.Text = string.IsNullOrEmpty(model) ? "—" : model;
             // EXIF DateTime is the raw "YYYY:MM:DD HH:MM:SS" form.
             // We display it as-is — anything more elaborate would
             // require parsing the string, which doesn't add much.
-            PopoverExifDate.Text = string.IsNullOrEmpty(dateTaken) ? "—" : dateTaken;
+            body.PopoverExifDateRef.Text = string.IsNullOrEmpty(dateTaken) ? "—" : dateTaken;
         }
         else
         {
-            PopoverExifMake.Text = PopoverExifModel.Text = PopoverExifDate.Text = "—";
+            body.PopoverExifMakeRef.Text =
+                body.PopoverExifModelRef.Text =
+                    body.PopoverExifDateRef.Text = "—";
         }
     }
 

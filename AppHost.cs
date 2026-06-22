@@ -75,6 +75,11 @@ public static class AppHost
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<IImageLoader, ImageLoader>();
 
+        // Cross-VM shared state (current image, fullscreen flag,
+        // etc.). Singleton because all VMs observe the same
+        // instance; one VM writes, others react.
+        services.AddSingleton<IUiState, UiState>();
+
         // Plugin-side services (P4) hook in here. The optional
         // configure delegate is used by tests and by the future
         // IPluginModule registration path.

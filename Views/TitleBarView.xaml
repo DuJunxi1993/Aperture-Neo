@@ -16,9 +16,11 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Left: open + sidebar toggles -->
+            <!-- Left: open + sidebar toggles. Open + toggles are
+                 bound to TitleBarViewModel commands (P2); the
+                 click handler attributes are gone. -->
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0">
-                <Button x:Name="BtnOpen" Style="{StaticResource LinearPrimaryButton}" Click="BtnOpen_Click"
+                <Button Style="{StaticResource LinearPrimaryButton}" Command="{Binding OpenCommand}"
                         Margin="0,0,2,0">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <ui:SymbolIcon Symbol="FolderOpen24" FontSize="12"/>
@@ -26,11 +28,11 @@
                                    VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button x:Name="BtnToggleTree" Style="{StaticResource LinearWindowButton}" Click="BtnToggleTree_Click"
+                <Button x:Name="BtnToggleTree" Style="{StaticResource LinearWindowButton}" Command="{Binding ToggleTreeColumnCommand}"
                         Margin="2,0,0,0">
                     <ui:SymbolIcon Symbol="NavigationLocationTarget20" FontSize="16"/>
                 </Button>
-                <Button x:Name="BtnToggleThumb" Style="{StaticResource LinearWindowButton}" Click="BtnToggleThumb_Click"
+                <Button x:Name="BtnToggleThumb" Style="{StaticResource LinearWindowButton}" Command="{Binding ToggleThumbColumnCommand}"
                         Margin="2,0,0,0">
                     <ui:SymbolIcon Symbol="Grid20" FontSize="16"/>
                 </Button>
@@ -42,7 +44,11 @@
                        Foreground="{StaticResource TextSecondary}" FontSize="15" FontWeight="700"
                        IsHitTestVisible="False"/>
 
-            <!-- Right: overflow menu + window controls -->
+            <!-- Right: overflow menu + window controls. Menu items
+                 are bound to TitleBarViewModel commands. Window
+                 controls (Min/Max/Close) stay in the view's
+                 code-behind because they touch the parent
+                 Window's HWND state directly. -->
             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,4,0">
                 <Button x:Name="BtnMenu" Style="{StaticResource LinearWindowButton}" Click="BtnMenu_Click"
                         Margin="0,0,2,0">
@@ -50,20 +56,30 @@
                     <Button.ContextMenu>
                         <ContextMenu>
                             <MenuItem Header="清除缓存" Tag="destructive">
-                                <MenuItem Header="缩略图缓存" Click="BtnClearCache_Click"/>
-                                <MenuItem Header="最近访问记录" Click="BtnClearRecent_Click"/>
+                                <MenuItem Header="缩略图缓存" Command="{Binding ClearThumbnailCacheCommand}"/>
+                                <MenuItem Header="最近访问记录" Command="{Binding ClearRecentCommand}"/>
                             </MenuItem>
                             <Separator/>
                             <MenuItem Header="插件" x:Name="MenuPlugins"/>
                             <Separator/>
-                            <MenuItem x:Name="MenuAbout" Click="About_Click">
+                            <MenuItem x:Name="MenuAbout" Command="{Binding OpenAboutCommand}">
                                 <MenuItem.Header>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="关于" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="AboutUpdateSuffix" Text=""
+                                        <TextBlock x:Name="AboutUpdateSuffix" Text="（有版本更新）"
                                                    Margin="8,0,0,0" FontSize="11" FontWeight="700"
-                                                   Foreground="#FF16a34a" VerticalAlignment="Center"
-                                                   Visibility="Collapsed"/>
+                                                   Foreground="#FF16a34a" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsUpdateAvailable}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                     </StackPanel>
                                 </MenuItem.Header>
                             </MenuItem>

@@ -1,7 +1,8 @@
-using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using ApertureNeo.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ApertureNeo.Views;
 
@@ -9,33 +10,37 @@ namespace ApertureNeo.Views;
 /// 44px title bar extracted from MainWindow.xaml. Owns its own
 /// drag-to-move, double-click-to-maximize, and window-control
 /// buttons (min/max/close) — all of which are self-contained
-/// state changes that don't need to leave the title bar.
+/// state changes that don't leave the title bar.
 ///
-/// Cross-component actions (open folder, toggle column, clear
-/// cache, about) are raised as events for the host window to
-/// subscribe to. This keeps the title bar reusable in a future
-/// shell view without coupling it to the main viewer's services.
+/// P2 migration: the View now binds to
+/// <see cref="TitleBarViewModel"/> via DataContext (set in the
+/// ctor from the DI container). Open / toggle-tree / toggle-thumb
+/// / clear-cache / clear-recent / about are all commands on the
+/// VM; the View's XAML uses <c>Command="{Binding XxxCommand}"</c>
+/// and no longer has Click handler attributes for those buttons.
+/// Window-state changes (Min/Max/Close, drag-to-move) stay in
+/// the View because they touch the parent Window's HWND state.
 ///
-/// Migration note (P1): the public properties below (BtnOpen,
-/// MenuPlugins, etc.) replace the named-XAML-element access that
-/// MainWindow used to do directly. The existing partial-class
-/// controllers in MainWindow now access these via the
-/// <c>TitleBar.BtnXxx</c> pattern. The next refactor (P2 VMs)
-/// will replace direct property access with command bindings.
+/// The View also still exposes a few element references
+/// (<see cref="MaximizeIconRef"/>, <see cref="MenuPluginsRef"/>,
+/// etc.) for the host MainWindow's IPluginContext + update-suffix
+/// event hookups — those are pure UI plumbing, not business
+/// logic, and stay in the view layer per MVVM.
 /// </summary>
 public partial class TitleBarView : UserControl
 {
     public TitleBarView()
     {
         InitializeComponent();
+        // DI lookup. WPF instantiates this control via the
+        // parameterless ctor; the VM is per-window (Transient),
+        // and the host MainWindow's window-state commands reach
+        // the VM via the standard ICommand pattern.
+        DataContext = AppHost.Services?.GetService<TitleBarViewModel>();
     }
 
-    // Public properties for MainWindow access
-    public System.Windows.Controls.Border TitleBarAreaRef => TitleBarArea;
-    public System.Windows.Controls.Button BtnOpenRef => BtnOpen;
-    public System.Windows.Controls.Button BtnToggleTreeRef => BtnToggleTree;
-    public System.Windows.Controls.Button BtnToggleThumbRef => BtnToggleThumb;
-    public System.Windows.Controls.Button BtnMenuRef => BtnMenu;
+    public Border TitleBarAreaRef => TitleBarArea;
+    public System.Windows.Controls.Button BtnOpenRef => null; // BtnOpen was removed in P2 (command-bound).
     public System.Windows.Controls.Button BtnMinimizeRef => BtnMinimize;
     public System.Windows.Controls.Button BtnMaximizeRef => BtnMaximize;
     public System.Windows.Controls.Button BtnCloseRef => BtnClose;
@@ -45,6 +50,10 @@ public partial class TitleBarView : UserControl
     public System.Windows.Controls.TextBlock AboutUpdateSuffixRef => AboutUpdateSuffix;
 
     // ---- Self-contained: title bar drag + window controls ----
+    // These touch the parent Window's HWND state, not the VM.
+    // The window commands are deliberately NOT on the VM because
+    // they require a Window reference (the drag-move) that isn't
+    // safe to inject as a service.
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -102,42 +111,17 @@ public partial class TitleBarView : UserControl
         }
     }
 
-    // ---- Cross-component events (host window subscribes) ----
-
-    /// <summary>Raised when the user clicks the 打开 button.</summary>
-    public event EventHandler? OpenRequested;
-
-    /// <summary>Raised when the user clicks the toggle-tree button.</summary>
-    public event EventHandler? ToggleTreeRequested;
-
-    /// <summary>Raised when the user clicks the toggle-thumb button.</summary>
-    public event EventHandler? ToggleThumbRequested;
-
-    /// <summary>Raised when the user clicks the overflow menu button
-    /// (host repositions the ContextMenu relative to the button).</summary>
-    public event EventHandler? MenuRequested;
-
-    /// <summary>Raised when the user chooses 缩略图缓存 from the menu.</summary>
-    public event EventHandler? ClearCacheRequested;
-
-    /// <summary>Raised when the user chooses 最近访问记录 from the menu.</summary>
-    public event EventHandler? ClearRecentRequested;
-
-    /// <summary>Raised when the user clicks the 关于 menu item.</summary>
-    public event EventHandler? AboutRequested;
-
-    private void BtnOpen_Click(object sender, RoutedEventArgs e) => OpenRequested?.Invoke(this, EventArgs.Empty);
-    private void BtnToggleTree_Click(object sender, RoutedEventArgs e) => ToggleTreeRequested?.Invoke(this, EventArgs.Empty);
-    private void BtnToggleThumb_Click(object sender, RoutedEventArgs e) => ToggleThumbRequested?.Invoke(this, EventArgs.Empty);
-    // BtnMenu is special: the host (MainWindow) needs the actual
-    // Button reference to set PlacementTarget + open the ContextMenu.
-    // Other events pass `this` because their handlers only need a
-    // signal, not the source control — but the BtnMenu_Click handler
-    // in ChromeController does `sender is Button b` to access the
-    // button's ContextMenu. We pass the button itself as the event
-    // sender so the cast succeeds and the menu opens.
-    private void BtnMenu_Click(object sender, RoutedEventArgs e) => MenuRequested?.Invoke(BtnMenu, EventArgs.Empty);
-    private void BtnClearCache_Click(object sender, RoutedEventArgs e) => ClearCacheRequested?.Invoke(this, EventArgs.Empty);
-    private void BtnClearRecent_Click(object sender, RoutedEventArgs e) => ClearRecentRequested?.Invoke(this, EventArgs.Empty);
-    private void About_Click(object sender, RoutedEventArgs e) => AboutRequested?.Invoke(this, EventArgs.Empty);
+    // BtnMenu is special: the BtnMenu's ContextMenu is defined in
+    // XAML and its menu items bind to VM commands. BtnMenu itself
+    // doesn't have a command — clicking it opens the ContextMenu
+    // (anchored below the button) via this click handler. Pure UI.
+    private void BtnMenu_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button b && b.ContextMenu != null)
+        {
+            b.ContextMenu.PlacementTarget = b;
+            b.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            b.ContextMenu.IsOpen = true;
+        }
+    }
 }

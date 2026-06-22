@@ -13,6 +13,7 @@ using ApertureNeo.Controls.FolderTree;
 using ApertureNeo.Helpers;
 using ApertureNeo.Models;
 using ApertureNeo.Services;
+using ApertureNeo.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui.Controls;
 
@@ -89,17 +90,57 @@ public partial class MainWindow : FluentWindow, IPluginContext
         };
 
         // ---- P1: wire up the 9 extracted UserControls ----
-        // The UserControls own their own click handlers for
-        // self-contained state changes (drag-to-move, Min/Max/Close,
-        // double-click maximize). For actions that need MainWindow
-        // services, the UserControls raise plain .NET events that
-        // we subscribe to here.
-        WireTitleBarEvents();
+        // P2: TitleBarView's events are gone (replaced by VM
+        // commands + IUiState). FloatingBar / InfoPill / etc.
+        // still raise events for the controllers (which will be
+        // replaced by VMs in subsequent P2 commits).
         WireFloatingBarEvents();
         WireInfoPillEvents();
         WireImageViewerEvents();
         WireTreePanelEvents();
         WireThumbPanelEvents();
+
+        // P2: subscribe to IUiState for cross-VM shared state.
+        // The column-visibility toggles (tree / thumb) mutate
+        // IUiState.IsXxxVisible; MainWindow observes the change
+        // and applies the column-width update. The other
+        // IUiState flags (IsFullscreen, CurrentImage, etc.) will
+        // be observed by other VMs in subsequent commits.
+        var uiState = AppHost.Services!.GetRequiredService<IUiState>();
+        uiState.PropertyChanged += (_, e) =>
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(IUiState.IsTreeVisible):
+                case nameof(IUiState.IsThumbVisible):
+                    _isTreeVisible = uiState.IsTreeVisible;
+                    _isThumbVisible = uiState.IsThumbVisible;
+                    ApplyColumnVisibility();
+                    break;
+            }
+        };
+        // Keep the local fields in sync with the initial state
+        // (so a P2-toggle before any controller runs still works).
+        _isTreeVisible = uiState.IsTreeVisible;
+        _isThumbVisible = uiState.IsThumbVisible;
+
+        // P2: subscribe to TitleBarViewModel.OpenAboutRequested
+        // (raised by the OpenAboutCommand). MainWindow owns the
+        // About window's lifetime + the update-suffix feedback.
+        if (TitleBar.DataContext is TitleBarViewModel titleVm)
+        {
+            titleVm.OpenAboutRequested += (_, _) => OpenAboutWindow();
+            titleVm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(TitleBarViewModel.IsUpdateAvailable))
+                {
+                    // Sync back into IUiState so other VMs (e.g.
+                    // a future AboutViewModel) can observe the
+                    // same flag.
+                    uiState.IsUpdateAvailable = titleVm.IsUpdateAvailable;
+                }
+            };
+        }
 
         _navigation.CollectionChanged += OnCollectionChanged;
         _navigation.CurrentImageChanged += OnCurrentImageChanged;
@@ -179,23 +220,23 @@ public partial class MainWindow : FluentWindow, IPluginContext
     }
 
     // ---- P1: UserControl event wiring ----
-    // The UserControls are passive — they raise events; this
-    // window routes them to the existing controller methods
-    // (which are still partial classes of MainWindow).
+    // P2: TitleBarView's events are gone (replaced by VM commands
+    // + IUiState). The other UserControls still raise events for
+    // the controllers (which will be replaced by VMs in
+    // subsequent P2 commits).
 
-    private void WireTitleBarEvents()
+    private void OpenAboutWindow()
     {
-        TitleBar.OpenRequested += (_, _) => BtnOpen_Click(this, new RoutedEventArgs());
-        TitleBar.ToggleTreeRequested += (_, _) => BtnToggleTree_Click(this, new RoutedEventArgs());
-        TitleBar.ToggleThumbRequested += (_, _) => BtnToggleThumb_Click(this, new RoutedEventArgs());
-        // BtnMenu needs the Button as sender so the existing handler
-        // (which does `sender is Button b` to reach the ContextMenu)
-        // still works. TitleBarView.BtnMenu_Click raises the event
-        // with BtnMenu as sender specifically for this reason.
-        TitleBar.MenuRequested += (sender, _) => BtnMenu_Click(sender, new RoutedEventArgs());
-        TitleBar.ClearCacheRequested += (_, _) => BtnClearCache_Click(this, new RoutedEventArgs());
-        TitleBar.ClearRecentRequested += (_, _) => BtnClearRecent_Click(this, new RoutedEventArgs());
-        TitleBar.AboutRequested += (_, _) => About_Click(this, new RoutedEventArgs());
+        var win = new AboutWindow(this);
+        // P2: drive IUiState.IsUpdateAvailable from the About
+        // window's update check. The TitleBarViewModel observes
+        // IUiState.PropertyChanged and mirrors it to its own
+        // IsUpdateAvailable flag (which the menu suffix binds
+        // to). The old ChromeController.OnAboutUpdateAvailableChanged
+        // is left in place for now but is no longer wired.
+        var uiState = AppHost.Services!.GetRequiredService<IUiState>();
+        win.UpdateAvailableChanged += (_, available) => uiState.IsUpdateAvailable = available;
+        win.ShowDialog();
     }
 
     private void WireFloatingBarEvents()
@@ -259,9 +300,9 @@ public partial class MainWindow : FluentWindow, IPluginContext
     // stay self-contained (they don't need to know about the
     // UserControl wrapper layer).
 
-    private System.Windows.Controls.Button BtnOpen => TitleBar.BtnOpenRef;
-    private System.Windows.Controls.Button BtnToggleTree => TitleBar.BtnToggleTreeRef;
-    private System.Windows.Controls.Button BtnToggleThumb => TitleBar.BtnToggleThumbRef;
+    private System.Windows.Controls.Button BtnOpen => null;  // P2: command-bound; kept null for the legacy ChromeController BtnOpen_Click (still routed via P1)
+    private System.Windows.Controls.Button BtnToggleTree => null;  // P2: TitleBar.ToggleTreeColumnCommand drives IUiState.IsTreeVisible
+    private System.Windows.Controls.Button BtnToggleThumb => null;  // P2: same pattern
     private System.Windows.Controls.MenuItem MenuPlugins => TitleBar.MenuPluginsRef;
     private System.Windows.Controls.MenuItem MenuAbout => TitleBar.MenuAboutRef;
     private System.Windows.Controls.TextBlock AboutUpdateSuffix => TitleBar.AboutUpdateSuffixRef;

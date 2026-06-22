@@ -129,7 +129,14 @@ public partial class TitleBarView : UserControl
     private void BtnOpen_Click(object sender, RoutedEventArgs e) => OpenRequested?.Invoke(this, EventArgs.Empty);
     private void BtnToggleTree_Click(object sender, RoutedEventArgs e) => ToggleTreeRequested?.Invoke(this, EventArgs.Empty);
     private void BtnToggleThumb_Click(object sender, RoutedEventArgs e) => ToggleThumbRequested?.Invoke(this, EventArgs.Empty);
-    private void BtnMenu_Click(object sender, RoutedEventArgs e) => MenuRequested?.Invoke(this, EventArgs.Empty);
+    // BtnMenu is special: the host (MainWindow) needs the actual
+    // Button reference to set PlacementTarget + open the ContextMenu.
+    // Other events pass `this` because their handlers only need a
+    // signal, not the source control — but the BtnMenu_Click handler
+    // in ChromeController does `sender is Button b` to access the
+    // button's ContextMenu. We pass the button itself as the event
+    // sender so the cast succeeds and the menu opens.
+    private void BtnMenu_Click(object sender, RoutedEventArgs e) => MenuRequested?.Invoke(BtnMenu, EventArgs.Empty);
     private void BtnClearCache_Click(object sender, RoutedEventArgs e) => ClearCacheRequested?.Invoke(this, EventArgs.Empty);
     private void BtnClearRecent_Click(object sender, RoutedEventArgs e) => ClearRecentRequested?.Invoke(this, EventArgs.Empty);
     private void About_Click(object sender, RoutedEventArgs e) => AboutRequested?.Invoke(this, EventArgs.Empty);

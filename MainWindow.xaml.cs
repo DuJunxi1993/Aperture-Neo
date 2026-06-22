@@ -188,7 +188,11 @@ public partial class MainWindow : FluentWindow, IPluginContext
         TitleBar.OpenRequested += (_, _) => BtnOpen_Click(this, new RoutedEventArgs());
         TitleBar.ToggleTreeRequested += (_, _) => BtnToggleTree_Click(this, new RoutedEventArgs());
         TitleBar.ToggleThumbRequested += (_, _) => BtnToggleThumb_Click(this, new RoutedEventArgs());
-        TitleBar.MenuRequested += (_, _) => BtnMenu_Click(this, new RoutedEventArgs());
+        // BtnMenu needs the Button as sender so the existing handler
+        // (which does `sender is Button b` to reach the ContextMenu)
+        // still works. TitleBarView.BtnMenu_Click raises the event
+        // with BtnMenu as sender specifically for this reason.
+        TitleBar.MenuRequested += (sender, _) => BtnMenu_Click(sender, new RoutedEventArgs());
         TitleBar.ClearCacheRequested += (_, _) => BtnClearCache_Click(this, new RoutedEventArgs());
         TitleBar.ClearRecentRequested += (_, _) => BtnClearRecent_Click(this, new RoutedEventArgs());
         TitleBar.AboutRequested += (_, _) => About_Click(this, new RoutedEventArgs());

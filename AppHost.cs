@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using ApertureNeo.Services;
+using ApertureNeo.ViewModels;
 
 namespace ApertureNeo;
 
@@ -79,6 +80,17 @@ public static class AppHost
         // etc.). Singleton because all VMs observe the same
         // instance; one VM writes, others react.
         services.AddSingleton<IUiState, UiState>();
+
+        // ViewModels. P2: per-window scope (Transient). Each new
+        // MainWindow gets a fresh set of VMs; services stay
+        // singletons so VMs are cheap to construct.
+        services.AddTransient<TitleBarViewModel>();
+        services.AddTransient<FloatingBarViewModel>();
+        services.AddTransient<ImageViewerPanelViewModel>();
+        services.AddTransient<InfoPillViewModel>();
+        services.AddTransient<InfoPopoverViewModel>();
+        services.AddTransient<EdgeNavViewModel>();
+        services.AddTransient<ExitFullscreenHintViewModel>();
 
         // Plugin-side services (P4) hook in here. The optional
         // configure delegate is used by tests and by the future

@@ -12,6 +12,7 @@ using System.Windows.Media;
 using ApertureNeo.Models;
 using ApertureNeo.Services;
 using ApertureNeo.Helpers;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ApertureNeo.Controls.FolderTree;
 
@@ -132,13 +133,35 @@ public class FolderTreeView : ItemsControl
 
     public event Action<FolderSource, string>? FolderSelected;
 
-    public FolderTreeView()
+    /// <summary>
+    /// WPF / XAML instantiation path. Delegates to the
+    /// DI-injected constructor by resolving the default
+    /// <see cref="ISettingsStore"/> from <see cref="AppHost.Services"/>.
+    /// Throws at design time / before the host is built — that's
+    /// intentional (the tree is meaningless without settings).
+    /// </summary>
+    public FolderTreeView() : this(AppHost.Services?.GetService<ISettingsStore>()
+        ?? throw new InvalidOperationException(
+            "FolderTreeView requires ISettingsStore from AppHost; " +
+            "ensure App.OnStartup called AppHost.Build() before any tree is instantiated."))
     {
+    }
+
+    /// <summary>
+    /// Test-friendly ctor. Production code goes through the
+    /// parameterless ctor; tests pass a mock
+    /// <see cref="ISettingsStore"/> directly.
+    /// </summary>
+    internal FolderTreeView(ISettingsStore settingsStore)
+    {
+        _settingsStore = settingsStore;
         ItemsSource = Items;
         Loaded += (_, _) => Init();
-        App.SettingsStore.FavoritesChanged += RefreshFavorites;
-        App.SettingsStore.RecentChanged += RefreshRecent;
+        _settingsStore.FavoritesChanged += RefreshFavorites;
+        _settingsStore.RecentChanged += RefreshRecent;
     }
+
+    private readonly ISettingsStore _settingsStore;
 
     private bool _pendingRecentRefresh;
 
@@ -478,7 +501,7 @@ public class FolderTreeView : ItemsControl
             menu.Items.Add(jump);
             menu.Items.Add(new Separator());
             var remove = new MenuItem { Header = "从收藏夹移除", Tag = "destructive" };
-            remove.Click += (_, _) => App.SettingsStore.RemoveFavorite(node.Path);
+            remove.Click += (_, _) => _settingsStore.RemoveFavorite(node.Path);
             menu.Items.Add(remove);
         }
         else if (section == FolderSource.Recent)
@@ -487,35 +510,35 @@ public class FolderTreeView : ItemsControl
             jump.Click += (_, _) => JumpToDirectory(node.Path!);
             menu.Items.Add(jump);
             menu.Items.Add(new Separator());
-            if (App.SettingsStore.IsFavorite(node.Path))
+            if (_settingsStore.IsFavorite(node.Path))
             {
                 var remove = new MenuItem { Header = "从收藏夹移除", Tag = "destructive" };
-                remove.Click += (_, _) => App.SettingsStore.RemoveFavorite(node.Path);
+                remove.Click += (_, _) => _settingsStore.RemoveFavorite(node.Path);
                 menu.Items.Add(remove);
             }
             else
             {
                 var add = new MenuItem { Header = "添加到收藏夹" };
-                add.Click += (_, _) => App.SettingsStore.AddFavorite(node.Path);
+                add.Click += (_, _) => _settingsStore.AddFavorite(node.Path);
                 menu.Items.Add(add);
             }
             menu.Items.Add(new Separator());
             var removeFromRecent = new MenuItem { Header = "从最近访问移除", Tag = "destructive" };
-            removeFromRecent.Click += (_, _) => App.SettingsStore.RemoveRecent(node.Path);
+            removeFromRecent.Click += (_, _) => _settingsStore.RemoveRecent(node.Path);
             menu.Items.Add(removeFromRecent);
         }
         else
         {
-            if (App.SettingsStore.IsFavorite(node.Path))
+            if (_settingsStore.IsFavorite(node.Path))
             {
                 var remove = new MenuItem { Header = "从收藏夹移除", Tag = "destructive" };
-                remove.Click += (_, _) => App.SettingsStore.RemoveFavorite(node.Path);
+                remove.Click += (_, _) => _settingsStore.RemoveFavorite(node.Path);
                 menu.Items.Add(remove);
             }
             else
             {
                 var add = new MenuItem { Header = "添加到收藏夹" };
-                add.Click += (_, _) => App.SettingsStore.AddFavorite(node.Path);
+                add.Click += (_, _) => _settingsStore.AddFavorite(node.Path);
                 menu.Items.Add(add);
             }
         }
@@ -540,7 +563,7 @@ public class FolderTreeView : ItemsControl
         for (int i = next - 1; i > idx; i--) Items.RemoveAt(i);
         int ins = idx + 1;
         int addedFavs = 0;
-        foreach (var p in App.SettingsStore.Favorites)
+        foreach (var p in _settingsStore.Favorites)
         {
             if (Directory.Exists(p)) { Items.Insert(ins++, new FolderItemNode(p)); addedFavs++; }
         }
@@ -561,7 +584,7 @@ public class FolderTreeView : ItemsControl
         for (int i = next - 1; i > idx; i--) Items.RemoveAt(i);
         int ins = idx + 1;
         int addedRecs = 0;
-        foreach (var e in App.SettingsStore.Recent)
+        foreach (var e in _settingsStore.Recent)
         {
             if (Directory.Exists(e.Path)) { Items.Insert(ins++, new RecentNode(e)); addedRecs++; }
         }
@@ -765,7 +788,7 @@ public class FolderTreeView : ItemsControl
 
         Items.Add(fav);
         int addedFavs = 0;
-        foreach (var p in App.SettingsStore.Favorites)
+        foreach (var p in _settingsStore.Favorites)
         {
             if (Directory.Exists(p)) { Items.Add(new FolderItemNode(p)); addedFavs++; }
         }
@@ -773,7 +796,7 @@ public class FolderTreeView : ItemsControl
 
         Items.Add(rec);
         int addedRecs = 0;
-        foreach (var e in App.SettingsStore.Recent)
+        foreach (var e in _settingsStore.Recent)
         {
             if (Directory.Exists(e.Path)) { Items.Add(new RecentNode(e)); addedRecs++; }
         }

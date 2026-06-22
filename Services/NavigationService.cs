@@ -18,7 +18,7 @@ namespace ApertureNeo.Services;
 /// <see cref="FileSystemWatcher"/> reloads on file
 /// create/delete/rename in the watched folder.
 /// </summary>
-public class NavigationService
+public class NavigationService : INavigationService
 {
     private readonly ObservableCollection<ImageItem> _items = new();
     private int _currentIndex = -1;

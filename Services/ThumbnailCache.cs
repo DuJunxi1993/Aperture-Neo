@@ -16,7 +16,7 @@ namespace ApertureNeo.Services;
 /// decode + return on SQLite IO errors (logged via
 /// <see cref="DebugLog"/>) so a corrupt cache never blocks the UI.
 /// </summary>
-public class ThumbnailCache : IDisposable
+public class ThumbnailCache : IThumbnailCache, IDisposable
 {
     public const int MaxEntries = 2000;
 

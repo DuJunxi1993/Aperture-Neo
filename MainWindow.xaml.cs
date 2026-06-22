@@ -13,6 +13,7 @@ using ApertureNeo.Controls.FolderTree;
 using ApertureNeo.Helpers;
 using ApertureNeo.Models;
 using ApertureNeo.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui.Controls;
 
 namespace ApertureNeo;
@@ -31,8 +32,11 @@ public partial class MainWindow : FluentWindow, IPluginContext
     private readonly SlideshowService _slideshow = new();
     // 8 parallel decodes: roughly matches modern CPU core count; the
     // old default of 2 wasted most of the available IO+decode bandwidth
-    // and made folder loads feel sluggish past ~50 items.
-    private readonly ThumbnailLoadCoordinator _thumbCoordinator = new(maxConcurrent: 8);
+    // and made folder loads feel sluggish past ~50 items. Cache is
+    // resolved from the DI container — see AppHost.Build() in
+    // App.OnStartup; the field initializer runs after the host is built.
+    private readonly ThumbnailLoadCoordinator _thumbCoordinator = new(
+        AppHost.Services!.GetRequiredService<IThumbnailCache>(), maxConcurrent: 8);
 
     private bool _isFullscreen;
     private bool _isTreeVisible = true;

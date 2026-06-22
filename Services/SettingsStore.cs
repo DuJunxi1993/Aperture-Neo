@@ -18,7 +18,7 @@ namespace ApertureNeo.Services;
 /// and <see cref="RecentChanged"/> events let the tree refresh
 /// without polling.
 /// </summary>
-public class SettingsStore
+public class SettingsStore : ISettingsStore
 {
     public const int MaxRecentCount = 10;
 

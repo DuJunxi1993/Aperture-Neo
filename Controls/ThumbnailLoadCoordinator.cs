@@ -21,6 +21,7 @@ namespace ApertureNeo.Controls;
 /// </summary>
 public class ThumbnailLoadCoordinator : IDisposable
 {
+    private readonly IThumbnailCache _cache;
     private readonly SemaphoreSlim _semaphore;
     private CancellationTokenSource? _cts;
     private bool _disposed;
@@ -29,8 +30,15 @@ public class ThumbnailLoadCoordinator : IDisposable
     public int Size { get; }
     public int ThumbnailErrorLimit { get; set; } = 5;
 
-    public ThumbnailLoadCoordinator(int size = 256, int maxConcurrent = 2)
+    /// <summary>
+    /// Test-friendly ctor. Production code goes through the
+    /// DI container (registered in <see cref="AppHost"/> as
+    /// a transient) with the cached
+    /// <see cref="IThumbnailCache"/> injected.
+    /// </summary>
+    public ThumbnailLoadCoordinator(IThumbnailCache cache, int size = 256, int maxConcurrent = 2)
     {
+        _cache = cache;
         Size = size;
         MaxConcurrent = maxConcurrent;
         _semaphore = new SemaphoreSlim(maxConcurrent, maxConcurrent);
@@ -192,7 +200,7 @@ public class ThumbnailLoadCoordinator : IDisposable
         {
             // Pass Size=0 so ThumbnailCache uses the size provider
             // (AutoFitPanel.ActualItemWidth).
-            var (bytes, error, w, h) = await App.ThumbnailCache.GetOrCreateWithErrorAsync(item.FilePath, 0, ct);
+            var (bytes, error, w, h) = await _cache.GetOrCreateWithErrorAsync(item.FilePath, 0, ct);
             if (bytes == null)
             {
                 DebugLog.Write("Thumb", $"fail: {item.FileName} - {error}");

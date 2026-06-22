@@ -7,6 +7,7 @@ using System.Windows;
 using ApertureNeo.Cli;
 using ApertureNeo.Helpers;
 using ApertureNeo.Services;
+using Microsoft.Extensions.DependencyInjection;
 using SQLitePCL;
 
 namespace ApertureNeo;
@@ -21,6 +22,15 @@ public partial class App : Application
 {
     public static ThumbnailCache ThumbnailCache { get; private set; } = null!;
     public static SettingsStore SettingsStore { get; private set; } = null!;
+
+    /// <summary>
+    /// DI composition root. Set in <see cref="OnStartup"/>
+    /// after <see cref="AppHost.Build"/> runs. WPF UserControls
+    /// that need service lookup without ctor injection read
+    /// this directly (see <c>FolderTreeView</c>, <c>ThumbnailGrid</c>).
+    /// </summary>
+    public static IServiceProvider Host => AppHost.Services
+        ?? throw new InvalidOperationException("AppHost not built — call AppHost.Build() in App.OnStartup first.");
 
     /// <summary>
     /// First-position argument tokens that route the process into the
@@ -60,6 +70,13 @@ public partial class App : Application
 
         Batteries_V2.Init();
 
+        // Build the DI container. Throws if it can't resolve a
+        // required service at this point — that's intentional: we'd
+        // rather fail loudly at startup than silently produce a
+        // broken viewer. SettingsStore.Load() runs inside the factory
+        // delegate so it completes before any consumer is resolved.
+        AppHost.Build();
+
         // CLI dispatch: if the first arg is a registered subcommand
         // (or --help / --version), hand the full args array to
         // System.CommandLine and skip the viewer init entirely.
@@ -80,15 +97,18 @@ public partial class App : Application
             return;
         }
 
-        // Viewer mode: legacy init (migrate + cache + settings + plugins).
+        // Viewer mode: legacy init (migrate + plugin discovery).
+        // The settings + thumbnail-cache instances are now owned by
+        // the DI container (AppHost); the static forwarders below
+        // expose them to the ~28 existing call sites that haven't
+        // been migrated to constructor injection yet (P1 / P2).
         MigrateLegacyData();
 
-        var cacheDir = Path.Combine(Path.GetTempPath(), "ApertureNeo", "thumbs");
-        Directory.CreateDirectory(cacheDir);
-        ThumbnailCache = new ThumbnailCache(Path.Combine(cacheDir, "cache.db"));
-
-        SettingsStore = new SettingsStore();
-        SettingsStore.Load();
+        // Static forwarders — read from DI for backward compat.
+        // Will be deleted in P2 once all consumers take the
+        // services via ctor instead.
+        SettingsStore = (SettingsStore)AppHost.Services!.GetRequiredService<ISettingsStore>();
+        ThumbnailCache = (ThumbnailCache)AppHost.Services!.GetRequiredService<IThumbnailCache>();
 
         // The light-mode DesignTokens dictionary is loaded statically
         // in App.xaml (MergedDictionaries). There is no runtime theme

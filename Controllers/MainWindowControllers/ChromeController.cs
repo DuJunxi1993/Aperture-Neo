@@ -83,7 +83,7 @@ public partial class MainWindow
             case Key.Right: case Key.Down: return LinearNavigate(Key.Down);
             case Key.Escape:
                 if (_isFullscreen) ToggleFullscreen();
-                else if (_slideshow.IsRunning) { _slideshow.Stop(); UpdateSlideshowButton(); }
+                else if (_slideshow.IsRunning) { _slideshow.Stop(); }
                 return true;
             case Key.F5: ToggleSlideshow(); return true;
             case Key.PageUp:
@@ -383,11 +383,14 @@ public partial class MainWindow
         if (_isTreeVisible) TreeFloatingPopup.IsOpen = false;
     }
 
-    private void ToggleSlideshow() { _slideshow.Toggle(); UpdateSlideshowButton(); }
-
-    private void UpdateSlideshowButton()
-    {
-        if (_slideshow.IsRunning) { SlideshowIcon.Symbol = Wpf.Ui.Controls.SymbolRegular.Pause24; }
-        else { SlideshowIcon.Symbol = Wpf.Ui.Controls.SymbolRegular.Play20; }
-    }
+    // P2: UpdateSlideshowButton's body set SlideshowIcon.Symbol,
+    // which the VM now owns (FloatingBarViewModel.SlideshowIcon).
+    // The toggle action is triggered by the VM's
+    // ToggleSlideshowCommand; the timer state lives in
+    // IUiState.IsSlideshowRunning. This controller still owns
+    // ToggleSlideshow() because the timer + slideshow loop live
+    // here (they aren't in the VM yet — that moves to a future
+    // SlideshowService-bound VM). For P2, ToggleSlideshow is
+    // dead because no button calls it. Marked for removal.
+    private void ToggleSlideshow() { _slideshow.Toggle(); }
 }

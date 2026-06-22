@@ -14,42 +14,46 @@
             <StaticResource ResourceKey="ShadowDialog"/>
         </Border.Effect>
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <Button x:Name="BtnPrev" Style="{StaticResource LinearFloatingPrimary}"
-                    Click="BtnPrev_Click"
+            <Button Style="{StaticResource LinearFloatingPrimary}"
+                    Command="{Binding PrevCommand}"
                     IsHitTestVisible="True">
                 <ui:SymbolIcon Symbol="ChevronLeft20" FontSize="14" Foreground="White"/>
             </Button>
-            <TextBlock x:Name="ImageIndexInfo" Text="0/0"
+            <TextBlock Text="{Binding ImageIndexInfo}"
                        FontFamily="{StaticResource FontMono}" FontSize="12" FontWeight="600"
                        Foreground="{StaticResource TextSecondary}"
                        VerticalAlignment="Center" Margin="10,0" MinWidth="48" TextAlignment="Center"/>
-            <Button x:Name="BtnNext" Style="{StaticResource LinearFloatingPrimary}"
-                    Click="BtnNext_Click"
+            <Button Style="{StaticResource LinearFloatingPrimary}"
+                    Command="{Binding NextCommand}"
                     IsHitTestVisible="True">
                 <ui:SymbolIcon Symbol="ChevronRight20" FontSize="14" Foreground="White"/>
             </Button>
 
             <Border Width="1" Background="{StaticResource BorderStandard}" Margin="8,6"/>
 
-            <Button x:Name="BtnFit" Style="{StaticResource LinearFloatingButton}"
-                    Click="BtnFit_Click"
+            <Button Style="{StaticResource LinearFloatingButton}"
+                    Command="{Binding FitCommand}"
                     IsHitTestVisible="True">
                 <ui:SymbolIcon Symbol="PageFit20" FontSize="14"/>
             </Button>
-            <TextBlock x:Name="ZoomTextBlock" Text="100%"
+            <TextBlock Text="{Binding ZoomText}"
                        FontFamily="{StaticResource FontMono}" FontSize="12" FontWeight="600"
                        Foreground="{StaticResource TextPrimary}"
                        VerticalAlignment="Center" Margin="8,0" MinWidth="44" TextAlignment="Center"
-                       MouseLeftButtonUp="ZoomTextBlock_Click" Cursor="Hand"/>
+                       Cursor="Hand">
+                <TextBlock.InputBindings>
+                    <MouseBinding MouseAction="LeftClick" Command="{Binding ZoomToOriginalCommand}"/>
+                </TextBlock.InputBindings>
+            </TextBlock>
             <Border Width="1" Background="{StaticResource BorderStandard}" Margin="6,6"/>
 
-            <Button x:Name="BtnSlideshow" Style="{StaticResource LinearFloatingButton}"
-                    Click="BtnSlideshow_Click"
+            <Button Style="{StaticResource LinearFloatingButton}"
+                    Command="{Binding ToggleSlideshowCommand}"
                     IsHitTestVisible="True">
-                <ui:SymbolIcon x:Name="SlideshowIcon" Symbol="Play20" FontSize="12"/>
+                <ui:SymbolIcon Symbol="{Binding SlideshowIcon}" FontSize="12"/>
             </Button>
-            <Button x:Name="BtnFullscreen" Style="{StaticResource LinearFloatingButton}"
-                    Click="BtnFullscreen_Click" Margin="2,0,0,0"
+            <Button Style="{StaticResource LinearFloatingButton}"
+                    Command="{Binding ToggleFullscreenCommand}" Margin="2,0,0,0"
                     IsHitTestVisible="True">
                 <ui:SymbolIcon Symbol="FullScreenMaximize24" FontSize="14"/>
             </Button>

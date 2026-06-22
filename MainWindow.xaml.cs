@@ -92,9 +92,10 @@ public partial class MainWindow : FluentWindow, IPluginContext
         // ---- P1: wire up the 9 extracted UserControls ----
         // P2: TitleBarView's events are gone (replaced by VM
         // commands + IUiState). FloatingBar / InfoPill / etc.
-        // still raise events for the controllers (which will be
-        // replaced by VMs in subsequent P2 commits).
-        WireFloatingBarEvents();
+        // P2: TitleBar + FloatingBar are VM-driven. The remaining
+        // UserControls still raise events for the legacy
+        // controllers (which will be replaced by VMs in
+        // subsequent P2 commits).
         WireInfoPillEvents();
         WireImageViewerEvents();
         WireTreePanelEvents();
@@ -147,8 +148,13 @@ public partial class MainWindow : FluentWindow, IPluginContext
         _navigation.CurrentImageChanged += item => CurrentImageChanged?.Invoke(this, item?.FilePath);
         _slideshow.NextRequested += () => Dispatcher.Invoke(() => _navigation.MoveNext());
 
-        ViewerPanel.ImageViewerRef.ZoomChanged += zoom =>
-            Dispatcher.Invoke(() => FloatingBar.ZoomTextBlockRef.Text = $"{zoom * 100:F0}%");
+        // P2: the ZoomText and ImageIndexInfo text blocks are
+        // bound to FloatingBarViewModel properties. The VM
+        // subscribes to ImageViewer.ZoomChanged and
+        // NavigationService events and updates those properties
+        // — no MainWindow wiring needed here. ImageLoaded still
+        // needs MainWindow's reach (it updates ImageItem
+        // dimensions + the info pill).
         ViewerPanel.ImageViewerRef.ImageLoaded += result =>
         {
             var item = _navigation.Items.FirstOrDefault(i => i.FilePath == result.FilePath);
@@ -220,36 +226,30 @@ public partial class MainWindow : FluentWindow, IPluginContext
     }
 
     // ---- P1: UserControl event wiring ----
-    // P2: TitleBarView's events are gone (replaced by VM commands
-    // + IUiState). The other UserControls still raise events for
-    // the controllers (which will be replaced by VMs in
-    // subsequent P2 commits).
+    // P2: TitleBar + FloatingBar are now VM-driven (their P1
+    // events are gone; the XAML binds to VM commands).
+    // WireXxxEvents for those two are removed; the remaining
+    // UserControls still raise events for the controllers
+    // (which will be replaced by VMs in subsequent P2 commits).
 
     private void OpenAboutWindow()
     {
         var win = new AboutWindow(this);
-        // P2: drive IUiState.IsUpdateAvailable from the About
-        // window's update check. The TitleBarViewModel observes
-        // IUiState.PropertyChanged and mirrors it to its own
-        // IsUpdateAvailable flag (which the menu suffix binds
-        // to). The old ChromeController.OnAboutUpdateAvailableChanged
-        // is left in place for now but is no longer wired.
         var uiState = AppHost.Services!.GetRequiredService<IUiState>();
         win.UpdateAvailableChanged += (_, available) => uiState.IsUpdateAvailable = available;
         win.ShowDialog();
     }
 
-    private void WireFloatingBarEvents()
-    {
-        FloatingBar.PrevClicked += (_, _) => BtnPrev_Click(this, new RoutedEventArgs());
-        FloatingBar.NextClicked += (_, _) => BtnNext_Click(this, new RoutedEventArgs());
-        FloatingBar.FitClicked += (_, _) => BtnFit_Click(this, new RoutedEventArgs());
-        FloatingBar.SlideshowClicked += (_, _) => BtnSlideshow_Click(this, new RoutedEventArgs());
-        FloatingBar.FullscreenClicked += (_, _) => BtnFullscreen_Click(this, new RoutedEventArgs());
-        // ZoomTextBlock_Click (in FullscreenController) just calls
-        // ImageViewer.ZoomToOriginal; route directly.
-        FloatingBar.ZoomTextClicked += (_, _) => ViewerPanel.ImageViewerRef.ZoomToOriginal();
-    }
+    // P2: FloatingBarView's events are gone (replaced by
+    // VM commands + IUiState). The slideshow + fullscreen
+    // toggles mutate IUiState.IsSlideshowRunning / IsFullscreen;
+    // MainWindow observes those flags and runs the actual
+    // timers / state machine. The legacy WireFloatingBarEvents
+    // method is removed; controller methods that depended on
+    // it (BtnPrev_Click, BtnNext_Click, BtnFit_Click,
+    // BtnSlideshow_Click, BtnFullscreen_Click, ZoomTextBlock_Click)
+    // are now dead code and will be removed in the controller
+    // sweep at the end of P2.
 
     private void WireInfoPillEvents()
     {
@@ -307,14 +307,17 @@ public partial class MainWindow : FluentWindow, IPluginContext
     private System.Windows.Controls.MenuItem MenuAbout => TitleBar.MenuAboutRef;
     private System.Windows.Controls.TextBlock AboutUpdateSuffix => TitleBar.AboutUpdateSuffixRef;
     private Wpf.Ui.Controls.SymbolIcon MaximizeIcon => TitleBar.MaximizeIconRef;
-    private Wpf.Ui.Controls.SymbolIcon SlideshowIcon => FloatingBar.SlideshowIconRef;
+    // P2: SlideshowIcon / ImageIndexInfo / ZoomTextBlock are
+    // now VM properties (bound via XAML on FloatingBarView).
+    // The legacy convenience properties are removed; the
+    // controllers that referenced them (ChromeController,
+    // InfoPopoverController, FullscreenController) will be
+    // deleted at the end of P2 along with this block.
     private System.Windows.Controls.Border TitleBarArea => TitleBar.TitleBarAreaRef;
     private System.Windows.Controls.Border FloatingBarContent => FloatingBar.FloatingBarContentRef;
     private System.Windows.Controls.Border InfoPillContent => InfoPill.InfoPillContentRef;
     private System.Windows.Controls.Border InfoPillDot => InfoPill.InfoPillDotRef;
     private System.Windows.Controls.TextBlock ImageInfo => InfoPill.ImageInfoRef;
-    private System.Windows.Controls.TextBlock ImageIndexInfo => FloatingBar.ImageIndexInfoRef;
-    private System.Windows.Controls.TextBlock ZoomTextBlock => FloatingBar.ZoomTextBlockRef;
     private System.Windows.Controls.Border EdgeNavLeftContent => EdgeNavLeft.EdgeNavBorderRef;
     private System.Windows.Controls.Border EdgeNavRightContent => EdgeNavRight.EdgeNavBorderRef;
     private System.Windows.Controls.Border ExitFullscreenHint => ExitFullscreenHintView.HintBorderRef;

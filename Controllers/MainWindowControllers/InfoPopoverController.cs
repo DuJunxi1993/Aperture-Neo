@@ -100,7 +100,9 @@ public partial class MainWindow
         Title = $"Aperture Neo · {item.FileName} ({_navigation.CurrentIndex + 1}/{_navigation.Count})";
         ImageViewer.LoadImage(item.FilePath);
         UpdateCurrentImageInfo(item);
-        ImageIndexInfo.Text = $"{_navigation.CurrentIndex + 1}/{_navigation.Count}";
+        // P2: ImageIndexInfo.Text update moved to
+        // FloatingBarViewModel (it binds to ImageIndexInfo
+        // via XAML and updates on NavigationService events).
         ThumbGrid.SelectedItem = item;
         ThumbGrid.ScrollSelectedIntoView();
         if (ImageViewer.ContextMenu != null) ImageViewer.ContextMenu.IsOpen = false;

@@ -1,46 +1,44 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
+using Microsoft.Extensions.DependencyInjection;
+using ApertureNeo.ViewModels;
 
 namespace ApertureNeo.Views;
 
 /// <summary>
-/// Floating navigation bar (prev/next/fit/slideshow/fullscreen +
-/// image index + zoom %). Migrated from MainWindow.xaml.
+/// Floating navigation bar. P2: binds to
+/// <see cref="FloatingBarViewModel"/> via DataContext (set in
+/// ctor from DI). Buttons use Command="{Binding XxxCommand}".
+/// Viewer-specific actions (Fit / ZoomToOriginal) subscribe to
+/// VM events because the VM is UI-agnostic; the View knows
+/// the actual <see cref="SkiaImageViewer"/> instance.
 ///
-/// The host (MainWindow) reads/writes <see cref="ImageIndexInfoRef"/>
-/// and <see cref="SlideshowIconRef"/>. Click events are raised
-/// as plain .NET events for the host to handle.
+/// The host MainWindow sets <see cref="FitRequestedAction"/>
+/// and <see cref="ZoomToOriginalRequestedAction"/> after
+/// the view is constructed, so the view can call into the
+/// viewer's methods without taking a hard dependency on
+/// the viewer (which lives in MainWindow's XAML, not in
+/// FloatingBarView's).
 /// </summary>
 public partial class FloatingBarView : UserControl
 {
     public FloatingBarView()
     {
         InitializeComponent();
+        DataContext = AppHost.Services?.GetService<FloatingBarViewModel>();
+        if (DataContext is FloatingBarViewModel vm)
+        {
+            vm.FitRequested += (_, _) => FitRequestedAction?.Invoke();
+            vm.ZoomToOriginalRequested += (_, _) => ZoomToOriginalRequestedAction?.Invoke();
+        }
     }
 
-    public System.Windows.Controls.Border FloatingBarContentRef => FloatingBarContent;
-    public System.Windows.Controls.Button BtnPrevRef => BtnPrev;
-    public System.Windows.Controls.Button BtnNextRef => BtnNext;
-    public System.Windows.Controls.Button BtnFitRef => BtnFit;
-    public System.Windows.Controls.Button BtnSlideshowRef => BtnSlideshow;
-    public System.Windows.Controls.Button BtnFullscreenRef => BtnFullscreen;
-    public System.Windows.Controls.TextBlock ImageIndexInfoRef => ImageIndexInfo;
-    public System.Windows.Controls.TextBlock ZoomTextBlockRef => ZoomTextBlock;
-    public Wpf.Ui.Controls.SymbolIcon SlideshowIconRef => SlideshowIcon;
+    /// <summary>Action the host MainWindow assigns so the view
+    /// can call FitToScreen on the actual SkiaImageViewer.</summary>
+    public Action? FitRequestedAction { get; set; }
 
-    public event EventHandler? PrevClicked;
-    public event EventHandler? NextClicked;
-    public event EventHandler? FitClicked;
-    public event EventHandler? SlideshowClicked;
-    public event EventHandler? FullscreenClicked;
-    public event EventHandler? ZoomTextClicked;
+    public Action? ZoomToOriginalRequestedAction { get; set; }
 
-    private void BtnPrev_Click(object sender, RoutedEventArgs e) => PrevClicked?.Invoke(this, EventArgs.Empty);
-    private void BtnNext_Click(object sender, RoutedEventArgs e) => NextClicked?.Invoke(this, EventArgs.Empty);
-    private void BtnFit_Click(object sender, RoutedEventArgs e) => FitClicked?.Invoke(this, EventArgs.Empty);
-    private void BtnSlideshow_Click(object sender, RoutedEventArgs e) => SlideshowClicked?.Invoke(this, EventArgs.Empty);
-    private void BtnFullscreen_Click(object sender, RoutedEventArgs e) => FullscreenClicked?.Invoke(this, EventArgs.Empty);
-    private void ZoomTextBlock_Click(object sender, MouseButtonEventArgs e) => ZoomTextClicked?.Invoke(this, EventArgs.Empty);
+    public Border FloatingBarContentRef => FloatingBarContent;
 }

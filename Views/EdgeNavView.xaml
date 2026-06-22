@@ -9,7 +9,7 @@
     <Border x:Name="EdgeNavBorder"
             IsHitTestVisible="True">
         <Button x:Name="BtnEdgeNav" Style="{StaticResource LinearEdgeButton}"
-                Click="BtnEdgeNav_Click">
+                Command="{Binding NavigateCommand}">
             <ui:SymbolIcon x:Name="EdgeIcon" FontSize="18"/>
         </Button>
     </Border>

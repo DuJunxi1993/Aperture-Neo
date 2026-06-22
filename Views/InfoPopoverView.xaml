@@ -12,14 +12,13 @@
             Padding="14,12"
             MinWidth="240" MaxWidth="320">
         <StackPanel>
-            <!-- Section 1: File name -->
+            <!-- All text blocks below are bound to
+                 InfoPopoverViewModel properties (P2). -->
             <TextBlock Text="文件" Style="{StaticResource LinearPopoverEyebrow}"/>
-            <TextBlock x:Name="PopoverFileName" Text="—"
-                       Style="{StaticResource LinearPopoverValue}"/>
+            <TextBlock Text="{Binding FileName}" Style="{StaticResource LinearPopoverValue}"/>
 
             <Border Style="{StaticResource LinearPopoverDivider}"/>
 
-            <!-- Section 2: Size + dimensions -->
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -27,19 +26,16 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
                     <TextBlock Text="大小" Style="{StaticResource LinearPopoverEyebrow}"/>
-                    <TextBlock x:Name="PopoverSize" Text="—"
-                               Style="{StaticResource LinearPopoverMono}"/>
+                    <TextBlock Text="{Binding FileSize}" Style="{StaticResource LinearPopoverMono}"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" HorizontalAlignment="Right">
                     <TextBlock Text="尺寸" Style="{StaticResource LinearPopoverEyebrow}"/>
-                    <TextBlock x:Name="PopoverDimensions" Text="—"
-                               Style="{StaticResource LinearPopoverMono}"/>
+                    <TextBlock Text="{Binding Dimensions}" Style="{StaticResource LinearPopoverMono}"/>
                 </StackPanel>
             </Grid>
 
             <Border Style="{StaticResource LinearPopoverDivider}"/>
 
-            <!-- Section 3: EXIF -->
             <StackPanel>
                 <TextBlock Text="EXIF" Style="{StaticResource LinearPopoverEyebrow}"/>
                 <Grid>
@@ -53,14 +49,11 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="相机" Style="{StaticResource LinearPopoverKey}"/>
-                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="PopoverExifMake" Text="—"
-                               Style="{StaticResource LinearPopoverRight}"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ExifMake}" Style="{StaticResource LinearPopoverRight}"/>
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="镜头" Style="{StaticResource LinearPopoverKey}"/>
-                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="PopoverExifModel" Text="—"
-                               Style="{StaticResource LinearPopoverRight}"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ExifModel}" Style="{StaticResource LinearPopoverRight}"/>
                     <TextBlock Grid.Row="2" Grid.Column="0" Text="拍摄" Style="{StaticResource LinearPopoverKey}"/>
-                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="PopoverExifDate" Text="—"
-                               Style="{StaticResource LinearPopoverRight}"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ExifDate}" Style="{StaticResource LinearPopoverRight}"/>
                 </Grid>
             </StackPanel>
         </StackPanel>

@@ -3,22 +3,28 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using ApertureNeo.Controls;
+using ApertureNeo.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ApertureNeo.Views;
 
 /// <summary>
 /// The image-viewer panel: hosts <see cref="SkiaImageViewer"/>
-/// + its right-click context menu. Migrated from MainWindow.xaml.
+/// + its right-click context menu. P2: binds to
+/// <see cref="ImageViewerPanelViewModel"/> via DataContext;
+/// the VM's SetViewer(viewer) is called by MainWindow (which
+/// owns the viewer instance) in its WireImageViewerPanelVM()
+/// helper after Loaded fires.
 ///
-/// The host (MainWindow) reads <see cref="ImageViewerRef"/> to
-/// load images and drive zoom/fit. Context-menu items raise
-/// plain .NET events.
+/// Context-menu items still raise plain .NET events (they
+/// don't have a clean VM target — file-system / OS dialogs).
 /// </summary>
 public partial class ImageViewerPanelView : UserControl
 {
     public ImageViewerPanelView()
     {
         InitializeComponent();
+        DataContext = AppHost.Services?.GetService<ImageViewerPanelViewModel>();
     }
 
     public Grid ViewerColumnRef => ViewerColumn;

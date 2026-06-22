@@ -9,20 +9,32 @@
             Background="{StaticResource SurfaceFloating}" BorderBrush="{StaticResource BorderStandard}" BorderThickness="1"
             CornerRadius="{StaticResource RadiusPanel}" Padding="10,6"
             IsHitTestVisible="True"
-            Cursor="Hand"
-            MouseLeftButtonUp="InfoPillContent_MouseLeftButtonUp">
+            Cursor="Hand">
+        <Border.InputBindings>
+            <MouseBinding MouseAction="LeftClick" Command="{Binding ToggleCommand}"/>
+        </Border.InputBindings>
         <Border.Effect>
             <StaticResource ResourceKey="ShadowDialog"/>
         </Border.Effect>
         <StackPanel Orientation="Horizontal">
-            <!-- 8x8 status dot. Indigo once dimensions are
-                 known, gray while the lazy header-probe is
-                 still in flight. Color is set by the host via
-                 InfoPillDotRef.Background. -->
-            <Border x:Name="InfoPillDot" Style="{StaticResource LinearDot}"
+            <!-- 8x8 status dot. Color follows InfoPillViewModel
+                 .IsDimensionsKnown via DataTrigger (indigo once
+                 the probe lands, gray before). -->
+            <Border x:Name="InfoPillDot"
                     Background="{StaticResource TextQuat}"
-                    VerticalAlignment="Center" Margin="0,0,6,0"/>
-            <TextBlock x:Name="ImageInfo" Text="" FontSize="12" FontWeight="600"
+                    VerticalAlignment="Center" Margin="0,0,6,0">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource LinearDot}">
+                        <Setter Property="Background" Value="{StaticResource TextQuat}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsDimensionsKnown}" Value="True">
+                                <Setter Property="Background" Value="{StaticResource BrandPrimary}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+            </Border>
+            <TextBlock Text="{Binding ImageInfo}" FontSize="12" FontWeight="600"
                        FontFamily="{StaticResource FontMono}"
                        Foreground="{StaticResource TextSecondary}"
                        VerticalAlignment="Center"/>

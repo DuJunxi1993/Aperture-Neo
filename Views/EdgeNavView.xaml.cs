@@ -1,6 +1,8 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using ApertureNeo.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ApertureNeo.Views;
 
@@ -13,13 +15,13 @@ public enum EdgeDirection
 /// <summary>
 /// One edge-nav button (left or right). Use the
 /// <see cref="Direction"/> dependency property to set
-/// which side. Click raises <see cref="Clicked"/>.
+/// which side. P2: binds to <see cref="EdgeNavViewModel"/>
+/// via DataContext. Click bound to NavigateCommand; the VM
+/// raises NavigateRequested event for the host to route to
+/// MovePrev (left) or MoveNext (right).
 ///
-/// Migrated from MainWindow.xaml. The host (MainWindow) still
-/// owns the show/hide animation timer and the visibility
-/// (Visibility=Collapsed in window mode, animated Visible in
-/// fullscreen) because those depend on shared fullscreen
-/// state.
+/// P2: the host's EdgeNavController animation logic still
+/// references <see cref="EdgeNavBorderRef"/> for show/hide.
 /// </summary>
 public partial class EdgeNavView : UserControl
 {
@@ -37,14 +39,11 @@ public partial class EdgeNavView : UserControl
     public EdgeNavView()
     {
         InitializeComponent();
+        DataContext = AppHost.Services?.GetService<EdgeNavViewModel>();
         UpdateLayoutForDirection();
     }
 
     public Border EdgeNavBorderRef => EdgeNavBorder;
-    public Button BtnEdgeNavRef => BtnEdgeNav;
-
-    /// <summary>Raised when the user clicks the edge button.</summary>
-    public event EventHandler? Clicked;
 
     private static void OnDirectionChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -58,6 +57,4 @@ public partial class EdgeNavView : UserControl
             ? Wpf.Ui.Controls.SymbolRegular.ChevronLeft20
             : Wpf.Ui.Controls.SymbolRegular.ChevronRight20;
     }
-
-    private void BtnEdgeNav_Click(object sender, RoutedEventArgs e) => Clicked?.Invoke(this, EventArgs.Empty);
 }

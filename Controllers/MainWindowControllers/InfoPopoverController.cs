@@ -119,23 +119,18 @@ public partial class MainWindow
     private void UpdateCurrentImageInfo(ImageItem item)
     {
         if (item == null) return;
-        // Show only resolution; the file size used to be appended here but
-        // the user found it redundant with the floating bar's 1/82 counter
-        // and the title-bar filename. Empty string hides the pill gracefully
-        // when dimensions aren't available yet.
-        ImageInfo.Text = (item.Width, item.Height) switch
-        {
-            (int w, int h) => $"{w} × {h}",
-            _ => string.Empty
-        };
+        // P2: ImageInfo's Text is bound to InfoPillViewModel
+        // .ImageInfo (which calls Refresh on the current image's
+        // dimensions). The controller no longer writes the text
+        // directly.
+        //
         // The status dot to the left of the resolution text is gray
         // while dimensions are still unknown and turns brand-indigo the
         // moment SkiaImageViewer has decoded the image. This is a
         // cheap "loading" affordance that doesn't need its own pill.
-        if (item.Width.HasValue && item.Height.HasValue)
-            InfoPillDot.Background = (System.Windows.Media.Brush)FindResource("BrandPrimary");
-        else
-            InfoPillDot.Background = (System.Windows.Media.Brush)FindResource("TextQuat");
+        // P2: the dot's color is bound to InfoPillViewModel
+        // .IsDimensionsKnown via XAML DataTrigger; the controller
+        // no longer writes the brush directly.
     }
 
     /// <summary>
@@ -251,58 +246,17 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// R69: fill the popover's text blocks from the current
-    /// ImageItem. The BitmapMetadata EXIF query is lazy (kicks off
-    /// a background header read on first access), so Make/Model/Date
-    /// may render as "—" on the first click and as the real values
-    /// on subsequent clicks once the probe has landed. The popover
-    /// re-queries on every open, so by the time the user clicks
-    /// again, EXIF is typically populated.
+    /// P2: PopulateInfoPopover's body is now
+    /// <see cref="ApertureNeo.ViewModels.InfoPopoverViewModel.Refresh"/>.
+    /// The popover's text blocks bind to the VM's properties via
+    /// XAML; MainWindow's WireInfoPillEvents invokes
+    /// vm.RefreshCommand on every popover open. This method
+    /// is dead but kept as a marker for the controller sweep
+    /// at the end of P2.
     /// </summary>
     private void PopulateInfoPopover(ImageItem item)
     {
-        // The popover body lives in InfoPopoverView (extracted in P1);
-        // route the field assignments through its property accessors.
-        var body = InfoPopoverBody;
-
-        // Section 1: file name (single line, ellipsized at the right)
-        body.PopoverFileNameRef.Text = string.IsNullOrEmpty(item.FileName) ? "—" : item.FileName;
-
-        // Section 2: size + dimensions
-        body.PopoverSizeRef.Text = ImageFormatHelper.FormatFileSize(item.FileSize);
-        if (item.Width.HasValue && item.Height.HasValue)
-        {
-            body.PopoverDimensionsRef.Text = $"{item.Width} × {item.Height}";
-        }
-        else
-        {
-            body.PopoverDimensionsRef.Text = "—";
-        }
-
-        // Section 3: EXIF (Make/Model/DateTaken)
-        // BitmapMetadata only exists for JPEG. For other formats or
-        // for files without an EXIF block, every query returns null
-        // and the text blocks stay as their placeholder dash.
-        var exif = item.Exif; // may be null (probe still in flight)
-        if (exif != null)
-        {
-            // IFD0 tags: 271 Make, 272 Model, 306 DateTime (format "YYYY:MM:DD HH:MM:SS")
-            var make = item.GetExifValue("/app1/ifd/{ushort=271}");
-            var model = item.GetExifValue("/app1/ifd/{ushort=272}");
-            var dateTaken = item.GetExifValue("/app1/ifd/{ushort=306}");
-            body.PopoverExifMakeRef.Text = string.IsNullOrEmpty(make) ? "—" : make;
-            body.PopoverExifModelRef.Text = string.IsNullOrEmpty(model) ? "—" : model;
-            // EXIF DateTime is the raw "YYYY:MM:DD HH:MM:SS" form.
-            // We display it as-is — anything more elaborate would
-            // require parsing the string, which doesn't add much.
-            body.PopoverExifDateRef.Text = string.IsNullOrEmpty(dateTaken) ? "—" : dateTaken;
-        }
-        else
-        {
-            body.PopoverExifMakeRef.Text =
-                body.PopoverExifModelRef.Text =
-                    body.PopoverExifDateRef.Text = "—";
-        }
+        // No-op: replaced by InfoPopoverViewModel.Refresh.
     }
 
     private void InfoPopover_Closed(object? sender, EventArgs e)

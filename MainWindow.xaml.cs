@@ -100,6 +100,7 @@ public partial class MainWindow : FluentWindow, IPluginContext
         WireImageViewerEvents();
         WireTreePanelEvents();
         WireThumbPanelEvents();
+        WireEdgeNavEvents();
 
         // P2: subscribe to IUiState for cross-VM shared state.
         // The column-visibility toggles (tree / thumb) mutate
@@ -253,25 +254,30 @@ public partial class MainWindow : FluentWindow, IPluginContext
 
     private void WireInfoPillEvents()
     {
-        // InfoPillContent_MouseLeftButtonUp (in InfoPopoverController)
-        // reads the current item and toggles the popover. We can
-        // call the same code path directly: read the current
-        // image, populate the popover, open it.
-        InfoPill.TogglePopoverRequested += (_, _) =>
+        // P2: InfoPillView binds to InfoPillViewModel which raises
+        // PopoverToggleRequested on click. We open / close the
+        // popover here (the View raises the event via the VM's
+        // ToggleCommand, which goes through the binding chain).
+        if (InfoPill.DataContext is InfoPillViewModel pillVm)
         {
-            if (InfoPopover.IsOpen)
+            pillVm.PopoverToggleRequested += (_, _) =>
             {
-                InfoPopover.IsOpen = false;
-                return;
-            }
-            var item = _navigation.Current;
-            if (item == null) return;
-            PopulateInfoPopover(item);
-            InfoPopover.StaysOpen = true;
-            InfoPopover.HorizontalOffset = 0;
-            InfoPopover.IsOpen = true;
-            Dispatcher.BeginInvoke(new Action(AlignPopoverToPillRight), DispatcherPriority.Loaded);
-        };
+                if (InfoPopover.IsOpen)
+                {
+                    InfoPopover.IsOpen = false;
+                    return;
+                }
+                // Popover body is bound to InfoPopoverViewModel;
+                // calling its Refresh command re-reads the
+                // current image's metadata.
+                if (InfoPopoverBody.DataContext is InfoPopoverViewModel popVm)
+                    popVm.Refresh();
+                InfoPopover.StaysOpen = true;
+                InfoPopover.HorizontalOffset = 0;
+                InfoPopover.IsOpen = true;
+                Dispatcher.BeginInvoke(new Action(AlignPopoverToPillRight), DispatcherPriority.Loaded);
+            };
+        }
     }
 
     private void WireImageViewerEvents()
@@ -281,6 +287,29 @@ public partial class MainWindow : FluentWindow, IPluginContext
         ViewerPanel.PrintRequested += (_, _) => CtxPrint_Click(this, new RoutedEventArgs());
         ViewerPanel.SetWallpaperRequested += (_, _) => CtxSetWallpaper_Click(this, new RoutedEventArgs());
         ViewerPanel.ViewerPreviewMouseLeftButtonDown += (_, e) => Viewer_PreviewMouseLeftButtonDown(this, e);
+
+        // P2: ImageViewerPanelViewModel.SetViewer needs the
+        // SkiaImageViewer reference after the View's Loaded.
+        // Wire this in MainWindow because the viewer is created
+        // by MainWindow.xaml, not by the View.
+        if (ViewerPanel.IsLoaded)
+            WireImageViewerPanelVM();
+        else
+            ViewerPanel.Loaded += (_, _) => WireImageViewerPanelVM();
+    }
+
+    private void WireImageViewerPanelVM()
+    {
+        if (ViewerPanel.DataContext is ImageViewerPanelViewModel vm)
+            vm.SetViewer(ViewerPanel.ImageViewerRef);
+    }
+
+    private void WireEdgeNavEvents()
+    {
+        if (EdgeNavLeft.DataContext is EdgeNavViewModel leftVm)
+            leftVm.NavigateRequested += (_, _) => _navigation.MovePrevious();
+        if (EdgeNavRight.DataContext is EdgeNavViewModel rightVm)
+            rightVm.NavigateRequested += (_, _) => _navigation.MoveNext();
     }
 
     private void WireTreePanelEvents()
@@ -317,7 +346,8 @@ public partial class MainWindow : FluentWindow, IPluginContext
     private System.Windows.Controls.Border FloatingBarContent => FloatingBar.FloatingBarContentRef;
     private System.Windows.Controls.Border InfoPillContent => InfoPill.InfoPillContentRef;
     private System.Windows.Controls.Border InfoPillDot => InfoPill.InfoPillDotRef;
-    private System.Windows.Controls.TextBlock ImageInfo => InfoPill.ImageInfoRef;
+    // P2: ImageInfo's Text is bound to InfoPillViewModel.ImageInfo;
+    // the controller no longer reaches in directly.
     private System.Windows.Controls.Border EdgeNavLeftContent => EdgeNavLeft.EdgeNavBorderRef;
     private System.Windows.Controls.Border EdgeNavRightContent => EdgeNavRight.EdgeNavBorderRef;
     private System.Windows.Controls.Border ExitFullscreenHint => ExitFullscreenHintView.HintBorderRef;

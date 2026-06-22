@@ -16,7 +16,8 @@
             </Grid.RowDefinitions>
 
             <!-- Floating "back" chip (drill mode only) -->
-            <Button Grid.Row="0" x:Name="BtnTreeBack" Click="BtnTreeBack_Click"
+            <Button Grid.Row="0" x:Name="BtnTreeBack"
+                    Command="{Binding BackCommand}"
                     Margin="8,8,8,4" Cursor="Hand"
                     Style="{StaticResource LinearFloatingChip}"
                     HorizontalAlignment="Left"
@@ -109,7 +110,8 @@
             </ScrollViewer>
 
             <!-- Floating "return to root" chip (drill mode only) -->
-            <Button Grid.Row="2" x:Name="BtnReturnToRoot" Click="BtnReturnToRoot_Click"
+            <Button Grid.Row="2" x:Name="BtnReturnToRoot"
+                    Command="{Binding ReturnToRootCommand}"
                     Margin="8,6,8,8" Cursor="Hand"
                     Style="{StaticResource LinearFloatingChip}"
                     HorizontalAlignment="Left"

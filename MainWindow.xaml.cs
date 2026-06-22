@@ -314,8 +314,15 @@ public partial class MainWindow : FluentWindow, IPluginContext
 
     private void WireTreePanelEvents()
     {
-        TreePanelView.BackRequested += (_, _) => BtnTreeBack_Click(this, new RoutedEventArgs());
-        TreePanelView.ReturnToRootRequested += (_, _) => BtnReturnToRoot_Click(this, new RoutedEventArgs());
+        // P2: Back + ReturnToRoot are now VM commands. The VM
+        // raises events that we route to the legacy controller
+        // methods (which still own the FolderTreeView's drill
+        // state — that moves in a follow-up).
+        if (TreePanelView.DataContext is FolderTreePanelViewModel treeVm)
+        {
+            treeVm.BackRequested += (_, _) => BtnTreeBack_Click(this, new RoutedEventArgs());
+            treeVm.ReturnToRootRequested += (_, _) => BtnReturnToRoot_Click(this, new RoutedEventArgs());
+        }
     }
 
     private void WireThumbPanelEvents()

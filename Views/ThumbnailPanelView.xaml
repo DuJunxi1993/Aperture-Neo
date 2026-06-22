@@ -11,6 +11,8 @@
         <Grid>
             <controls:ThumbnailGrid x:Name="ThumbGrid" FocusVisualStyle="{x:Null}"
                                     ItemTemplate="{StaticResource LinearThumbnailTemplate}"
+                                    ItemsSource="{Binding Items}"
+                                    SelectedItem="{Binding SelectedItem}"
                                     Padding="8,2,8,2"
                                     BorderThickness="0"
                                     Loaded="ThumbGrid_Loaded"
@@ -23,7 +25,7 @@
                 </controls:ThumbnailGrid.ItemsPanel>
             </controls:ThumbnailGrid>
             <StackPanel x:Name="ThumbEmpty" HorizontalAlignment="Center" VerticalAlignment="Center"
-                        Visibility="Collapsed">
+                        Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}">
                 <Border Width="56" Height="56" CornerRadius="12"
                         Background="{StaticResource SurfaceCardHover}"
                         HorizontalAlignment="Center">

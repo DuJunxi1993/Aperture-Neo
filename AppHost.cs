@@ -91,6 +91,8 @@ public static class AppHost
         services.AddTransient<InfoPopoverViewModel>();
         services.AddTransient<EdgeNavViewModel>();
         services.AddTransient<ExitFullscreenHintViewModel>();
+        services.AddTransient<FolderTreePanelViewModel>();
+        services.AddTransient<ThumbnailPanelViewModel>();
 
         // Plugin-side services (P4) hook in here. The optional
         // configure delegate is used by tests and by the future

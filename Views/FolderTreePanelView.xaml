@@ -28,7 +28,7 @@
                     Visibility="{Binding IsDrillMode, Converter={StaticResource BoolToVisibility}}">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                     <ui:SymbolIcon Symbol="ArrowLeft24" FontSize="13"/>
-                    <TextBlock Text="返回上一层" Margin="6,0,0,0" FontSize="12" FontWeight="600" VerticalAlignment="Center"/>
+                    <TextBlock Text="{DynamicResource FolderTree_DrillChipBack}" Margin="6,0,0,0" FontSize="12" FontWeight="600" VerticalAlignment="Center"/>
                 </StackPanel>
             </Button>
 
@@ -123,7 +123,7 @@
                     Visibility="{Binding IsDrillMode, Converter={StaticResource BoolToVisibility}}">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                     <ui:SymbolIcon Symbol="ArrowLeft24" FontSize="13"/>
-                    <TextBlock Text="返回主页" Margin="6,0,0,0" FontSize="12" FontWeight="600" VerticalAlignment="Center"/>
+                    <TextBlock Text="{DynamicResource FolderTree_DrillChipReturnToRoot}" Margin="6,0,0,0" FontSize="12" FontWeight="600" VerticalAlignment="Center"/>
                 </StackPanel>
             </Button>
         </Grid>

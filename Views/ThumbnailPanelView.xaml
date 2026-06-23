@@ -32,10 +32,10 @@
                     <ui:SymbolIcon Symbol="Image32" FontSize="24" Foreground="{StaticResource TextQuat}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
-                <TextBlock Text="此文件夹没有图片" FontSize="13" FontWeight="700"
+                <TextBlock Text="{DynamicResource Thumb_EmptyStateTitle}" FontSize="13" FontWeight="700"
                            Foreground="{StaticResource TextSecondary}" Margin="0,14,0,2"
                            HorizontalAlignment="Center"/>
-                <TextBlock Text="支持 JPG、PNG、GIF、WEBP、BMP、ICO" FontSize="11" FontWeight="400"
+                <TextBlock Text="{DynamicResource Thumb_EmptyStateFormats}" FontSize="11" FontWeight="400"
                            Foreground="{StaticResource TextQuat}" HorizontalAlignment="Center"/>
             </StackPanel>
         </Grid>

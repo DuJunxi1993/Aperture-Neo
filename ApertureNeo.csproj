@@ -12,6 +12,17 @@
     <ApplicationIcon>Assets\apertureneo.ico</ApplicationIcon>
     <EnableDefaultPageItems>false</EnableDefaultPageItems>
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+    <!-- Disable the SDK's AssemblyInfo + TargetFramework
+         attribute generation. The WPF markup compiler emits its
+         own AssemblyInfo + TargetFrameworkAttribute on the
+         wpftmp intermediate projects, and the duplicate
+         attribute set hits CS0579 on a clean rebuild. The
+         WPF-generated values already match our csproj
+         properties (Version, AssemblyVersion, FileVersion,
+         plus the -debug InformationalVersion), so behaviour
+         is unchanged. -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <!-- Versioning. The OCR plugin release is independently versioned
          (its own csproj's <Version> is independent); the last main-app
          release on GitHub is v2.0.2, and v3.0.0 is the next major

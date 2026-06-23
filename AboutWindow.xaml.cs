@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using ApertureNeo.Properties;
 using ApertureNeo.Services;
 using Wpf.Ui.Controls;
 
@@ -42,13 +43,13 @@ public partial class AboutWindow : FluentWindow
 
     private async void AboutWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        CurrentVersionText.Text = $"v{_checker.CurrentVersionDisplay}  当前版本";
+        CurrentVersionText.Text = $"v{_checker.CurrentVersionDisplay}  {Strings.AboutWindow_VersionLabel}";
         await CheckForUpdateAsync(forceRefresh: false);
     }
 
     private async Task CheckForUpdateAsync(bool forceRefresh)
     {
-        UpdateStatusText.Text = "正在检查更新…";
+        UpdateStatusText.Text = Strings.AboutWindow_CheckingUpdate;
         UpdateDetailText.Text = "";
         BtnUpdate.Visibility = Visibility.Collapsed;
         BtnCheck.IsEnabled = false;
@@ -63,8 +64,8 @@ public partial class AboutWindow : FluentWindow
 
         if (result.Info == null)
         {
-            UpdateStatusText.Text = "无法检查更新";
-            UpdateDetailText.Text = result.Error ?? "网络错误";
+            UpdateStatusText.Text = Strings.AboutWindow_UpdateCheckFailed;
+            UpdateDetailText.Text = result.Error ?? Strings.AboutWindow_NetworkError;
             _pendingUpdate = null;
             UpdateAvailableChanged?.Invoke(this, false);
             return;
@@ -73,16 +74,16 @@ public partial class AboutWindow : FluentWindow
         if (result.Info.IsNewerThan(_checker.CurrentVersion))
         {
             _pendingUpdate = result.Info;
-            UpdateStatusText.Text = $"发现新版本  v{result.Info.LatestVersion.ToString(3)}";
+            UpdateStatusText.Text = string.Format(Strings.AboutWindow_NewVersionFound, result.Info.LatestVersion.ToString(3));
             UpdateDetailText.Text = string.IsNullOrWhiteSpace(result.Info.ReleaseNotes)
-                ? "（暂无更新说明）"
+                ? Strings.AboutWindow_NoReleaseNotes
                 : result.Info.ReleaseNotes;
             BtnUpdate.Visibility = Visibility.Visible;
             UpdateAvailableChanged?.Invoke(this, true);
         }
         else
         {
-            UpdateStatusText.Text = "已是最新版本";
+            UpdateStatusText.Text = Strings.AboutWindow_UpToDate;
             UpdateDetailText.Text = "";
             _pendingUpdate = null;
             UpdateAvailableChanged?.Invoke(this, false);
@@ -111,7 +112,8 @@ public partial class AboutWindow : FluentWindow
             DownloadProgress.Value = pct;
             DownloadPercentText.Text = $"{pct}%";
             DownloadStatusText.Text =
-                $"下载中…  {FormatBytes(bytes)} / {FormatBytes(_pendingUpdate.FileSize)}";
+                string.Format(Strings.AboutWindow_DownloadingWithProgress,
+                    FormatBytes(bytes), FormatBytes(_pendingUpdate.FileSize));
         });
 
         var result = await _downloader.DownloadAsync(
@@ -122,7 +124,7 @@ public partial class AboutWindow : FluentWindow
 
         if (result.Success)
         {
-            DownloadStatusText.Text = "下载完成，正在启动安装程序…";
+            DownloadStatusText.Text = Strings.AboutWindow_DownloadComplete;
             try
             {
                 Process.Start(new ProcessStartInfo(result.FilePath) { UseShellExecute = true });
@@ -136,12 +138,14 @@ public partial class AboutWindow : FluentWindow
             {
                 // Couldn't launch — restore the update panel so the
                 // user can retry.
-                DownloadStatusText.Text = "启动安装程序失败";
-                System.Windows.MessageBox.Show($"无法启动安装程序：{ex.Message}", "更新失败",
+                DownloadStatusText.Text = Strings.AboutWindow_InstallLaunchFailed;
+                System.Windows.MessageBox.Show(
+                    string.Format(Strings.AboutWindow_InstallLaunchFailedMessage, ex.Message),
+                    Strings.AboutWindow_UpdateFailedTitle,
                     System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
         }
-        else if (result.Error == "已取消")
+        else if (result.Error == Strings.AboutWindow_DownloadCancelled)
         {
             // Cancelled — just restore the panel, leave _pendingUpdate
             // so the user can click 更新 again.
@@ -149,7 +153,7 @@ public partial class AboutWindow : FluentWindow
         else
         {
             // Download error (network, disk, etc.) — show in panel.
-            DownloadStatusText.Text = "下载失败";
+            DownloadStatusText.Text = Strings.AboutWindow_DownloadFailed;
             UpdateDetailText.Text = result.Error;
         }
 

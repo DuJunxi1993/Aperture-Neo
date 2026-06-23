@@ -11,10 +11,10 @@
         <controls:SkiaImageViewer x:Name="ImageViewer" Panel.ZIndex="0">
             <controls:SkiaImageViewer.ContextMenu>
                 <ContextMenu>
-                    <MenuItem Header="复制图片路径" Click="CtxCopyPath_Click"/>
-                    <MenuItem Header="在资源管理器中打开" Click="CtxOpenInExplorer_Click"/>
-                    <MenuItem Header="打印" Click="CtxPrint_Click"/>
-                    <MenuItem Header="设为桌面壁纸" Click="CtxSetWallpaper_Click" Tag="destructive"/>
+                    <MenuItem Header="{DynamicResource ImageCtx_CopyPath}" Click="CtxCopyPath_Click"/>
+                    <MenuItem Header="{DynamicResource ImageCtx_OpenInExplorer}" Click="CtxOpenInExplorer_Click"/>
+                    <MenuItem Header="{DynamicResource ImageCtx_Print}" Click="CtxPrint_Click"/>
+                    <MenuItem Header="{DynamicResource ImageCtx_SetWallpaper}" Click="CtxSetWallpaper_Click" Tag="destructive"/>
                 </ContextMenu>
             </controls:SkiaImageViewer.ContextMenu>
         </controls:SkiaImageViewer>

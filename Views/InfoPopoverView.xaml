@@ -14,7 +14,7 @@
         <StackPanel>
             <!-- All text blocks below are bound to
                  InfoPopoverViewModel properties (P2). -->
-            <TextBlock Text="文件" Style="{StaticResource LinearPopoverEyebrow}"/>
+            <TextBlock Text="{DynamicResource InfoPill_File}" Style="{StaticResource LinearPopoverEyebrow}"/>
             <TextBlock Text="{Binding FileName}" Style="{StaticResource LinearPopoverValue}"/>
 
             <Border Style="{StaticResource LinearPopoverDivider}"/>
@@ -25,11 +25,11 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="大小" Style="{StaticResource LinearPopoverEyebrow}"/>
+                    <TextBlock Text="{DynamicResource InfoPill_Size}" Style="{StaticResource LinearPopoverEyebrow}"/>
                     <TextBlock Text="{Binding FileSize}" Style="{StaticResource LinearPopoverMono}"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" HorizontalAlignment="Right">
-                    <TextBlock Text="尺寸" Style="{StaticResource LinearPopoverEyebrow}"/>
+                    <TextBlock Text="{DynamicResource InfoPill_Dimensions}" Style="{StaticResource LinearPopoverEyebrow}"/>
                     <TextBlock Text="{Binding Dimensions}" Style="{StaticResource LinearPopoverMono}"/>
                 </StackPanel>
             </Grid>
@@ -48,11 +48,11 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="相机" Style="{StaticResource LinearPopoverKey}"/>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{DynamicResource InfoPill_Camera}" Style="{StaticResource LinearPopoverKey}"/>
                     <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ExifMake}" Style="{StaticResource LinearPopoverRight}"/>
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="镜头" Style="{StaticResource LinearPopoverKey}"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{DynamicResource InfoPill_Lens}" Style="{StaticResource LinearPopoverKey}"/>
                     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ExifModel}" Style="{StaticResource LinearPopoverRight}"/>
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="拍摄" Style="{StaticResource LinearPopoverKey}"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="{DynamicResource InfoPill_DateTaken}" Style="{StaticResource LinearPopoverKey}"/>
                     <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ExifDate}" Style="{StaticResource LinearPopoverRight}"/>
                 </Grid>
             </StackPanel>

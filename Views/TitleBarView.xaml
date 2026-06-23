@@ -24,7 +24,7 @@
                         Margin="0,0,2,0">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <ui:SymbolIcon Symbol="FolderOpen24" FontSize="12"/>
-                        <TextBlock Text="打开" Margin="5,0,0,0" FontSize="12" FontWeight="600"
+                        <TextBlock Text="{DynamicResource TitleBar_Open}" Margin="5,0,0,0" FontSize="12" FontWeight="600"
                                    VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
@@ -55,18 +55,18 @@
                     <ui:SymbolIcon Symbol="MoreHorizontal24" FontSize="16"/>
                     <Button.ContextMenu>
                         <ContextMenu>
-                            <MenuItem Header="清除缓存" Tag="destructive">
-                                <MenuItem Header="缩略图缓存" Command="{Binding ClearThumbnailCacheCommand}"/>
-                                <MenuItem Header="最近访问记录" Command="{Binding ClearRecentCommand}"/>
+                            <MenuItem Header="{DynamicResource TitleBar_ClearCache}" Tag="destructive">
+                                <MenuItem Header="{DynamicResource TitleBar_ClearThumbCache}" Command="{Binding ClearThumbnailCacheCommand}"/>
+                                <MenuItem Header="{DynamicResource TitleBar_ClearRecent}" Command="{Binding ClearRecentCommand}"/>
                             </MenuItem>
                             <Separator/>
-                            <MenuItem Header="插件" x:Name="MenuPlugins"/>
+                            <MenuItem Header="{DynamicResource TitleBar_Plugins}" x:Name="MenuPlugins"/>
                             <Separator/>
                             <MenuItem x:Name="MenuAbout" Command="{Binding OpenAboutCommand}">
                                 <MenuItem.Header>
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="关于" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="AboutUpdateSuffix" Text="（有版本更新）"
+                                        <TextBlock Text="{DynamicResource TitleBar_About}" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="AboutUpdateSuffix" Text="{DynamicResource TitleBar_UpdateAvailableSuffix}"
                                                    Margin="8,0,0,0" FontSize="11" FontWeight="700"
                                                    Foreground="#FF16a34a" VerticalAlignment="Center">
                                             <TextBlock.Style>

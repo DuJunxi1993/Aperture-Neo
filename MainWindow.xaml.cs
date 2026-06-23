@@ -468,6 +468,27 @@ public partial class MainWindow : FluentWindow, IPluginContext
     private System.Windows.Controls.Border InfoPillDot => InfoPill.InfoPillDotRef;
     // P2: ImageInfo's Text is bound to InfoPillViewModel.ImageInfo;
     // the controller no longer reaches in directly.
+
+    // P1 fix: EdgeNav + ExitFullscreenHint UserControls have
+    // Opacity="0" set in MainWindow.xaml (so they don't flash
+    // on the first frame before the show animation runs). The
+    // WPF compositor multiplies the parent Opacity by the
+    // child Opacity, so animating the inner Border's Opacity
+    // (the old EdgeNavLeftContent / ExitFullscreenHint
+    // properties) was a no-op — the UserControl's parent
+    // Opacity=0 forced the effective Opacity to 0 regardless
+    // of what the Border did. We now expose the UserControls
+    // themselves and animate / read their Opacity directly.
+    private UserControl EdgeNavLeftControl => EdgeNavLeft;
+    private UserControl EdgeNavRightControl => EdgeNavRight;
+    private UserControl ExitFullscreenHintControl => ExitFullscreenHintView;
+
+    // IsMouseOver still needs to read the inner Border (the
+    // hit-test surface) — a UserControl's IsMouseOver only
+    // returns true when the cursor is over a non-empty part
+    // of the UserControl's own bounds, which on an empty
+    // UserControl wrapper is unreliable. The Border inside
+    // is the actual hit-test target.
     private System.Windows.Controls.Border EdgeNavLeftContent => EdgeNavLeft.EdgeNavBorderRef;
     private System.Windows.Controls.Border EdgeNavRightContent => EdgeNavRight.EdgeNavBorderRef;
     private System.Windows.Controls.Border ExitFullscreenHint => ExitFullscreenHintView.HintBorderRef;

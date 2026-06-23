@@ -324,28 +324,37 @@ public partial class MainWindow
 
     /// <summary>
     /// Show the fullscreen edge-nav buttons (left + right). Cancels any
-    /// in-flight fade-out, makes the borders Visible, and animates
-    /// Opacity 0→1 over 200ms. Subsequent calls while already visible
-    /// are a no-op — the buttons stay visible until fullscreen exits
-    /// (no auto-hide, since the user needs persistent navigation
+    /// in-flight fade-out, makes the UserControls Visible, and animates
+    /// their Opacity 0→1 over 200ms. Subsequent calls while already
+    /// visible are a no-op — the buttons stay visible until fullscreen
+    /// exits (no auto-hide, since the user needs persistent navigation
     /// affordance in fullscreen).
+    ///
+    /// P1 fix: animates the UserControl's Opacity, not the inner
+    /// Border's. The UserControl has Opacity=0 in XAML; the WPF
+    /// compositor multiplies parent×child Opacity, so animating the
+    /// child Border was a no-op (the parent's 0 won). See the
+    /// EdgeNavLeftControl property for the full explanation.
     /// </summary>
     private void ShowEdgeNav()
     {
         if (_edgeNavVisible) return;
         _edgeNavVisible = true;
-        EdgeNavLeftContent.BeginAnimation(UIElement.OpacityProperty, null);
-        EdgeNavRightContent.BeginAnimation(UIElement.OpacityProperty, null);
-        EdgeNavLeftContent.Visibility = Visibility.Visible;
-        EdgeNavRightContent.Visibility = Visibility.Visible;
+        EdgeNavLeftControl.BeginAnimation(UIElement.OpacityProperty, null);
+        EdgeNavRightControl.BeginAnimation(UIElement.OpacityProperty, null);
+        EdgeNavLeftControl.Visibility = Visibility.Visible;
+        EdgeNavRightControl.Visibility = Visibility.Visible;
         var fadeIn = new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(200));
-        EdgeNavLeftContent.BeginAnimation(UIElement.OpacityProperty, fadeIn);
-        EdgeNavRightContent.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+        EdgeNavLeftControl.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+        EdgeNavRightControl.BeginAnimation(UIElement.OpacityProperty, fadeIn);
     }
 
     /// <summary>
     /// Fade the edge-nav buttons out (200ms) and collapse them once the
     /// animation completes. Safe to call when already hidden.
+    ///
+    /// P1 fix: animates the UserControl's Opacity, not the inner
+    /// Border's — see ShowEdgeNav for the full reasoning.
     /// </summary>
     private void HideEdgeNav()
     {
@@ -355,13 +364,13 @@ public partial class MainWindow
         fadeOut.Completed += (_, _) =>
         {
             if (_edgeNavVisible) return; // re-shown mid-fade; leave it
-            EdgeNavLeftContent.Visibility = Visibility.Collapsed;
-            EdgeNavRightContent.Visibility = Visibility.Collapsed;
-            EdgeNavLeftContent.Opacity = 0;
-            EdgeNavRightContent.Opacity = 0;
+            EdgeNavLeftControl.Visibility = Visibility.Collapsed;
+            EdgeNavRightControl.Visibility = Visibility.Collapsed;
+            EdgeNavLeftControl.Opacity = 0;
+            EdgeNavRightControl.Opacity = 0;
         };
-        EdgeNavLeftContent.BeginAnimation(UIElement.OpacityProperty, fadeOut);
-        EdgeNavRightContent.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+        EdgeNavLeftControl.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+        EdgeNavRightControl.BeginAnimation(UIElement.OpacityProperty, fadeOut);
     }
 
     private void ResetOverlayHideTimer()
@@ -376,28 +385,39 @@ public partial class MainWindow
 
     private void ShowExitFullscreenHint()
     {
-        ExitFullscreenHint.Visibility = Visibility.Visible;
-        ExitFullscreenHint.BeginAnimation(UIElement.OpacityProperty, null);
+        // P1 fix: animate the UserControl's Opacity, not the
+        // inner Border's. The XAML declares the
+        // ExitFullscreenHintView with Opacity="0", and WPF
+        // composites parent×child Opacity — so animating the
+        // child Border (the old ExitFullscreenHint property)
+        // was a no-op. The TranslateTransform stays on the
+        // Border (the slide animation reads the actual
+        // element's position) — that's separate from the
+        // visibility problem.
+        ExitFullscreenHintControl.Visibility = Visibility.Visible;
+        ExitFullscreenHintControl.BeginAnimation(UIElement.OpacityProperty, null);
         ExitFullscreenTransform.BeginAnimation(TranslateTransform.YProperty, null);
         var fadeIn = new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(200));
         var slideIn = new DoubleAnimation(-50d, 0d, TimeSpan.FromMilliseconds(200))
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
         };
-        ExitFullscreenHint.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+        ExitFullscreenHintControl.BeginAnimation(UIElement.OpacityProperty, fadeIn);
         ExitFullscreenTransform.BeginAnimation(TranslateTransform.YProperty, slideIn);
     }
 
     private void HideExitFullscreenHint()
     {
-        ExitFullscreenHint.BeginAnimation(UIElement.OpacityProperty, null);
+        // P1 fix: animate the UserControl, not the Border
+        // (see ShowExitFullscreenHint for the full reasoning).
+        ExitFullscreenHintControl.BeginAnimation(UIElement.OpacityProperty, null);
         ExitFullscreenTransform.BeginAnimation(TranslateTransform.YProperty, null);
         var fadeOut = new DoubleAnimation(1d, 0d, TimeSpan.FromMilliseconds(200));
         var slideOut = new DoubleAnimation(0d, -50d, TimeSpan.FromMilliseconds(200))
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
         };
-        ExitFullscreenHint.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+        ExitFullscreenHintControl.BeginAnimation(UIElement.OpacityProperty, fadeOut);
         ExitFullscreenTransform.BeginAnimation(TranslateTransform.YProperty, slideOut);
     }
 

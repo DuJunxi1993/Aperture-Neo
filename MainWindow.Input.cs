@@ -183,11 +183,17 @@ public partial class MainWindow
             InfoPillContent.Visibility = Visibility.Visible;
             // Leaving fullscreen: force the edge nav hidden and stop the
             // timer so it doesn't fire after we've restored normal chrome.
+            // P1 fix: hide the UserControl, not just the inner Border —
+            // ShowEdgeNav sets the UserControl Visible/Opacity=1, so we
+            // have to mirror that here or the next fullscreen entry
+            // would no-op (the Border would still be hidden while the
+            // UserControl stays visible, leaving the chevrons stuck in
+            // a half-shown state).
             _edgeNavVisible = false;
-            EdgeNavLeftContent.Visibility = Visibility.Collapsed;
-            EdgeNavRightContent.Visibility = Visibility.Collapsed;
-            EdgeNavLeftContent.Opacity = 0;
-            EdgeNavRightContent.Opacity = 0;
+            EdgeNavLeftControl.Visibility = Visibility.Collapsed;
+            EdgeNavRightControl.Visibility = Visibility.Collapsed;
+            EdgeNavLeftControl.Opacity = 0;
+            EdgeNavRightControl.Opacity = 0;
             _overlayHideTimer?.Stop();
         }
     }

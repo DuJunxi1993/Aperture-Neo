@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ApertureNeo.Helpers;
@@ -72,7 +73,20 @@ public partial class InfoPopoverViewModel : ObservableObject
         // fire separately; we just Refresh() on every
         // PropertyChanged because the popover opens rarely
         // and the cost of re-reading is negligible.
-        Refresh();
+        //
+        // P2 bugfix: ImageItem.EnsureDimensionsProbed runs the
+        // header-probe on a background thread (Task.Run), so the
+        // PropertyChanged it raises fires off the UI thread. The
+        // [ObservableProperty] setters below would then raise
+        // PropertyChanged on a non-UI thread too, and WPF bindings
+        // silently drop the update (or throw, which is swallowed
+        // by the task). Marshal to the dispatcher so the binding
+        // target refreshes on the UI thread.
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.CheckAccess())
+            dispatcher.BeginInvoke(() => Refresh());
+        else
+            Refresh();
     }
 
     /// <summary>Re-read the current image's metadata and push

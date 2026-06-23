@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ApertureNeo.Models;
@@ -75,6 +76,21 @@ public partial class InfoPillViewModel : ObservableObject
         // PropertyChanged). Both paths re-read the values.
         if (e.PropertyName == nameof(ImageItem.Width) ||
             e.PropertyName == nameof(ImageItem.Height))
+            DispatchResolutionUpdate();
+    }
+
+    private void DispatchResolutionUpdate()
+    {
+        // P2 bugfix: ImageItem.EnsureDimensionsProbed runs the
+        // header-probe on a background thread (Task.Run), so the
+        // PropertyChanged it raises fires off the UI thread.
+        // [ObservableProperty] setters would then raise on a non-UI
+        // thread and WPF bindings would silently drop the update.
+        // Marshal to the dispatcher so the binding target refreshes.
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.CheckAccess())
+            dispatcher.BeginInvoke(() => UpdateResolution());
+        else
             UpdateResolution();
     }
 

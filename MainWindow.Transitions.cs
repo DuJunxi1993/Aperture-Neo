@@ -86,9 +86,14 @@ public partial class MainWindow
     /// </summary>
     private void TransitionToFullscreen(bool entering)
     {
+        // P3: ITheme replaces FindResource("SurfaceBlack"/"SurfaceElevated").
+        // The fullscreen transition animation needs the brushes
+        // by value (the background ColorAnimation tween reads the
+        // brush's colour), so we resolve once here and pass the
+        // frozen reference into AnimateViewerBackground.
         var targetBackground = entering
-            ? (System.Windows.Media.Brush)FindResource("SurfaceBlack")
-            : (System.Windows.Media.Brush)FindResource("SurfaceElevated");
+            ? _theme.SurfaceBlack
+            : _theme.SurfaceElevated;
 
         // 1. Fade the viewer to 0 over 150ms (ease-in). After this
         //    completes, swap the OS-level state without the user

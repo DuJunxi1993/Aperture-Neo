@@ -19,9 +19,13 @@
         <StackPanel Orientation="Horizontal">
             <!-- 8x8 status dot. Color follows InfoPillViewModel
                  .IsDimensionsKnown via DataTrigger (indigo once
-                 the probe lands, gray before). -->
+                 the probe lands, gray before).
+                 P2 fix: no local Background — local values
+                 outrank Style.Triggers in WPF dependency-property
+                 precedence, so a local assignment would silently
+                 block the DataTrigger from switching to
+                 BrandPrimary when dimensions land. -->
             <Border x:Name="InfoPillDot"
-                    Background="{StaticResource TextQuat}"
                     VerticalAlignment="Center" Margin="0,0,6,0">
                 <Border.Style>
                     <Style TargetType="Border" BasedOn="{StaticResource LinearDot}">

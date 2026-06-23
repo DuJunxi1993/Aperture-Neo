@@ -81,6 +81,14 @@ public static class AppHost
         // instance; one VM writes, others react.
         services.AddSingleton<IUiState, UiState>();
 
+        // P3: design-token access. Singleton; one theme
+        // instance per process. Used by MainWindow code-behind
+        // (fullscreen transition animation, plugin status dot)
+        // and any future C# code that needs a brush / color /
+        // value at runtime instead of fishing it out of
+        // Application.Current.Resources by string key.
+        services.AddSingleton<ITheme, LinearTheme>();
+
         // ViewModels. P2: per-window scope (Transient). Each new
         // MainWindow gets a fresh set of VMs; services stay
         // singletons so VMs are cheap to construct.

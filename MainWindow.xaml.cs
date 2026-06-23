@@ -29,6 +29,13 @@ namespace ApertureNeo;
 /// </summary>
 public partial class MainWindow : FluentWindow, IPluginContext
 {
+    // P3: design-token access. Resolved from DI once at
+    // construction; the brushes are frozen so they're safe
+    // to read from any thread (the fullscreen transition
+    // animation tweens the brush's colour on the UI thread,
+    // but other call sites might read the same reference).
+    private readonly ITheme _theme =
+        AppHost.Services!.GetRequiredService<ITheme>();
     // Resolve NavigationService from the DI container so this window
     // shares the same instance the VMs subscribe to. P2 bugfix: the
     // previous `new NavigationService()` created a second, local
@@ -594,7 +601,9 @@ public partial class MainWindow : FluentWindow, IPluginContext
     /// SubmenuOpened / Checked / Unchecked can find it and swap the
     /// Background brush when the status changes.
     /// </summary>
-    private static System.Windows.Controls.Grid BuildPluginHeader(PluginInfo info)
+    // P3: was static; now instance because GetStatusBrush is
+    // instance (it reads the per-window _theme field).
+    private System.Windows.Controls.Grid BuildPluginHeader(PluginInfo info)
     {
         var grid = new System.Windows.Controls.Grid();
         grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = System.Windows.GridLength.Auto });
@@ -698,7 +707,9 @@ public partial class MainWindow : FluentWindow, IPluginContext
     /// BuildPluginHeader so we can find it without walking every
     /// Border descendant.
     /// </summary>
-    private static void RefreshPluginDot(System.Windows.Controls.MenuItem item, PluginInfo info)
+    // P3: was static; now instance because GetStatusBrush is
+    // instance (reads the per-window _theme field).
+    private void RefreshPluginDot(System.Windows.Controls.MenuItem item, PluginInfo info)
     {
         if (item.Header is not System.Windows.Controls.Grid grid) return;
         foreach (var child in grid.Children)
@@ -718,14 +729,21 @@ public partial class MainWindow : FluentWindow, IPluginContext
     /// the dot visually matches the main interface's status
     /// indicators (info pill dot, status pills, etc.).
     /// </summary>
-    private static System.Windows.Media.Brush GetStatusBrush(PluginStatus status)
+    /// <summary>
+    /// P3: maps PluginStatus → a brush via <see cref="ITheme"/>.
+    /// Was a static method that fished the brush out of
+    /// <c>Application.Current.Resources</c> by string key;
+    /// now an instance method on MainWindow because the
+    /// theme is per-instance (DI-resolved singleton, but
+    /// we still need the instance reference).
+    /// </summary>
+    private System.Windows.Media.Brush GetStatusBrush(PluginStatus status)
     {
-        var key = status switch
+        return status switch
         {
-            PluginStatus.Enabled => "StatusGreen",
-            PluginStatus.Unavailable => "StatusRed",
-            _ => "TextTertiary",  // gray for Disabled
+            PluginStatus.Enabled => _theme.StatusGreen,
+            PluginStatus.Unavailable => _theme.StatusRed,
+            _ => _theme.TextTertiary,  // gray for Disabled
         };
-        return (System.Windows.Media.Brush)Application.Current.Resources[key];
     }
 }

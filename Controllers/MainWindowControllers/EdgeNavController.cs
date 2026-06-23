@@ -53,23 +53,6 @@ public partial class MainWindow
         }
     }
 
-    /// <summary>
-    /// Goal 2: slide/fade the exit-fullscreen pill in when the cursor
-    /// enters the top 300 DIP strip, and back out when it leaves. The
-    /// pill is fullscreen-only; we no-op otherwise. Uses a strict
-    /// 300px trigger; no edge cases (Y must be > 0 and &lt; 300).
-    /// </summary>
-    private void UpdateExitFullscreenHint(double y)
-    {
-        if (!_isFullscreen) return;
-        const double triggerZone = 300.0;
-        bool shouldShow = y > 0 && y < triggerZone;
-        if (shouldShow && ExitFullscreenHint.Visibility != Visibility.Visible)
-            ShowExitFullscreenHint();
-        else if (!shouldShow && ExitFullscreenHint.Visibility == Visibility.Visible)
-            HideExitFullscreenHint();
-    }
-
     private void ShowExitFullscreenHint()
     {
         ExitFullscreenHint.Visibility = Visibility.Visible;

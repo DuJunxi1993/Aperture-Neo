@@ -277,5 +277,9 @@ public partial class MainWindow
         e.Handled = true;
     }
 
-    private void ZoomTextBlock_Click(object sender, MouseButtonEventArgs e) => ImageViewer.ZoomToOriginal();
+    // P2: ZoomTextBlock_Click was wired to the floating-bar
+    // ZoomToOriginalCommand in P2 step 2 (FloatingBarView.xaml
+    // binds the percent label's MouseBinding directly). The
+    // controller method is dead — XAML MouseBinding on the
+    // TextBlock + VM RelayCommand handle it without code-behind.
 }

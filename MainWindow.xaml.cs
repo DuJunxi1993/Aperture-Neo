@@ -115,12 +115,13 @@ public partial class MainWindow : FluentWindow, IPluginContext
         WireThumbPanelEvents();
         WireEdgeNavEvents();
 
-        // P2: subscribe to IUiState for cross-VM shared state.
-        // The column-visibility toggles (tree / thumb) mutate
+        // P2: subscribe to IUiState for cross-VM shared state. The
+        // column-visibility toggles (tree / thumb) mutate
         // IUiState.IsXxxVisible; MainWindow observes the change
-        // and applies the column-width update. The other
-        // IUiState flags (IsFullscreen, CurrentImage, etc.) will
-        // be observed by other VMs in subsequent commits.
+        // and applies the column-width update. The fullscreen
+        // + slideshow flags drive the window-level transition
+        // + timer state here (the VMs that set them don't have
+        // access to MainWindow's visual tree).
         var uiState = AppHost.Services!.GetRequiredService<IUiState>();
         uiState.PropertyChanged += (_, e) =>
         {
@@ -131,6 +132,27 @@ public partial class MainWindow : FluentWindow, IPluginContext
                     _isTreeVisible = uiState.IsTreeVisible;
                     _isThumbVisible = uiState.IsThumbVisible;
                     ApplyColumnVisibility();
+                    break;
+                case nameof(IUiState.IsFullscreen):
+                    // P2: FloatingBarViewModel.ToggleFullscreen
+                    // flips IUiState.IsFullscreen (it doesn't know
+                    // about the window-level transition). MainWindow
+                    // observes the change and runs the actual
+                    // TransitionToFullscreen (the entry/exit
+                    // animation, chrome hide/show, WPF-UI padding
+                    // reset, edge-nav reset, exit-hint show).
+                    ToggleFullscreen();
+                    break;
+                case nameof(IUiState.IsSlideshowRunning):
+                    // P2: FloatingBarViewModel.ToggleSlideshow
+                    // flips IUiState.IsSlideshowRunning and updates
+                    // its SlideshowIcon; the actual timer is owned
+                    // by SlideshowService. Start / Stop based on the
+                    // new value so both keyboard (F5 → _slideshow
+                    // .Toggle()) and button click paths converge
+                    // through the same flag.
+                    if (uiState.IsSlideshowRunning) _slideshow.Start();
+                    else _slideshow.Stop();
                     break;
             }
         };

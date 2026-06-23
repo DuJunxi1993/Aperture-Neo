@@ -6,48 +6,22 @@ using System.Windows.Threading;
 namespace ApertureNeo;
 
 /// <summary>
-/// Folder-tree concerns: the "back" / "return to root" floating
-/// chips above the tree (shown only in drill mode) and the
-/// floating tree popup that appears when the user mouses over
-/// the 8px left-edge hot zone while the inline tree is
-/// collapsed. Extracted from MainWindow.xaml.cs as a partial
-/// class — all methods touch only the fields and XAML
-/// elements the partial class already shares.
+/// Folder-tree concerns specific to the floating tree popup
+/// that appears when the user mouses over the 8px left-edge
+/// hot zone while the inline tree is collapsed.
+///
+/// P2 cleanup: removed the drill-chip visibility logic
+/// (UpdateReturnToRootVisibility + BtnReturnToRoot_Click +
+/// BtnTreeBack_Click). FolderTreePanelView now binds the
+/// chips' Visibility to FolderTreePanelVM.IsDrillMode via
+/// the global BoolToVisibility converter, and the VM's
+/// BackCommand / ReturnToRootCommand are translated into
+/// <see cref="FolderTreeView"/> method calls inside the
+/// view's own code-behind (the tree control isn't reachable
+/// from the VM).
 /// </summary>
 public partial class MainWindow
 {
-    private void BtnReturnToRoot_Click(object sender, RoutedEventArgs e)
-    {
-        FolderTree.ReturnToRoot();
-    }
-
-    /// <summary>
-    /// Floating "back" chip shown above the tree when the user has
-    /// drilled into a folder. Pops one level off the navigation
-    /// stack — replaces the deprecated BackNode tree entry that
-    /// used to appear at the top of the tree list. (Earlier this
-    /// incorrectly called <see cref="FolderTreeView.ReturnToRoot"/>,
-    /// which collapsed the entire drill stack in one click; the
-    /// "back one level" semantics require NavigateBack, which is
-    /// now public for exactly this purpose.)
-    /// </summary>
-    private void BtnTreeBack_Click(object sender, RoutedEventArgs e)
-    {
-        FolderTree.NavigateBack();
-    }
-
-    private void UpdateReturnToRootVisibility()
-    {
-        // Both floating chips are only visible while in drill mode.
-        // Out of drill mode neither makes sense (there's nothing to
-        // back out of, and the user is already at the section
-        // overview). The two chips cover "one level up" and "all the
-        // way back", respectively.
-        var inDrill = FolderTree.IsInDrillMode;
-        BtnTreeBack.Visibility = inDrill ? Visibility.Visible : Visibility.Collapsed;
-        BtnReturnToRoot.Visibility = inDrill ? Visibility.Visible : Visibility.Collapsed;
-    }
-
     // ---- Floating tree popup (hot zone + panel) ----
 
     private DispatcherTimer? _treeHideTimer;

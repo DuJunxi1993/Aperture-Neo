@@ -107,7 +107,11 @@ public partial class MainWindow : FluentWindow, IPluginContext
         // subsequent P2 commits).
         WireInfoPillEvents();
         WireImageViewerEvents();
-        WireTreePanelEvents();
+        // P2: WireTreePanelEvents is gone. FolderTreePanelView
+        // wires FolderTree events into FolderTreePanelVM and
+        // VM events into FolderTree method calls. MainWindow
+        // only subscribes to FolderNavigationRequested in the
+        // event block below (after the IUiState setup).
         WireThumbPanelEvents();
         WireEdgeNavEvents();
 
@@ -172,8 +176,19 @@ public partial class MainWindow : FluentWindow, IPluginContext
             item.SetDimensions(result.Width, result.Height);
         };
 
-        TreePanelView.FolderTreeRef.FolderSelected += OnFolderSelected;
-        TreePanelView.FolderTreeRef.DrillModeChanged += UpdateReturnToRootVisibility;
+        // P2: FolderTreePanelVM now owns the folder-selection
+        // side effects (recent-add + FolderNavigationRequested
+        // event). The View forwards FolderTree.FolderSelected
+        // into the VM; MainWindow subscribes to FolderNavigation
+        // Requested and calls NavigationService.LoadFolder.
+        // Drill-mode visibility is bound to FolderTreePanelVM
+        // .IsDrillMode via XAML; DrillModeChanged wiring moved
+        // out of MainWindow along with the dead UpdateReturnTo
+        // RootVisibility controller method.
+        if (TreePanelView.DataContext is FolderTreePanelViewModel treeVm)
+        {
+            treeVm.FolderNavigationRequested += (_, path) => _navigation.LoadFolder(path);
+        }
         ThumbPanelView.ThumbGridRef.ItemClicked += OnThumbClicked;
 
         _overlayHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.0) };
@@ -220,8 +235,6 @@ public partial class MainWindow : FluentWindow, IPluginContext
         PreviewKeyDown += (_, e) => { if (HandleKey(e.Key)) e.Handled = true; };
         MouseMove += OnWindowMouseMove;
         Drop += OnWindowDrop;
-
-        UpdateThemeMenuChecks();
     }
 
     // ---- P1: UserControl event wiring ----
@@ -310,18 +323,12 @@ public partial class MainWindow : FluentWindow, IPluginContext
             rightVm.NavigateRequested += (_, _) => _navigation.MoveNext();
     }
 
-    private void WireTreePanelEvents()
-    {
-        // P2: Back + ReturnToRoot are now VM commands. The VM
-        // raises events that we route to the legacy controller
-        // methods (which still own the FolderTreeView's drill
-        // state — that moves in a follow-up).
-        if (TreePanelView.DataContext is FolderTreePanelViewModel treeVm)
-        {
-            treeVm.BackRequested += (_, _) => BtnTreeBack_Click(this, new RoutedEventArgs());
-            treeVm.ReturnToRootRequested += (_, _) => BtnReturnToRoot_Click(this, new RoutedEventArgs());
-        }
-    }
+    // P2: WireTreePanelEvents is gone. FolderTreePanelView
+    // forwards FolderTree events into FolderTreePanelVM and
+    // VM Back/ReturnToRoot events into FolderTree method
+    // calls. MainWindow only subscribes to FolderNavigation
+    // Requested (see Loaded-time wiring below) and calls
+    // NavigationService.LoadFolder(path).
 
     private void WireThumbPanelEvents()
     {

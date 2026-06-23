@@ -15,13 +15,17 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Floating "back" chip (drill mode only) -->
+            <!-- Floating "back" chip (drill mode only). P2:
+                 Visibility binds to FolderTreePanelViewModel.IsDrillMode
+                 (the View forwards FolderTree.DrillModeChanged into the
+                 VM). The chip is Collapsed outside drill mode, Visible
+                 inside. -->
             <Button Grid.Row="0" x:Name="BtnTreeBack"
                     Command="{Binding BackCommand}"
                     Margin="8,8,8,4" Cursor="Hand"
                     Style="{StaticResource LinearFloatingChip}"
                     HorizontalAlignment="Left"
-                    Visibility="Collapsed">
+                    Visibility="{Binding IsDrillMode, Converter={StaticResource BoolToVisibility}}">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                     <ui:SymbolIcon Symbol="ArrowLeft24" FontSize="13"/>
                     <TextBlock Text="返回上一层" Margin="6,0,0,0" FontSize="12" FontWeight="600" VerticalAlignment="Center"/>
@@ -109,13 +113,14 @@
                 </tree:FolderTreeView>
             </ScrollViewer>
 
-            <!-- Floating "return to root" chip (drill mode only) -->
+            <!-- Floating "return to root" chip (drill mode only). P2:
+                 Visibility driven by IsDrillMode (see BtnTreeBack above). -->
             <Button Grid.Row="2" x:Name="BtnReturnToRoot"
                     Command="{Binding ReturnToRootCommand}"
                     Margin="8,6,8,8" Cursor="Hand"
                     Style="{StaticResource LinearFloatingChip}"
                     HorizontalAlignment="Left"
-                    Visibility="Collapsed">
+                    Visibility="{Binding IsDrillMode, Converter={StaticResource BoolToVisibility}}">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                     <ui:SymbolIcon Symbol="ArrowLeft24" FontSize="13"/>
                     <TextBlock Text="返回主页" Margin="6,0,0,0" FontSize="12" FontWeight="600" VerticalAlignment="Center"/>

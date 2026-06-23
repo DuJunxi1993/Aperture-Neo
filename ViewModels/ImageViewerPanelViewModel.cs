@@ -51,12 +51,21 @@ public partial class ImageViewerPanelViewModel : ObservableObject
     private void OnCurrentImageChanged(ImageItem? item)
     {
         _viewer?.LoadImage(item?.FilePath ?? string.Empty);
+        // Mirror the current image to IUiState so the InfoPill /
+        // InfoPopover VMs (which observe IUiState.CurrentImage
+        // and refresh on change) re-read their data. P2
+        // bugfix: without this, the pill stays empty because
+        // the navigation event fires BEFORE the image is
+        // decoded and the ImageItem's Width/Height are
+        // unknown at that point. The InfoPillVM /
+        // InfoPopoverVM also subscribe to the item's
+        // PropertyChanged (Width / Height) so they re-read
+        // the dimensions after the image is decoded.
+        _uiState.CurrentImage = item;
     }
 
     private void OnViewerImageLoaded(ImageLoadResult result)
     {
-        // Mirror to IUiState so the info pill can read it
-        // without going through MainWindow's controllers.
         var item = _navigation.Items.FirstOrDefault(i => i.FilePath == result.FilePath);
         if (item == null) return;
         item.SetDimensions(result.Width, result.Height);

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ApertureNeo.Models;
@@ -12,30 +13,32 @@ namespace ApertureNeo.ViewModels;
 /// no commands — clicks raise a <see cref="PopoverToggleRequested"/>
 /// event that the host uses to open / close the popover.
 ///
-/// The popover is a separate UserControl (InfoPopoverView) with
-/// its own VM (InfoPopoverViewModel) — they share data via
-/// <see cref="IUiState.CurrentImage"/>.
+/// Reads: <see cref="IUiState"/> (CurrentImage) for navigation,
+/// <see cref="INavigationService"/> for the current item, and
+/// the current item's PropertyChanged for dimension updates.
+/// The dimensions are populated lazily: the header-probe may
+/// set them right after navigation, and the authoritative
+/// ImageLoaded handler overwrites them with the decoded
+/// values. Both events fire PropertyChanged on the item, so
+/// the VM re-reads.
 /// </summary>
 public partial class InfoPillViewModel : ObservableObject
 {
     private readonly INavigationService _navigation;
     private readonly IUiState _uiState;
+    private ImageItem? _currentItem;
 
     public InfoPillViewModel(INavigationService navigation, IUiState uiState)
     {
         _navigation = navigation;
         _uiState = uiState;
         _navigation.CurrentImageChanged += OnCurrentImageChanged;
-        // IUiState.IsUpdateAvailable is also observed (for the
-        // (有版本更新) suffix on the About menu item — but
-        // that's the title bar's concern, not the info pill's).
-        // The pill is just the resolution text + a status dot.
         _uiState.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(IUiState.CurrentImage))
-                UpdateResolution();
+                BindToItem(_uiState.CurrentImage ?? _navigation.Current);
         };
-        UpdateResolution();
+        BindToItem(_uiState.CurrentImage ?? _navigation.Current);
     }
 
     [ObservableProperty]
@@ -44,11 +47,35 @@ public partial class InfoPillViewModel : ObservableObject
     [ObservableProperty]
     private bool _isDimensionsKnown;
 
-    private void OnCurrentImageChanged(ImageItem? item) => UpdateResolution();
+    private void OnCurrentImageChanged(ImageItem? item) => BindToItem(item);
+
+    private void BindToItem(ImageItem? item)
+    {
+        // Unsubscribe from the previous item's PropertyChanged
+        // before subscribing to the new one. Without this, the
+        // VM leaks subscriptions across navigations.
+        if (_currentItem != null)
+            _currentItem.PropertyChanged -= OnItemPropertyChanged;
+        _currentItem = item;
+        if (item != null)
+            item.PropertyChanged += OnItemPropertyChanged;
+        UpdateResolution();
+    }
+
+    private void OnItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        // The lazy header-probe fires PropertyChanged for
+        // Width / Height before the VM binds; the authoritative
+        // ImageLoaded event overwrites them later (also via
+        // PropertyChanged). Both paths re-read the values.
+        if (e.PropertyName == nameof(ImageItem.Width) ||
+            e.PropertyName == nameof(ImageItem.Height))
+            UpdateResolution();
+    }
 
     private void UpdateResolution()
     {
-        var item = _uiState.CurrentImage ?? _navigation.Current;
+        var item = _currentItem;
         if (item?.Width.HasValue == true && item.Height.HasValue == true)
         {
             ImageInfo = $"{item.Width} × {item.Height}";

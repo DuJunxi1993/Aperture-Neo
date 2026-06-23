@@ -1,5 +1,5 @@
 using System;
-using System.IO;
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ApertureNeo.Helpers;
@@ -15,12 +15,15 @@ namespace ApertureNeo.ViewModels;
 /// BitmapMetadata probe (lazy) and may arrive after the popover
 /// first opens.
 ///
-/// Reads: <see cref="IUiState"/> (CurrentImage), <see cref="INavigationService"/>.
+/// Reads: <see cref="IUiState"/> (CurrentImage) for navigation,
+/// <see cref="INavigationService"/> for the current item, and
+/// the current item's PropertyChanged for dimension updates.
 /// </summary>
 public partial class InfoPopoverViewModel : ObservableObject
 {
     private readonly IUiState _uiState;
     private readonly INavigationService _navigation;
+    private ImageItem? _currentItem;
 
     public InfoPopoverViewModel(IUiState uiState, INavigationService navigation)
     {
@@ -29,9 +32,10 @@ public partial class InfoPopoverViewModel : ObservableObject
         _uiState.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(IUiState.CurrentImage))
-                Refresh();
+                BindToItem(_uiState.CurrentImage ?? _navigation.Current);
         };
-        Refresh();
+        _navigation.CurrentImageChanged += item => BindToItem(item);
+        BindToItem(_uiState.CurrentImage ?? _navigation.Current);
     }
 
     [ObservableProperty] private string _fileName = "—";
@@ -41,12 +45,35 @@ public partial class InfoPopoverViewModel : ObservableObject
     [ObservableProperty] private string _exifModel = "—";
     [ObservableProperty] private string _exifDate = "—";
 
+    private void BindToItem(ImageItem? item)
+    {
+        // Unsubscribe from the previous item's PropertyChanged
+        // so we don't leak subscriptions across navigations.
+        if (_currentItem != null)
+            _currentItem.PropertyChanged -= OnItemPropertyChanged;
+        _currentItem = item;
+        if (item != null)
+            item.PropertyChanged += OnItemPropertyChanged;
+        Refresh();
+    }
+
+    private void OnItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        // Width / Height fire PropertyChanged when the lazy
+        // header-probe lands AND when the authoritative decode
+        // overwrites them. EXIF probes (BitmapMetadata)
+        // fire separately; we just Refresh() on every
+        // PropertyChanged because the popover opens rarely
+        // and the cost of re-reading is negligible.
+        Refresh();
+    }
+
     /// <summary>Re-read the current image's metadata and push
     /// it into the observable properties.</summary>
     [RelayCommand]
     public void Refresh()
     {
-        var item = _uiState.CurrentImage ?? _navigation.Current;
+        var item = _currentItem;
         if (item == null)
         {
             FileName = "—"; FileSize = "—"; Dimensions = "—";

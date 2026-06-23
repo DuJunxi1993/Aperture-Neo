@@ -194,12 +194,13 @@ public partial class AboutWindow : FluentWindow
 
     protected override void OnClosed(EventArgs e)
     {
-        // Make sure the menu badge gets cleared on close, so any
-        // session-level "update available" hint doesn't outlive the
-        // dialog. We re-raise with the last-known state, but the
-        // false-vs-true answer is up to the consumer; here we just
-        // signal "done".
-        UpdateAvailableChanged?.Invoke(this, _pendingUpdate != null);
+        // P0 fix: clear the menu badge on close. The previous
+        // implementation re-raised with `_pendingUpdate != null`,
+        // which re-pinned the "（有版本更新）" suffix to Visible
+        // even after the user dismissed the dialog. The intent (per
+        // the original comment) was always to clear; the bool
+        // should always be false here.
+        UpdateAvailableChanged?.Invoke(this, false);
         _downloadCts?.Cancel();
         _downloadCts?.Dispose();
         _downloadCts = null;

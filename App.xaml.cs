@@ -70,11 +70,21 @@ public partial class App : Application
 
         Batteries_V2.Init();
 
+        // P0 fix: migrate legacy settings files BEFORE AppHost.Build
+        // (which used to construct SettingsStore via a factory that
+        // called Load() synchronously, racing with the migration). The
+        // new SettingsStore.Load() is lazy + idempotent, so the file
+        // IO is deferred until the first read; we just need to
+        // ensure the migration runs before any read happens.
+        MigrateLegacyData();
+
         // Build the DI container. Throws if it can't resolve a
         // required service at this point — that's intentional: we'd
         // rather fail loudly at startup than silently produce a
-        // broken viewer. SettingsStore.Load() runs inside the factory
-        // delegate so it completes before any consumer is resolved.
+        // broken viewer. SettingsStore.Load() runs lazily on the
+        // first access (Favorites / Recent / IsFavorite /
+        // IsPluginEnabled) so it picks up any file the migration
+        // above just moved into place.
         AppHost.Build();
 
         // CLI dispatch: if the first arg is a registered subcommand
@@ -97,12 +107,13 @@ public partial class App : Application
             return;
         }
 
-        // Viewer mode: legacy init (migrate + plugin discovery).
-        // The settings + thumbnail-cache instances are now owned by
-        // the DI container (AppHost); the static forwarders below
-        // expose them to the ~28 existing call sites that haven't
-        // been migrated to constructor injection yet (P1 / P2).
-        MigrateLegacyData();
+        // Viewer mode: plugin discovery (SettingsStore already loaded
+        // lazily above). The settings + thumbnail-cache instances are
+        // owned by the DI container (AppHost); the static forwarders
+        // below expose them to the ~28 existing call sites that
+        // haven't been migrated to constructor injection yet (P1 / P2).
+        // P0 fix: MigrateLegacyData() moved above AppHost.Build() so
+        // its file moves happen before the first read.
 
         // Static forwarders — read from DI for backward compat.
         // Will be deleted in P2 once all consumers take the

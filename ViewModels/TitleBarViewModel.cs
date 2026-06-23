@@ -38,6 +38,21 @@ public partial class TitleBarViewModel : ObservableObject
         _settingsStore = settingsStore;
         _uiState = uiState;
         _cache = cache;
+
+        // P0 fix: mirror IUiState.IsUpdateAvailable into the VM's
+        // IsUpdateAvailable so the TitleBarView XAML DataTrigger
+        // (which binds to this VM property) actually fires when
+        // MainWindow.OpenAboutWindow sets the state. Without this
+        // mirror, the "（有版本更新）" suffix on the 关于 menu item
+        // never appears even when the About window finds a new
+        // release — the original TitleBarController wrote the
+        // suffix's Visibility directly, but the P2 DataTrigger
+        // approach needs the VM property to actually change.
+        _uiState.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(IUiState.IsUpdateAvailable))
+                IsUpdateAvailable = _uiState.IsUpdateAvailable;
+        };
     }
 
     /// <summary>Bound to the "（有版本更新）" suffix Visibility in TitleBarView.

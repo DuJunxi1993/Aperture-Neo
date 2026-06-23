@@ -38,15 +38,24 @@ public class SettingsStore : ISettingsStore
     private readonly HashSet<string> _enabledPlugins = new();
     private CancellationTokenSource? _saveCts;
     private int _saveGeneration;
+    // P0 fix: defer file IO until first access. The previous
+    // behaviour called Load() in the DI factory, which ran BEFORE
+    // App.OnStartup's MigrateLegacyData() had a chance to move the
+    // old ImageViewerNeo / HighSpeedImageViewer settings.json into
+    // ApertureNeo's path. On first run after the rename, the user
+    // would see empty favorites / recent until the next save clobbered
+    // the old file (or it got re-loaded manually). The new pattern
+    // lets App.OnStartup migrate the file before any read happens.
+    private bool _loaded;
 
     public IReadOnlyList<string> Favorites
     {
-        get { lock (_lock) return _favorites.ToList(); }
+        get { Load(); lock (_lock) return _favorites.ToList(); }
     }
 
     public IReadOnlyList<RecentEntry> Recent
     {
-        get { lock (_lock) return _recent.ToList(); }
+        get { Load(); lock (_lock) return _recent.ToList(); }
     }
 
     public event Action? FavoritesChanged;
@@ -63,11 +72,15 @@ public class SettingsStore : ISettingsStore
     /// <summary>
     /// Read <see cref="SettingsPath"/> from disk and replace the
     /// in-memory favorites, recent, and last-opened-image values.
-    /// Called once at startup from <c>App.OnStartup</c>. Silent on
-    /// missing file or parse error — starts with empty state.
+    /// Idempotent and lazy — the first accessor call (Favorites,
+    /// Recent, IsFavorite, …) calls this if it hasn't run yet.
+    /// Silent on missing file or parse error — starts with empty
+    /// state.
     /// </summary>
     public void Load()
     {
+        if (_loaded) return;
+        _loaded = true;
         try
         {
             if (!File.Exists(SettingsPath)) return;
@@ -90,6 +103,13 @@ public class SettingsStore : ISettingsStore
         {
         }
     }
+
+    /// <summary>Force re-load from disk on the next access.
+    /// Used after <see cref="MigrateLegacyData"/> moves the old
+    /// settings.json into place: the in-memory cache is invalidated
+    /// so the next read picks up the migrated file instead of an
+    /// empty (or stale) state.</summary>
+    public void Reload() => _loaded = false;
 
     /// <summary>
     /// Serialize the current favorites, recent list, and last-opened
@@ -134,6 +154,7 @@ public class SettingsStore : ISettingsStore
     /// (case-insensitive). Safe to call from any thread.</summary>
     public bool IsFavorite(string path)
     {
+        Load();
         lock (_lock)
             return _favorites.Any(p => p.Equals(path, StringComparison.OrdinalIgnoreCase));
     }
@@ -144,6 +165,7 @@ public class SettingsStore : ISettingsStore
     /// choice persists across sessions.</summary>
     public bool IsPluginEnabled(string pluginName)
     {
+        Load();
         lock (_lock)
             return _enabledPlugins.Any(p => p == pluginName);
     }

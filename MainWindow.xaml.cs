@@ -277,10 +277,30 @@ public partial class MainWindow : FluentWindow, IPluginContext
             if (current != null)
                 App.SettingsStore.LastOpenedImage = current.FilePath;
 
+            // P0 fix: stop all active animations and detach
+            // CompositionTarget.Rendering subscribers before disposing
+            // the rest. The fade-out and exit-hint animations register
+            // their handlers on a process-wide static event; if the
+            // window closes mid-animation (Esc during the 150ms fade,
+            // rapid toggle, etc.) the handler reference captures this
+            // MainWindow and prevents GC until the process exits.
+            HideEdgeNav();
+            HideExitFullscreenHint();
+            // Defensive: kill any cross-fade the SkiaImageViewer
+            // might still be running so its OnRendering handler (which
+            // also captures this MainWindow via the lambda) is detached.
+            ImageViewer?.AbortAnimations();
+            if (_treeHideTimer != null)
+            {
+                _treeHideTimer.Stop();
+                _treeHideTimer = null;
+            }
+            _overlayHideTimer?.Stop();
+            _exitHintHideTimer?.Stop();
+
             _thumbCoordinator.Dispose();
             _slideshow.Dispose();
             (_navigation as IDisposable)?.Dispose();
-            _overlayHideTimer?.Stop();
         };
 
         PreviewKeyDown += (_, e) => { if (HandleKey(e.Key)) e.Handled = true; };

@@ -164,7 +164,15 @@ public class SkiaImageViewer : FrameworkElement
             {
                 if (ct.IsCancellationRequested) return;
 
-                _oldBitmap?.Dispose();
+                // P0 fix: don't dispose the current bitmap if the
+                // fade-out animation is still drawing it. The previous
+                // code unconditionally disposed _oldBitmap, which could
+                // be the one being cross-faded in OnRender → crash. Now:
+                // if _activeCrossFade is still alive, the old bitmap will
+                // be disposed when the fade completes (see OnRender).
+                // The new bitmap takes ownership of _bitmap; if no fade
+                // is in flight, dispose the old one immediately.
+                if (_activeCrossFade == null) _oldBitmap?.Dispose();
                 _oldBitmap = _bitmap;
                 _oldZoom = _zoom;
                 _oldOffX = _offsetX;
@@ -245,6 +253,28 @@ public class SkiaImageViewer : FrameworkElement
     /// window's double-click handler to toggle Fit ↔ 100%.
     /// </summary>
     public bool IsAtFitScale => _bitmap != null && Math.Abs(_zoom - _fitScale) < 0.01f;
+
+    /// <summary>
+    /// Cancel any in-flight cross-fade animation and detach
+    /// <see cref="CompositionTarget.Rendering"/> handlers. Called by
+    /// the host window's <c>Closed</c> handler so the per-frame
+    /// delegate (which captures this control via the lambda
+    /// closure) is released before the window is GC'd. Without this
+    /// hook a window closed mid-fade leaks until the process exits.
+    /// </summary>
+    public void AbortAnimations()
+    {
+        if (_activeCrossFade != null)
+        {
+            CompositionTarget.Rendering -= _activeCrossFade;
+            _activeCrossFade = null;
+        }
+        if (_animating)
+        {
+            CompositionTarget.Rendering -= OnRendering;
+            _animating = false;
+        }
+    }
 
     public void FitToScreen()
     {

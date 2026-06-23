@@ -7,8 +7,13 @@
        unlike {x:Static props:Strings.Xxx} which the WPF
        MarkupCompilePass1 can't see in same-project setups).
        Code-behind uses (string)Application.Current.FindResource(Key)
-       or Properties.Strings.Xxx (the C# wrapper) for
-       refactor-safe programmatic access. -->
+       or ApertureNeo.Strings.Strings.Xxx (the C# wrapper) for
+       refactor-safe programmatic access.
+
+       P5 follow-up: this file moved out of ApertureNeo/Properties
+       into a standalone ApertureNeo.Strings library so the OCR
+       plugin DLL (loaded via ALC) can read the same resx without
+       depending on the main app's WPF-only Properties assembly. -->
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
     <xsd:element name="root" msdata:IsDataSet="true">
@@ -121,4 +126,20 @@
   <data name="HeadlessOcr_TotalTime" xml:space="preserve"><value>总计 {0:F0} ms</value></data>
   <data name="HeadlessOcr_FailurePrefix" xml:space="preserve"><value>[失败]</value></data>
   <data name="HeadlessOcr_UnknownError" xml:space="preserve"><value>未知错误</value></data>
+
+  <data name="OcrWindow_Title" xml:space="preserve"><value>文字提取</value></data>
+  <data name="OcrWindow_StatusLabel" xml:space="preserve"><value>状态</value></data>
+  <data name="OcrWindow_StatusReady" xml:space="preserve"><value>就绪</value></data>
+  <data name="OcrWindow_StatusFailed" xml:space="preserve"><value>失败</value></data>
+  <data name="OcrWindow_StatusCompleted" xml:space="preserve"><value>完成</value></data>
+  <data name="OcrWindow_LayoutLabel" xml:space="preserve"><value>排版</value></data>
+  <data name="OcrWindow_LayoutWrap" xml:space="preserve"><value>换行</value></data>
+  <data name="OcrWindow_LayoutNoWrap" xml:space="preserve"><value>不换行</value></data>
+  <data name="OcrWindow_SpaceLabel" xml:space="preserve"><value>空格</value></data>
+  <data name="OcrWindow_SpaceKeep" xml:space="preserve"><value>有空格</value></data>
+  <data name="OcrWindow_SpaceStrip" xml:space="preserve"><value>清除空格</value></data>
+  <data name="OcrWindow_EditHint" xml:space="preserve"><value>文本可直接编辑</value></data>
+  <data name="OcrWindow_Copy" xml:space="preserve"><value>复制</value></data>
+  <data name="OcrWindow_CopyAndExit" xml:space="preserve"><value>复制并退出</value></data>
+  <data name="OcrWindow_LinesMeta" xml:space="preserve"><value>{0} 行 · {1:F0} ms</value></data>
 </root>

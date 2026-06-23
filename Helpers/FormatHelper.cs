@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using ApertureNeo.Properties;
+using ApertureNeo.Strings;
 
 namespace ApertureNeo.Helpers;
 
@@ -54,5 +54,5 @@ public static class FormatHelper
     /// <summary>Filter string for <c>Microsoft.Win32.OpenFileDialog</c>.
     /// Two patterns: every supported image format, plus a
     /// catch-all "all files" fallback.</summary>
-    public static string Filter => Strings.OpenFileDialogFilter;
+    public static string Filter => SR.OpenFileDialogFilter;
 }

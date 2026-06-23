@@ -1,7 +1,8 @@
 <Window x:Class="ApertureNeo.Plugins.Ocr.Ui.OcrResultWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="文字提取"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        Title="{DynamicResource OcrWindow_Title}"
         Width="560" Height="560"
         MinWidth="480" MinHeight="440"
         WindowStartupLocation="CenterOwner"
@@ -27,6 +28,25 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="DesignTokens.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+            <!-- Localised text. The values match the ApertureNeo.Strings
+                 SR class (which reads from ApertureNeo.Strings.Strings.resx)
+                 so the plugin and the main app always agree. WPF can't
+                 reference the resx directly from a plugin window, so we
+                 duplicate the values here as <sys:String> entries —
+                 {DynamicResource} resolves at parse time / first use,
+                 and any drift would be visible in the rendered UI. -->
+            <sys:String x:Key="OcrWindow_Title">文字提取</sys:String>
+            <sys:String x:Key="OcrWindow_StatusLabel">状态</sys:String>
+            <sys:String x:Key="OcrWindow_StatusReady">就绪</sys:String>
+            <sys:String x:Key="OcrWindow_LayoutLabel">排版</sys:String>
+            <sys:String x:Key="OcrWindow_LayoutWrap">换行</sys:String>
+            <sys:String x:Key="OcrWindow_LayoutNoWrap">不换行</sys:String>
+            <sys:String x:Key="OcrWindow_SpaceLabel">空格</sys:String>
+            <sys:String x:Key="OcrWindow_SpaceKeep">有空格</sys:String>
+            <sys:String x:Key="OcrWindow_SpaceStrip">清除空格</sys:String>
+            <sys:String x:Key="OcrWindow_EditHint">文本可直接编辑</sys:String>
+            <sys:String x:Key="OcrWindow_Copy">复制</sys:String>
+            <sys:String x:Key="OcrWindow_CopyAndExit">复制并退出</sys:String>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -99,7 +119,7 @@
                 <Grid>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
                                 HorizontalAlignment="Left" Margin="20,0,0,0">
-                        <TextBlock Text="文字提取" FontSize="12" FontWeight="700"
+                        <TextBlock Text="{DynamicResource OcrWindow_Title}" FontSize="12" FontWeight="700"
                                    Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
                         <TextBlock x:Name="HeaderFileName" Text="" FontSize="12" FontWeight="400"
                                    Foreground="{StaticResource TextTertiary}" VerticalAlignment="Center"
@@ -125,11 +145,11 @@
 
                 <!-- Status row: dot + label + meta (lines · ms) -->
                 <StackPanel Grid.Row="0">
-                    <TextBlock Text="状态" Style="{StaticResource LinearEyebrow}"/>
+                    <TextBlock Text="{DynamicResource OcrWindow_StatusLabel}" Style="{StaticResource LinearEyebrow}"/>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Border x:Name="StatusDot" Style="{StaticResource LinearDot}"
                                 VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBlock x:Name="StatusText" Text="就绪" Style="{StaticResource LinearValue}"/>
+                        <TextBlock x:Name="StatusText" Text="{DynamicResource OcrWindow_StatusReady}" Style="{StaticResource LinearValue}"/>
                         <TextBlock x:Name="MetaText" Style="{StaticResource LinearMonoValue}" Margin="14,0,0,0"
                                    VerticalAlignment="Center"/>
                     </StackPanel>
@@ -143,7 +163,7 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Bottom">
-                        <TextBlock Text="排版" Style="{StaticResource LinearEyebrow}"
+                        <TextBlock Text="{DynamicResource OcrWindow_LayoutLabel}" Style="{StaticResource LinearEyebrow}"
                                    VerticalAlignment="Center" Margin="0,0,10,6"/>
                         <Border BorderBrush="{StaticResource BorderStandard}" BorderThickness="1"
                                 CornerRadius="6" Background="{StaticResource SurfacePanel}" Padding="2">
@@ -151,14 +171,14 @@
                                 <RadioButton x:Name="RadioWrap" GroupName="LayoutMode"
                                              Style="{StaticResource LinearSegmentedItem}"
                                              IsChecked="True"
-                                             Checked="RadioWrap_Checked" Content="换行"/>
+                                             Checked="RadioWrap_Checked" Content="{DynamicResource OcrWindow_LayoutWrap}"/>
                                 <RadioButton x:Name="RadioNoWrap" GroupName="LayoutMode"
                                              Style="{StaticResource LinearSegmentedItem}"
-                                             Checked="RadioNoWrap_Checked" Content="不换行"/>
+                                             Checked="RadioNoWrap_Checked" Content="{DynamicResource OcrWindow_LayoutNoWrap}"/>
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="空格" Style="{StaticResource LinearEyebrow}"
+                        <TextBlock Text="{DynamicResource OcrWindow_SpaceLabel}" Style="{StaticResource LinearEyebrow}"
                                    VerticalAlignment="Center" Margin="14,0,10,6"/>
                         <Border BorderBrush="{StaticResource BorderStandard}" BorderThickness="1"
                                 CornerRadius="6" Background="{StaticResource SurfacePanel}" Padding="2">
@@ -166,10 +186,10 @@
                                 <RadioButton x:Name="RadioWithSpaces" GroupName="SpaceMode"
                                              Style="{StaticResource LinearSegmentedItem}"
                                              IsChecked="True"
-                                             Checked="RadioWithSpaces_Checked" Content="有空格"/>
+                                             Checked="RadioWithSpaces_Checked" Content="{DynamicResource OcrWindow_SpaceKeep}"/>
                                 <RadioButton x:Name="RadioClearSpaces" GroupName="SpaceMode"
                                              Style="{StaticResource LinearSegmentedItem}"
-                                             Checked="RadioClearSpaces_Checked" Content="清除空格"/>
+                                             Checked="RadioClearSpaces_Checked" Content="{DynamicResource OcrWindow_SpaceStrip}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -211,7 +231,7 @@
                     <TextBlock x:Name="ErrorText" Foreground="{StaticResource StatusRed}"
                                FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"
                                VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" Text="文本可直接编辑" Style="{StaticResource LinearEyebrow}"
+                    <TextBlock Grid.Column="1" Text="{DynamicResource OcrWindow_EditHint}" Style="{StaticResource LinearEyebrow}"
                                Margin="0,0,2,0" VerticalAlignment="Center"/>
                 </Grid>
             </Grid>
@@ -233,9 +253,9 @@
                     Padding="20,12,32,12">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button x:Name="BtnCopy" Style="{StaticResource LinearGhostButton}"
-                            Content="复制" Click="BtnCopy_Click" Margin="0,0,8,0"/>
+                            Content="{DynamicResource OcrWindow_Copy}" Click="BtnCopy_Click" Margin="0,0,8,0"/>
                     <Button x:Name="BtnCopyAndClose" Style="{StaticResource LinearPrimaryCta}"
-                            Content="复制并退出" Click="BtnCopyAndClose_Click" IsDefault="True"/>
+                            Content="{DynamicResource OcrWindow_CopyAndExit}" Click="BtnCopyAndClose_Click" IsDefault="True"/>
                 </StackPanel>
             </Border>
         </Grid>

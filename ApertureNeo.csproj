@@ -63,6 +63,9 @@
        the future Plugins.Screenshot can share the same window
        via the same project references. -->
   <ItemGroup>
+    <ProjectReference Include="ApertureNeo.Strings\ApertureNeo.Strings.csproj">
+      <Private>true</Private>
+    </ProjectReference>
     <ProjectReference Include="Plugins.Ocr.Core\ApertureNeo.Plugins.Ocr.Core.csproj">
       <Private>true</Private>
     </ProjectReference>
@@ -84,6 +87,10 @@
     <Page Remove="Plugins.Ocr.Ui\**" />
     <ApplicationDefinition Remove="Plugins.Ocr.Ui\**" />
     <Resource Remove="Plugins.Ocr.Ui\**" />
+    <Compile Remove="ApertureNeo.Strings\**" />
+    <Page Remove="ApertureNeo.Strings\**" />
+    <ApplicationDefinition Remove="ApertureNeo.Strings\**" />
+    <Resource Remove="ApertureNeo.Strings\**" />
   </ItemGroup>
 
   <!-- Main entry XAMLs -->

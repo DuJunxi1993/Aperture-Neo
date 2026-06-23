@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using ApertureNeo.Plugins.Ocr.Core.Models;
+using ApertureNeo.Strings;
 
 namespace ApertureNeo.Plugins.Ocr.Ui;
 
@@ -49,7 +50,7 @@ public partial class OcrResultWindow : Window
 
     public void SetError(string message)
     {
-        StatusText.Text = "失败";
+        StatusText.Text = SR.OcrWindow_StatusFailed;
         StatusDot.Background = (Brush)FindResource("StatusRed");
         ErrorText.Text = message;
         ErrorText.Visibility = Visibility.Visible;
@@ -60,9 +61,9 @@ public partial class OcrResultWindow : Window
     public void SetResult(OcrResult result, string fileName)
     {
         HeaderFileName.Text = fileName;
-        StatusText.Text = "完成";
+        StatusText.Text = SR.OcrWindow_StatusCompleted;
         StatusDot.Background = (Brush)FindResource("StatusGreen");
-        MetaText.Text = $"{result.Lines.Count} 行 · {result.ElapsedMs:F0} ms";
+        MetaText.Text = string.Format(SR.OcrWindow_LinesMeta, result.Lines.Count, result.ElapsedMs);
         ErrorText.Visibility = Visibility.Collapsed;
         // Cache the wrapped text so toggling back from 不换行 restores
         // the original \n structure. The 当前 toggle state determines

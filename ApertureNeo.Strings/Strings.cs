@@ -1,27 +1,41 @@
-using System;
 using System.Globalization;
 using System.Resources;
-using System.Windows;
 
-namespace ApertureNeo.Properties;
+namespace ApertureNeo.Strings;
 
 /// <summary>
 /// Programmatic accessors for the localised strings in
-/// <see cref="Strings.resx"/>. XAML prefers
-/// <c>{DynamicResource KeyName}</c> (resolves at parse time
-/// without compile-time type lookup); code-behind uses these
-/// properties which read through <see cref="ResourceManager"/>.
+/// Strings.resx. XAML prefers <c>{DynamicResource KeyName}</c>
+/// (resolves at parse time without compile-time type lookup);
+/// code-behind uses these properties which read through
+/// <see cref="ResourceManager"/>.
 ///
 /// The resx is the source of truth — these properties mirror
 /// it. The fallback value (the right side of <c>??</c>) is
 /// what gets returned if the resx is missing (design-time
 /// tooling, etc.) so the app never crashes on startup just
 /// because a resource file isn't available yet.
+///
+/// P5 follow-up: extracted from ApertureNeo/Properties/Strings.cs
+/// into a standalone library so the Plugins.Ocr.Ui DLL (loaded
+/// via ALC) can localise too. The main WPF app and the plugin
+/// both reference this single .resx — there's no risk of the
+/// two getting out of sync (the resx is compiled into the
+/// single ApertureNeo.Strings.dll and consumed by every
+/// referencing project).
+///
+/// Named <c>SR</c> (not <c>Strings</c>) so callers can write
+/// <c>SR.AboutWindow_Title</c> — keeping the class name
+/// identical to the enclosing namespace would make
+/// <c>Strings.AboutWindow_Title</c> ambiguous to the C#
+/// compiler (it'd see ApertureNeo.Strings.AboutWindow_Title
+/// as a nested-namespace member, not as a static-class
+/// property).
 /// </summary>
-public static class Strings
+public static class SR
 {
     private static readonly ResourceManager _manager =
-        new ResourceManager("ApertureNeo.Properties.Strings", typeof(Strings).Assembly);
+        new ResourceManager("ApertureNeo.Strings.Strings", typeof(SR).Assembly);
 
     public static string AboutWindow_Title => Get("AboutWindow_Title", "关于 Aperture Neo");
     public static string AboutWindow_About => Get("AboutWindow_About", "关于");
@@ -104,6 +118,25 @@ public static class Strings
     public static string HeadlessOcr_TotalTime => Get("HeadlessOcr_TotalTime", "总计 {0:F0} ms");
     public static string HeadlessOcr_FailurePrefix => Get("HeadlessOcr_FailurePrefix", "[失败]");
     public static string HeadlessOcr_UnknownError => Get("HeadlessOcr_UnknownError", "未知错误");
+
+    // OcrResultWindow strings. P5 follow-up: previously hard-coded
+    // in OcrResultWindow.xaml + .cs; now centralised here so the
+    // plugin UI can be translated without touching the main app.
+    public static string OcrWindow_Title => Get("OcrWindow_Title", "文字提取");
+    public static string OcrWindow_StatusLabel => Get("OcrWindow_StatusLabel", "状态");
+    public static string OcrWindow_StatusReady => Get("OcrWindow_StatusReady", "就绪");
+    public static string OcrWindow_StatusFailed => Get("OcrWindow_StatusFailed", "失败");
+    public static string OcrWindow_StatusCompleted => Get("OcrWindow_StatusCompleted", "完成");
+    public static string OcrWindow_LayoutLabel => Get("OcrWindow_LayoutLabel", "排版");
+    public static string OcrWindow_LayoutWrap => Get("OcrWindow_LayoutWrap", "换行");
+    public static string OcrWindow_LayoutNoWrap => Get("OcrWindow_LayoutNoWrap", "不换行");
+    public static string OcrWindow_SpaceLabel => Get("OcrWindow_SpaceLabel", "空格");
+    public static string OcrWindow_SpaceKeep => Get("OcrWindow_SpaceKeep", "有空格");
+    public static string OcrWindow_SpaceStrip => Get("OcrWindow_SpaceStrip", "清除空格");
+    public static string OcrWindow_EditHint => Get("OcrWindow_EditHint", "文本可直接编辑");
+    public static string OcrWindow_Copy => Get("OcrWindow_Copy", "复制");
+    public static string OcrWindow_CopyAndExit => Get("OcrWindow_CopyAndExit", "复制并退出");
+    public static string OcrWindow_LinesMeta => Get("OcrWindow_LinesMeta", "{0} 行 · {1:F0} ms");
 
     private static string Get(string key, string fallback)
         => _manager.GetString(key, CultureInfo.CurrentUICulture) ?? fallback;

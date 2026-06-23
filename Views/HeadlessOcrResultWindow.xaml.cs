@@ -7,7 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using ApertureNeo.Plugins.Ocr.Core.Models;
-using ApertureNeo.Properties;
+using ApertureNeo.Strings;
 
 namespace ApertureNeo.Views;
 
@@ -37,7 +37,7 @@ public partial class HeadlessOcrResultWindow : Window
     public void SetResults(IReadOnlyList<(string Path, OcrResult Result)> entries)
     {
         _entries = entries.ToList();
-        HeaderCount.Text = string.Format(Strings.HeadlessOcr_FileCount, _entries.Count);
+        HeaderCount.Text = string.Format(SR.HeadlessOcr_FileCount, _entries.Count);
         BuildSections();
         UpdateSubtitle();
     }
@@ -105,7 +105,7 @@ public partial class HeadlessOcrResultWindow : Window
             // identically-named-different LinearGhostButton isn't
             // visible from the main exe.
             Style = (Style)FindResource("LinearWindowButton"),
-            Content = Strings.HeadlessOcr_Copy,
+            Content = SR.HeadlessOcr_Copy,
             Tag = index,
             VerticalAlignment = VerticalAlignment.Center,
             Width = double.NaN,
@@ -146,7 +146,7 @@ public partial class HeadlessOcrResultWindow : Window
             // the single-file window's "N 行 · Xms" line.
             var meta = new TextBlock
             {
-                Text = string.Format(Strings.HeadlessOcr_LinesMeta, entry.Result.Lines.Count, entry.Result.ElapsedMs),
+                Text = string.Format(SR.HeadlessOcr_LinesMeta, entry.Result.Lines.Count, entry.Result.ElapsedMs),
                 FontFamily = (FontFamily)FindResource("FontMono"),
                 FontSize = 11,
                 FontWeight = FontWeights.Normal,
@@ -159,7 +159,7 @@ public partial class HeadlessOcrResultWindow : Window
         {
             var err = new TextBlock
             {
-                Text = entry.Result.ErrorMessage ?? Strings.HeadlessOcr_RecognitionFailed,
+                Text = entry.Result.ErrorMessage ?? SR.HeadlessOcr_RecognitionFailed,
                 FontFamily = (FontFamily)FindResource("FontPrimary"),
                 FontSize = 12,
                 Foreground = (Brush)FindResource("StatusRed"),
@@ -190,9 +190,9 @@ public partial class HeadlessOcrResultWindow : Window
         double totalMs = _entries.Sum(e => e.Result.ElapsedMs);
 
         SubtitleText.Text = failed == 0
-            ? string.Format(Strings.HeadlessOcr_FilesCompleted, succeeded, _entries.Count)
-            : string.Format(Strings.HeadlessOcr_FilesCompletedWithFailures, succeeded, _entries.Count, failed);
-        MetaText.Text = string.Format(Strings.HeadlessOcr_TotalTime, totalMs);
+            ? string.Format(SR.HeadlessOcr_FilesCompleted, succeeded, _entries.Count)
+            : string.Format(SR.HeadlessOcr_FilesCompletedWithFailures, succeeded, _entries.Count, failed);
+        MetaText.Text = string.Format(SR.HeadlessOcr_TotalTime, totalMs);
 
         StatusDot.Background = failed == 0
             ? (Brush)FindResource("StatusGreen")
@@ -247,7 +247,7 @@ public partial class HeadlessOcrResultWindow : Window
             }
             else
             {
-                sb.Append(Strings.HeadlessOcr_FailurePrefix).Append(' ').AppendLine(result.ErrorMessage ?? Strings.HeadlessOcr_UnknownError);
+                sb.Append(SR.HeadlessOcr_FailurePrefix).Append(' ').AppendLine(result.ErrorMessage ?? SR.HeadlessOcr_UnknownError);
             }
             sb.AppendLine();
         }

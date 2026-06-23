@@ -10,6 +10,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ApertureNeo.Plugins.Ocr.Cor
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ApertureNeo.Plugins.Ocr.Ui", "Plugins.Ocr.Ui\ApertureNeo.Plugins.Ocr.Ui.csproj", "{F56A0302-6262-41CF-A76B-C15C2A735F61}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ApertureNeo.Strings", "ApertureNeo.Strings\ApertureNeo.Strings.csproj", "{AABBCCDD-1234-5678-9ABC-DEF012345678}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -24,6 +26,8 @@ Global
 		{81E74E3A-BAEC-4847-AA35-F343B7A2A0DE}.Debug|x64.Build.0 = Debug|x64
 		{F56A0302-6262-41CF-A76B-C15C2A735F61}.Debug|x64.ActiveCfg = Debug|x64
 		{F56A0302-6262-41CF-A76B-C15C2A735F61}.Debug|x64.Build.0 = Debug|x64
+		{AABBCCDD-1234-5678-9ABC-DEF012345678}.Debug|x64.ActiveCfg = Debug|x64
+		{AABBCCDD-1234-5678-9ABC-DEF012345678}.Debug|x64.Build.0 = Debug|x64
 		{11111111-1111-1111-1111-111111111111}.Release|x64.ActiveCfg = Release|x64
 		{11111111-1111-1111-1111-111111111111}.Release|x64.Build.0 = Release|x64
 		{22222222-2222-2222-2222-222222222222}.Release|x64.ActiveCfg = Release|x64
@@ -32,6 +36,8 @@ Global
 		{81E74E3A-BAEC-4847-AA35-F343B7A2A0DE}.Release|x64.Build.0 = Release|x64
 		{F56A0302-6262-41CF-A76B-C15C2A735F61}.Release|x64.ActiveCfg = Release|x64
 		{F56A0302-6262-41CF-A76B-C15C2A735F61}.Release|x64.Build.0 = Release|x64
+		{AABBCCDD-1234-5678-9ABC-DEF012345678}.Release|x64.ActiveCfg = Release|x64
+		{AABBCCDD-1234-5678-9ABC-DEF012345678}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

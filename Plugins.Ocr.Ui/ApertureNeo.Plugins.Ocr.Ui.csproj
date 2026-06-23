@@ -15,9 +15,14 @@
   </PropertyGroup>
 
   <!-- The OcrResultWindow depends on OcrResult/OcrLine (model types)
-       and the Linear design tokens resource dictionary bundled here. -->
+       and the Linear design tokens resource dictionary bundled here.
+       ApertureNeo.Strings gives us the localized text for the
+       status bar, segmented controls, etc. (OcrWindow_*) so this
+       DLL doesn't hard-code Chinese — it reads the same .resx the
+       main app uses, guaranteeing the two stay in sync. -->
   <ItemGroup>
     <ProjectReference Include="..\Plugins.Ocr.Core\ApertureNeo.Plugins.Ocr.Core.csproj"/>
+    <ProjectReference Include="..\ApertureNeo.Strings\ApertureNeo.Strings.csproj"/>
   </ItemGroup>
 
   <ItemGroup>

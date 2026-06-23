@@ -157,8 +157,26 @@ public partial class MainWindow : FluentWindow, IPluginContext
             };
         }
 
-        _navigation.CollectionChanged += OnCollectionChanged;
-        _navigation.CurrentImageChanged += OnCurrentImageChanged;
+        // P2: CollectionChanged no longer routes through
+        // InfoPopoverController.OnCollectionChanged. The Items
+        // binding on the thumb grid already updates via
+        // ThumbnailPanelViewModel.Items + PropertyChanged; the
+        // only remaining side effect here is the thumb-load
+        // coordinator kick (which lives in MainWindow because
+        // _thumbCoordinator is per-window, not DI'd).
+        _navigation.CollectionChanged += () =>
+            _thumbCoordinator.LoadForFolder(_navigation.Items, _navigation.CurrentIndex, null);
+        // P2: CurrentImageChanged no longer routes through
+        // InfoPopoverController.OnCurrentImageChanged. The thumb
+        // grid's SelectedItem binding + the View's scroll-into-view
+        // are VM-driven; the remaining side effects here are
+        // window-level (title text + viewer context-menu close).
+        _navigation.CurrentImageChanged += item =>
+        {
+            if (item == null) return;
+            Title = $"Aperture Neo · {item.FileName} ({_navigation.CurrentIndex + 1}/{_navigation.Count})";
+            if (ImageViewer.ContextMenu != null) ImageViewer.ContextMenu.IsOpen = false;
+        };
         _navigation.CurrentImageChanged += item => CurrentImageChanged?.Invoke(this, item?.FilePath);
         _slideshow.NextRequested += () => Dispatcher.Invoke(() => _navigation.MoveNext());
 
@@ -189,7 +207,11 @@ public partial class MainWindow : FluentWindow, IPluginContext
         {
             treeVm.FolderNavigationRequested += (_, path) => _navigation.LoadFolder(path);
         }
-        ThumbPanelView.ThumbGridRef.ItemClicked += OnThumbClicked;
+        // P2: ThumbGrid.ItemClicked is now wired by
+        // ThumbnailPanelView directly to ThumbnailPanelViewModel
+        // .ThumbClickedCommand (the VM calls NavigationService
+        // .NavigateTo). MainWindow no longer needs to know about
+        // the click event.
 
         _overlayHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.0) };
         _overlayHideTimer.Tick += (s, e) =>
@@ -332,7 +354,48 @@ public partial class MainWindow : FluentWindow, IPluginContext
 
     private void WireThumbPanelEvents()
     {
-        ThumbPanelView.ThumbGridReady += (_, _) => ThumbGrid_Loaded(ThumbPanelView.ThumbGridRef, new RoutedEventArgs());
+        // P2: ThumbGrid_Loaded (the inner-ScrollViewer / AutoFitPanel
+        // hookup) and ThumbScroller_ScrollChanged (visible-range
+        // notify) live as inline methods on MainWindow now; the
+        // controller partials no longer carry this code. The wiring
+        // here waits for ThumbnailPanelView to re-raise its own
+        // ThumbGrid.Loaded event (it doesn't have access to
+        // _thumbCoordinator so the visual-tree walk + size-provider
+        // setup has to happen in MainWindow).
+        ThumbPanelView.ThumbGridReady += (_, _) => OnThumbGridReady(ThumbPanelView.ThumbGridRef);
+    }
+
+    private void OnThumbGridReady(ThumbnailGrid grid)
+    {
+        // Inner ScrollViewer isn't reachable from XAML — ThumbnailGrid
+        // builds it lazily from its template. Hook Loaded on the grid,
+        // walk down to the first ScrollViewer descendant, and
+        // subscribe ScrollChanged so we can drive the visible-range
+        // thumbnail loader.
+        var innerScroller = VisualTreeHelpers.FindVisualChild<ScrollViewer>(grid);
+        if (innerScroller == null) return;
+        innerScroller.ScrollChanged += (_, e) => OnThumbScrollerScrollChanged(grid, e);
+
+        // AutoFitPanel is the ItemsPanelTemplate host — it knows the
+        // real per-cell width. Hand the cache a live size provider so
+        // every new thumbnail is generated at the correct resolution
+        // (the cache was constructed with a default 256px size; this
+        // replaces it with the live measurement).
+        var autoFit = VisualTreeHelpers.FindVisualChild<AutoFitPanel>(grid);
+        if (autoFit != null)
+        {
+            App.ThumbnailCache.SetSizeProvider(() => (int)autoFit.ActualItemWidth);
+            _autoFit = autoFit;
+        }
+    }
+
+    private void OnThumbScrollerScrollChanged(ThumbnailGrid grid, ScrollChangedEventArgs e)
+    {
+        if (_navigation.Count == 0 || _autoFit == null) return;
+        var (firstIdx, lastIdx) = _autoFit.GetVisibleIndexRange(
+            e.VerticalOffset, e.ViewportHeight, _navigation.Count);
+        if (firstIdx < 0) return;
+        _thumbCoordinator.EnsureVisible(firstIdx, lastIdx);
     }
 
     // Convenience properties for the controllers (which still

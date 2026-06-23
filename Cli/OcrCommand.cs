@@ -185,17 +185,21 @@ public sealed class OcrCommand : Command
         try
         {
             // Clipboard.SetText can throw COMException when another
-            // process holds the clipboard lock; swallow + log + exit
-            // non-zero so a shell script can detect the failure.
+            // process holds the clipboard lock. We log + exit 0
+            // anyway because the OCR itself succeeded — the
+            // 448-char result is in memory; the user can rerun
+            // and try the clipboard write again. Returning exit 1
+            // here made shell scripts think the OCR failed.
             Clipboard.SetText(sb.ToString());
-            Application.Current?.Shutdown(0);
-            return Task.FromResult(0);
         }
         catch (Exception ex)
         {
             try { System.Console.Error.WriteLine("clipboard failed: " + ex.Message); } catch { }
-            Application.Current?.Shutdown(1);
-            return Task.FromResult(1);
+            // Fall through: the OCR succeeded, the clipboard write
+            // didn't. The user can pipe the OCR result to a file
+            // (`aperture ocr ... > out.txt`) to bypass the clipboard.
         }
+        Application.Current?.Shutdown(0);
+        return Task.FromResult(0);
     }
 }

@@ -1,6 +1,5 @@
 using System;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -10,14 +9,29 @@ using ApertureNeo.Helpers;
 namespace ApertureNeo;
 
 /// <summary>
-/// Fullscreen state machine: the toggle + enter/exit transitions
-/// (shared via TransitionToFullscreen), the visual background
-/// cross-fade, the WPF-UI ClientAreaBorder padding reset, and
-/// the double-click Fit↔100% toggle. Extracted from
-/// MainWindow.xaml.cs as a partial class.
+/// Window-level visual transitions: fullscreen state machine
+/// (toggle / enter / exit / cross-fade background / WPF-UI
+/// padding reset), fullscreen-only UI animations (edge-nav
+/// show/hide on mouse-move + 3s hide timer, exit-pill slide +
+/// fade), and the tree floating popup (hot-zone MouseEnter +
+/// 250ms MouseLeave hide timer).
+///
+/// P2 step 9: this was previously split across three
+/// controller partials (FullscreenController, EdgeNavController,
+/// TreeController) under Controllers/MainWindowControllers/.
+/// Those controllers are deleted; their remaining live methods
+/// are consolidated here for readability.
+///
+/// These stay in MainWindow because they manipulate the
+/// window's visual tree directly (animations on
+/// EdgeNavLeftContent, ExitFullscreenHint, ViewerColumn,
+/// TreeFloatingPopup). The VMs that observe IUiState
+/// properties don't have access to these elements.
 /// </summary>
 public partial class MainWindow
 {
+    // ---- Fullscreen state machine ----
+
     private void ToggleFullscreen()
     {
         _isFullscreen = !_isFullscreen;
@@ -237,49 +251,181 @@ public partial class MainWindow
         current.BeginAnimation(System.Windows.Media.SolidColorBrush.ColorProperty, anim);
     }
 
-    /// <summary>
-    /// Double-click on the viewer (outside buttons): toggle the
-    /// image between Fit-to-screen and 100% (same as the
-    /// floating-bar percent label click semantics, but
-    /// round-tripping in both directions). Behaviour is the same
-    /// in window mode and fullscreen mode — double-click never
-    /// exits fullscreen anymore. Esc / Ctrl+F still does.
-    /// Preview (tunneling) phase + e.Handled=true so the event
-    /// does not bubble to underlying controls (the edge-nav
-    /// arrows in fullscreen, the floating bar in window mode).
-    /// </summary>
-    private void Viewer_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    // ---- Edge nav (fullscreen-only) ----
+
+    private void OnWindowMouseMove(object sender, MouseEventArgs e)
     {
-        if (e.ClickCount < 2) return;
-        // Don't trigger on the edge-nav buttons, the exit pill, or
-        // the floating bar — those have their own click semantics.
-        if (e.OriginalSource is DependencyObject src)
+        if (!_isFullscreen) return;
+        var pos = e.GetPosition(this);
+        if (Math.Abs(pos.X - _lastMousePosition.X) > 5 || Math.Abs(pos.Y - _lastMousePosition.Y) > 5)
         {
-            DependencyObject? walker = src;
-            while (walker != null && walker != this)
+            _lastMousePosition = pos;
+            // Goal 1: if the cursor is hovering over an edge-nav button,
+            // do NOT re-arm the auto-hide timer. The previous MouseEnter
+            // hook missed the case where the cursor stays *inside* the
+            // button (Border.MouseEnter only fires when the cursor
+            // crosses the Border edge, not when it stays inside a
+            // child Button). IsMouseOver stays true the entire time
+            // the cursor is anywhere inside the border.
+            bool cursorOverEdgeNav =
+                EdgeNavLeftContent.IsMouseOver || EdgeNavRightContent.IsMouseOver;
+            if (cursorOverEdgeNav)
             {
-                if (walker is System.Windows.Controls.Button)
-                    return;
-                if (walker is System.Windows.Controls.Primitives.ButtonBase)
-                    return;
-                walker = System.Windows.Media.VisualTreeHelper.GetParent(walker);
+                EdgeNavLeftContent.BeginAnimation(UIElement.OpacityProperty, null);
+                EdgeNavRightContent.BeginAnimation(UIElement.OpacityProperty, null);
+                EdgeNavLeftContent.Opacity = 1;
+                EdgeNavRightContent.Opacity = 1;
+                _edgeNavVisible = true;
+                _overlayHideTimer?.Stop();
             }
+            else
+            {
+                ShowEdgeNav();
+                ResetOverlayHideTimer();
+            }
+            // Exit-pill is no longer triggered by cursor position; it
+            // appears on fullscreen entry and auto-hides after 3s (see
+            // _exitHintHideTimer wiring in the constructor).
         }
-        // Toggle between Fit and 100%, in both window mode and
-        // fullscreen mode. (Matches the floating-bar percent label
-        // click semantics, but in both directions — clicking the
-        // percent always zooms to 100%, the viewer double-click
-        // rounds-trips fit↔100%.)
-        if (ImageViewer.IsAtFitScale)
-            ImageViewer.ZoomToOriginal();
-        else
-            ImageViewer.FitToScreen();
-        e.Handled = true;
     }
 
-    // P2: ZoomTextBlock_Click was wired to the floating-bar
-    // ZoomToOriginalCommand in P2 step 2 (FloatingBarView.xaml
-    // binds the percent label's MouseBinding directly). The
-    // controller method is dead — XAML MouseBinding on the
-    // TextBlock + VM RelayCommand handle it without code-behind.
+    /// <summary>
+    /// Show the fullscreen edge-nav buttons (left + right). Cancels any
+    /// in-flight fade-out, makes the borders Visible, and animates
+    /// Opacity 0→1 over 200ms. Subsequent calls while already visible
+    /// are a no-op — the timer restart is the only side-effect of
+    /// repeated mouse-move events.
+    /// </summary>
+    private void ShowEdgeNav()
+    {
+        if (_edgeNavVisible) { ResetOverlayHideTimer(); return; }
+        _edgeNavVisible = true;
+        EdgeNavLeftContent.BeginAnimation(UIElement.OpacityProperty, null);
+        EdgeNavRightContent.BeginAnimation(UIElement.OpacityProperty, null);
+        EdgeNavLeftContent.Visibility = Visibility.Visible;
+        EdgeNavRightContent.Visibility = Visibility.Visible;
+        var fadeIn = new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(200));
+        EdgeNavLeftContent.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+        EdgeNavRightContent.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+    }
+
+    /// <summary>
+    /// Fade the edge-nav buttons out (200ms) and collapse them once the
+    /// animation completes. Safe to call when already hidden.
+    /// </summary>
+    private void HideEdgeNav()
+    {
+        if (!_edgeNavVisible) return;
+        _edgeNavVisible = false;
+        var fadeOut = new DoubleAnimation(1d, 0d, TimeSpan.FromMilliseconds(200));
+        fadeOut.Completed += (_, _) =>
+        {
+            if (_edgeNavVisible) return; // re-shown mid-fade; leave it
+            EdgeNavLeftContent.Visibility = Visibility.Collapsed;
+            EdgeNavRightContent.Visibility = Visibility.Collapsed;
+            EdgeNavLeftContent.Opacity = 0;
+            EdgeNavRightContent.Opacity = 0;
+        };
+        EdgeNavLeftContent.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+        EdgeNavRightContent.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+    }
+
+    private void ResetOverlayHideTimer()
+    {
+        _overlayHideTimer?.Stop();
+        _overlayHideTimer?.Start();
+    }
+
+    private void ShowExitFullscreenHint()
+    {
+        ExitFullscreenHint.Visibility = Visibility.Visible;
+        ExitFullscreenHint.BeginAnimation(UIElement.OpacityProperty, null);
+        ExitFullscreenTransform.BeginAnimation(TranslateTransform.YProperty, null);
+        var fadeIn = new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(200));
+        var slideIn = new DoubleAnimation(-50d, 0d, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        ExitFullscreenHint.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+        ExitFullscreenTransform.BeginAnimation(TranslateTransform.YProperty, slideIn);
+    }
+
+    private void HideExitFullscreenHint()
+    {
+        ExitFullscreenHint.BeginAnimation(UIElement.OpacityProperty, null);
+        ExitFullscreenTransform.BeginAnimation(TranslateTransform.YProperty, null);
+        var fadeOut = new DoubleAnimation(1d, 0d, TimeSpan.FromMilliseconds(200));
+        var slideOut = new DoubleAnimation(0d, -50d, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+        };
+        ExitFullscreenHint.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+        ExitFullscreenTransform.BeginAnimation(TranslateTransform.YProperty, slideOut);
+    }
+
+    // ---- Floating tree popup (hot zone + panel) ----
+
+    private DispatcherTimer? _treeHideTimer;
+
+    /// <summary>
+    /// Mouse entered the 8px left-edge hot zone. Show the floating
+    /// tree popup if the inline tree is currently collapsed. The
+    /// popup mirrors the inline tree's items and selected node via
+    /// SyncFrom, so the visual state is consistent on first show.
+    /// </summary>
+    private void TreeHotZone_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (_isFullscreen || _isTreeVisible) return;
+        _treeHideTimer?.Stop();
+        if (!TreeFloatingPopup.IsOpen)
+        {
+            FolderTreeFloating.SyncFrom(FolderTree);
+            TreeFloatingPopup.HorizontalOffset = 0;
+            TreeFloatingPopup.VerticalOffset = 0;
+            TreeFloatingPopup.IsOpen = true;
+        }
+    }
+
+    private void TreeHotZone_MouseLeave(object sender, MouseEventArgs e)
+    {
+        // Don't close the popup yet — the user is probably moving
+        // their cursor INTO the floating tree. The popup's own
+        // MouseLeave handler will fire when the cursor truly exits
+        // both the hot zone and the popup, at which point we close.
+    }
+
+    private void TreeFloatingPanel_MouseEnter(object sender, MouseEventArgs e)
+    {
+        _treeHideTimer?.Stop();
+    }
+
+    /// <summary>
+    /// Mouse left the floating panel. Start a short hide timer so
+    /// the panel doesn't close while the cursor is crossing the
+    /// 4px gap between the popup edge and the next target. If the
+    /// cursor re-enters within 250ms (via hot zone or panel), the
+    /// timer is cancelled.
+    /// </summary>
+    private void TreeFloatingPanel_MouseLeave(object sender, MouseEventArgs e)
+    {
+        if (_treeHideTimer == null)
+        {
+            _treeHideTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            _treeHideTimer.Tick += (_, _) =>
+            {
+                _treeHideTimer.Stop();
+                TreeFloatingPopup.IsOpen = false;
+            };
+        }
+        _treeHideTimer.Stop();
+        _treeHideTimer.Start();
+    }
+
+    private void TreeFloatingPopup_Closed(object? sender, EventArgs e)
+    {
+        // The popup closed (either via the hide timer or by the
+        // user collapsing the tree). Nothing to do beyond a
+        // defensive timer stop.
+        _treeHideTimer?.Stop();
+    }
 }

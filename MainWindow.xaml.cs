@@ -341,7 +341,10 @@ public partial class MainWindow : FluentWindow, IPluginContext
         ViewerPanel.OpenInExplorerRequested += (_, _) => CtxOpenInExplorer_Click(this, new RoutedEventArgs());
         ViewerPanel.PrintRequested += (_, _) => CtxPrint_Click(this, new RoutedEventArgs());
         ViewerPanel.SetWallpaperRequested += (_, _) => CtxSetWallpaper_Click(this, new RoutedEventArgs());
-        ViewerPanel.ViewerPreviewMouseLeftButtonDown += (_, e) => Viewer_PreviewMouseLeftButtonDown(this, e);
+        // P2: Viewer_PreviewMouseLeftButtonDown is gone. The
+        // viewer double-click fit↔zoom toggle is owned by
+        // ImageViewerPanelViewModel (SetViewer hooks the
+        // viewer's PreviewMouseLeftButtonDown directly).
 
         // P2: ImageViewerPanelViewModel.SetViewer needs the
         // SkiaImageViewer reference after the View's Loaded.

@@ -50,10 +50,56 @@ public partial class ImageViewerPanelViewModel : ObservableObject
         _viewer = viewer;
         _viewer.ZoomChanged += z => _uiState.CurrentZoom = z;
         _viewer.ImageLoaded += OnViewerImageLoaded;
+        // P2: handle the viewer double-click fit↔zoom toggle here
+        // instead of routing through the host MainWindow's
+        // Viewer_PreviewMouseLeftButtonDown controller method.
+        // The VM already holds the viewer reference, so the visual
+        // tree walk + IsAtFitScale check + ZoomToOriginal /
+        // FitToScreen call are all self-contained.
+        _viewer.PreviewMouseLeftButtonDown += OnViewerPreviewMouseLeftButtonDown;
         // If the navigation has already happened before the
         // viewer was set, load the current image now.
         if (_navigation.Current != null)
             _viewer.LoadImage(_navigation.Current.FilePath);
+    }
+
+    /// <summary>
+    /// Double-click on the viewer (outside buttons): toggle the
+    /// image between Fit-to-screen and 100% (same as the
+    /// floating-bar percent label click semantics, but
+    /// round-tripping in both directions). Behaviour is the same
+    /// in window mode and fullscreen mode — double-click never
+    /// exits fullscreen anymore. Esc / Ctrl+F still does.
+    /// Preview (tunneling) phase + e.Handled=true so the event
+    /// does not bubble to underlying controls (the edge-nav
+    /// arrows in fullscreen, the floating bar in window mode).
+    /// </summary>
+    private void OnViewerPreviewMouseLeftButtonDown(object? sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.ClickCount < 2) return;
+        // Don't trigger on the edge-nav buttons, the exit pill, or
+        // the floating bar — those have their own click semantics.
+        if (e.OriginalSource is System.Windows.DependencyObject src)
+        {
+            System.Windows.DependencyObject? walker = src;
+            while (walker != null)
+            {
+                if (walker is System.Windows.Controls.Button) return;
+                if (walker is System.Windows.Controls.Primitives.ButtonBase) return;
+                walker = System.Windows.Media.VisualTreeHelper.GetParent(walker);
+            }
+        }
+        // Toggle between Fit and 100%, in both window mode and
+        // fullscreen mode. (Matches the floating-bar percent label
+        // click semantics, but in both directions — clicking the
+        // percent always zooms to 100%, the viewer double-click
+        // rounds-trips fit↔100%.)
+        if (_viewer == null) return;
+        if (_viewer.IsAtFitScale)
+            _viewer.ZoomToOriginal();
+        else
+            _viewer.FitToScreen();
+        e.Handled = true;
     }
 
     private void OnCurrentImageChanged(ImageItem? item)

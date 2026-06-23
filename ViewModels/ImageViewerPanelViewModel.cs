@@ -32,6 +32,14 @@ public partial class ImageViewerPanelViewModel : ObservableObject
     {
         _navigation = navigation;
         _uiState = uiState;
+        // P2: ImageViewerPanelViewModel is the writer of
+        // IUiState.CurrentImage — every navigation change
+        // publishes the new current item. Other VMs observe
+        // IUiState.PropertyChanged for CurrentImage. Keeping
+        // the navigation subscription here too so the VM
+        // also gets the immediate navigation event (used
+        // to push the image-load call to SkiaImageViewer
+        // before dimensions are known).
         _navigation.CurrentImageChanged += OnCurrentImageChanged;
     }
 

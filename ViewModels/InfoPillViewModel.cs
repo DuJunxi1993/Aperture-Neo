@@ -32,7 +32,12 @@ public partial class InfoPillViewModel : ObservableObject
     {
         _navigation = navigation;
         _uiState = uiState;
-        _navigation.CurrentImageChanged += OnCurrentImageChanged;
+        // P2 fix: only observe IUiState for navigation signals.
+        // _navigation.CurrentImageChanged is unreliable in this
+        // architecture — see InfoPopoverViewModel for the full
+        // explanation. IUiState is a singleton and ImageViewer
+        // PanelViewModel writes to IUiState.CurrentImage on every
+        // navigation change.
         _uiState.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(IUiState.CurrentImage))

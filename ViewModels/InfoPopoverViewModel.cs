@@ -29,12 +29,19 @@ public partial class InfoPopoverViewModel : ObservableObject
     {
         _uiState = uiState;
         _navigation = navigation;
+        // P2 fix: only observe IUiState for navigation signals.
+        // _navigation.CurrentImageChanged is unreliable here
+        // (the subscription can be lost when the view is in a
+        // Popup with a complex visual tree — see the P2 step 4
+        // bugfix commit log). IUiState is a singleton and its
+        // PropertyChanged event is the central hub that the
+        // ImageViewerPanelViewModel writes to on every
+        // navigation change.
         _uiState.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(IUiState.CurrentImage))
                 BindToItem(_uiState.CurrentImage ?? _navigation.Current);
         };
-        _navigation.CurrentImageChanged += item => BindToItem(item);
         BindToItem(_uiState.CurrentImage ?? _navigation.Current);
     }
 

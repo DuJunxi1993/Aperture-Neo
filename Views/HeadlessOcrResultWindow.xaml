@@ -151,7 +151,7 @@
                         Content="{DynamicResource HeadlessOcr_CopyAll}" Click="BtnCopyAll_Click" Margin="0,0,8,0"
                         Padding="10,0" Width="Auto" Height="28"/>
                 <Button x:Name="BtnClose" Style="{StaticResource LinearPrimaryButton}"
-                        Content="{DynamicResource AboutWindow_CloseButton}" Click="BtnClose_Click" IsDefault="True"/>
+                        Content="{DynamicResource HeadlessOcr_Close}" Click="BtnClose_Click" IsDefault="True"/>
             </StackPanel>
         </Border>
     </Grid>

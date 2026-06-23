@@ -32,6 +32,16 @@ public partial class MainWindow
 {
     // ---- Fullscreen state machine ----
 
+    // P1 fix: transition generation. The 150ms fade-out's
+    // Completed callback is async (runs on the next dispatcher
+    // frame). If the user toggles fullscreen twice within 150ms the
+    // first callback still fires after the second transition has
+    // already mutated _isFullscreen, swapping WindowState +
+    // ApplyColumnVisibility + UpdateLayout a second time. The
+    // generation counter lets the callback ignore itself when a
+    // newer transition has started.
+    private int _transitionGeneration;
+
     private void ToggleFullscreen()
     {
         _isFullscreen = !_isFullscreen;
@@ -95,6 +105,14 @@ public partial class MainWindow
             ? _theme.SurfaceBlack
             : _theme.SurfaceElevated;
 
+        // P1 fix: stamp this transition with a generation number. If
+        // the user toggles fullscreen again before this fadeOut's
+        // Completed callback fires, the older callback's generation
+        // will be stale and the callback will return without
+        // mutating WindowState / ApplyColumnVisibility. The newer
+        // transition's callbacks run unimpeded.
+        var myGen = ++_transitionGeneration;
+
         // 1. Fade the viewer to 0 over 150ms (ease-in). After this
         //    completes, swap the OS-level state without the user
         //    seeing any layout recompute.
@@ -108,6 +126,13 @@ public partial class MainWindow
         };
         fadeOut.Completed += (_, _) =>
         {
+            // Bail if a newer TransitionToFullscreen has started
+            // since this one. Without this guard, a rapid
+            // Ctrl+F, Ctrl+F would re-apply the second transition's
+            // OS swap a second time, fighting the new fade.
+            if (myGen != _transitionGeneration) return;
+
+
             // 2. OS-level swap. Entering becomes borderless + covers
             //    the whole screen. Exiting forces Normal rather than
             //    _prevWindowState so a previous Maximized state
@@ -234,8 +259,15 @@ public partial class MainWindow
         var current = ViewerColumn.Background as System.Windows.Media.SolidColorBrush;
         if (current == null || current.IsFrozen)
         {
-            current = new System.Windows.Media.SolidColorBrush(
-                current?.Color ?? System.Windows.Media.Colors.White);
+            // P1 fix: seed the new brush with the theme's resting
+            // color instead of Colors.White. The previous fallback
+            // worked only because SurfaceElevated happened to be
+            // white; if the design token ever changes, the first
+            // cross-fade would visibly flash from white to the new
+            // color.
+            var seed = current?.Color
+                ?? ((System.Windows.Media.SolidColorBrush)_theme.SurfaceElevated).Color;
+            current = new System.Windows.Media.SolidColorBrush(seed);
         }
         else
         {

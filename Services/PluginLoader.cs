@@ -157,6 +157,26 @@ public static class PluginLoader
     }
 
     /// <summary>
+    /// Deactivate every plugin that was activated in this session.
+    /// Called from <see cref="App.OnExit"/> so shutdown releases
+    /// model file handles, background workers, etc. for plugins the
+    /// user opted into. Snapshot the active set first because
+    /// <see cref="Deactivate"/> mutates it.
+    /// </summary>
+    public static void DeactivateAll()
+    {
+        foreach (var plugin in _active.ToArray())
+        {
+            try { plugin.Deactivate(); }
+            catch (Exception ex)
+            {
+                DebugLog.Write("Plugin", $"deactivate-all failed for {plugin.Name}: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+        _active.Clear();
+    }
+
+    /// <summary>
     /// Isolated AssemblyLoadContext: resolves managed dependencies against
     /// the plugin folder first, then the host (main app) as fallback. Keeps
     /// the plugin's transitive deps (SkiaSharp 3.119, ONNX 1.26, etc.)

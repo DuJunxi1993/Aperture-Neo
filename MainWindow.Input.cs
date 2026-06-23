@@ -38,8 +38,16 @@ public partial class MainWindow
         if (!File.Exists(file) || !FormatHelper.IsSupported(file)) return;
         var folder = Path.GetDirectoryName(file);
         if (string.IsNullOrEmpty(folder)) return;
-        if (FormatHelper.FolderHasImages(folder))
-            App.SettingsStore.AddRecent(folder);
+        // P1 fix: if the dropped file's folder has no other supported
+        // images, skip the load entirely. The previous code always
+        // called LoadFolder + NavigateTo even for an empty folder,
+        // which left the viewer in an inconsistent state: the folder
+        // was empty (so the thumbnail panel + empty-state overlay
+        // showed), but _currentFolder was set + AddRecent was skipped.
+        // Bailing out keeps state consistent. (The user can always
+        // drop a different file.)
+        if (!FormatHelper.FolderHasImages(folder)) return;
+        App.SettingsStore.AddRecent(folder);
         _navigation.LoadFolder(folder);
         _navigation.NavigateTo(file);
     }

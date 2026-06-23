@@ -242,19 +242,15 @@ public partial class MainWindow : FluentWindow, IPluginContext
         // .NavigateTo). MainWindow no longer needs to know about
         // the click event.
 
-        _overlayHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.0) };
-        _overlayHideTimer.Tick += (s, e) =>
-        {
-            if (_isFullscreen) HideEdgeNav();
-            _overlayHideTimer?.Stop();
-        };
-
-        _exitHintHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.0) };
-        _exitHintHideTimer.Tick += (s, e) =>
-        {
-            if (_isFullscreen) HideExitFullscreenHint();
-            _exitHintHideTimer.Stop();
-        };
+        // P1 fix: the overlay-hide timers were removed —
+        // the exit hint and edge nav are now persistent in
+        // fullscreen (no auto-hide). The previous 3s
+        // auto-hide left the user with no visual
+        // affordance for "how do I exit?" or "how do I
+        // navigate?" once the chrome faded. The fields
+        // stay declared (so the .Stop() calls in the
+        // Closed handler below still compile against the
+        // nullable instance) but no timer is constructed.
 
         Loaded += (_, _) =>
         {

@@ -99,7 +99,6 @@ public partial class MainWindow
         if (item == null) return;
         Title = $"Aperture Neo · {item.FileName} ({_navigation.CurrentIndex + 1}/{_navigation.Count})";
         ImageViewer.LoadImage(item.FilePath);
-        UpdateCurrentImageInfo(item);
         // P2: ImageIndexInfo.Text update moved to
         // FloatingBarViewModel (it binds to ImageIndexInfo
         // via XAML and updates on NavigationService events).
@@ -108,30 +107,9 @@ public partial class MainWindow
         if (ImageViewer.ContextMenu != null) ImageViewer.ContextMenu.IsOpen = false;
     }
 
-    /// <summary>
-    /// Update the info pill text. The image item may not yet have its
-    /// dimensions populated — they're probed asynchronously from the file
-    /// header on first access and then overwritten by the authoritative
-    /// dimensions once SkiaImageViewer has decoded the image. Because
-    /// ImageItem raises PropertyChanged when those values arrive, we
-    /// re-invoke this method so the pill text stays in sync.
-    /// </summary>
-    private void UpdateCurrentImageInfo(ImageItem item)
-    {
-        if (item == null) return;
-        // P2: ImageInfo's Text is bound to InfoPillViewModel
-        // .ImageInfo (which calls Refresh on the current image's
-        // dimensions). The controller no longer writes the text
-        // directly.
-        //
-        // The status dot to the left of the resolution text is gray
-        // while dimensions are still unknown and turns brand-indigo the
-        // moment SkiaImageViewer has decoded the image. This is a
-        // cheap "loading" affordance that doesn't need its own pill.
-        // P2: the dot's color is bound to InfoPillViewModel
-        // .IsDimensionsKnown via XAML DataTrigger; the controller
-        // no longer writes the brush directly.
-    }
+    // P2: InfoPillViewModel owns ImageInfo + IsDimensionsKnown via
+    // XAML bindings; the controller no longer needs to write them
+    // directly.
 
     /// <summary>
     /// R70: toggle the info popover when the user clicks the

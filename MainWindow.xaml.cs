@@ -29,7 +29,16 @@ namespace ApertureNeo;
 /// </summary>
 public partial class MainWindow : FluentWindow, IPluginContext
 {
-    private readonly NavigationService _navigation = new();
+    // Resolve NavigationService from the DI container so this window
+    // shares the same instance the VMs subscribe to. P2 bugfix: the
+    // previous `new NavigationService()` created a second, local
+    // NavigationService; ImageViewerPanelViewModel subscribed to the
+    // DI singleton's CurrentImageChanged, MainWindow raised events on
+    // its private instance, so the VM never fired its handler and
+    // IUiState.CurrentImage stayed null → InfoPill/InfoPopover never
+    // bound to a real ImageItem.
+    private readonly INavigationService _navigation =
+        AppHost.Services!.GetRequiredService<INavigationService>();
     private readonly SlideshowService _slideshow = new();
     // 8 parallel decodes: roughly matches modern CPU core count; the
     // old default of 2 wasted most of the available IO+decode bandwidth
@@ -161,17 +170,6 @@ public partial class MainWindow : FluentWindow, IPluginContext
             var item = _navigation.Items.FirstOrDefault(i => i.FilePath == result.FilePath);
             if (item == null) return;
             item.SetDimensions(result.Width, result.Height);
-            if (ReferenceEquals(item, _navigation.Current))
-                UpdateCurrentImageInfo(item);
-        };
-        _navigation.CurrentImageChanged += item =>
-        {
-            if (item == null) return;
-            item.PropertyChanged += (_, _) =>
-            {
-                if (ReferenceEquals(item, _navigation.Current))
-                    Dispatcher.Invoke(() => UpdateCurrentImageInfo(item));
-            };
         };
 
         TreePanelView.FolderTreeRef.FolderSelected += OnFolderSelected;
@@ -215,7 +213,7 @@ public partial class MainWindow : FluentWindow, IPluginContext
 
             _thumbCoordinator.Dispose();
             _slideshow.Dispose();
-            _navigation.Dispose();
+            (_navigation as IDisposable)?.Dispose();
             _overlayHideTimer?.Stop();
         };
 
@@ -336,9 +334,6 @@ public partial class MainWindow : FluentWindow, IPluginContext
     // stay self-contained (they don't need to know about the
     // UserControl wrapper layer).
 
-    private System.Windows.Controls.Button BtnOpen => null;  // P2: command-bound; kept null for the legacy ChromeController BtnOpen_Click (still routed via P1)
-    private System.Windows.Controls.Button BtnToggleTree => null;  // P2: TitleBar.ToggleTreeColumnCommand drives IUiState.IsTreeVisible
-    private System.Windows.Controls.Button BtnToggleThumb => null;  // P2: same pattern
     private System.Windows.Controls.MenuItem MenuPlugins => TitleBar.MenuPluginsRef;
     private System.Windows.Controls.MenuItem MenuAbout => TitleBar.MenuAboutRef;
     private System.Windows.Controls.TextBlock AboutUpdateSuffix => TitleBar.AboutUpdateSuffixRef;

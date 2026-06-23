@@ -502,43 +502,85 @@ public partial class MainWindow : FluentWindow, IPluginContext
 
     public event EventHandler<string?>? CurrentImageChanged;
 
-    public void RegisterMenuItem(System.Windows.Controls.MenuItem item)
+    // P4: ViewSlot routes plugin UI to the named shell region.
+    // Replaces the old RegisterMenuItem / RegisterContextMenuItem /
+    // UnregisterPluginMenuItems methods — plugins now push UI
+    // generically (any UIElement, not just MenuItem) and identify
+    // their own contributions via Tag = this for cleanup.
+    public void ViewSlot(string region, object content)
     {
-        if (MenuPlugins == null) return;
-        MenuPlugins.Items.Add(item);
+        switch (region)
+        {
+            case ShellRegions.TitleBarMenu:
+                AddToTitleBarMenu(content);
+                break;
+            case ShellRegions.ViewerContextMenu:
+                AddToViewerContextMenu(content);
+                break;
+            default:
+                DebugLog.Write("Plugin", $"unknown region '{region}'; content ignored");
+                break;
+        }
     }
 
-    public void RegisterContextMenuItem(System.Windows.Controls.MenuItem item)
+    /// <summary>Remove every contribution tagged with
+    /// <paramref name="pluginTag"/> from every wired region.</summary>
+    public void ClearSlots(object pluginTag)
+    {
+        RemoveTaggedFrom(MenuPlugins?.Items, pluginTag);
+        var viewer = ViewerPanel?.ImageViewerRef;
+        if (viewer?.ContextMenu != null)
+            RemoveTaggedFrom(viewer.ContextMenu.Items, pluginTag);
+    }
+
+    private static void RemoveTaggedFrom(System.Windows.Controls.ItemCollection? items, object? pluginTag)
+    {
+        if (items == null) return;
+        for (int i = items.Count - 1; i >= 0; i--)
+        {
+            if (Equals(items[i] is System.Windows.FrameworkElement fe ? fe.Tag : null, pluginTag))
+                items.RemoveAt(i);
+        }
+    }
+
+    private void AddToTitleBarMenu(object content)
+    {
+        if (MenuPlugins == null) return;
+        // Idempotent: if the same plugin re-Activates, replace the
+        // existing item with the same Tag rather than appending a
+        // duplicate. Plugin authors set Tag = this per the IPluginContext
+        // contract, so any existing contribution from this plugin is
+        // safe to remove before insertion.
+        RemoveTaggedFrom(MenuPlugins.Items, GetPluginTag(content));
+        MenuPlugins.Items.Add(content);
+    }
+
+    private void AddToViewerContextMenu(object content)
     {
         var viewer = ViewerPanel?.ImageViewerRef;
         if (viewer?.ContextMenu == null) return;
+        // Idempotent: drop any existing contribution from this plugin
+        // before inserting the new one (see AddToTitleBarMenu).
+        RemoveTaggedFrom(viewer.ContextMenu.Items, GetPluginTag(content));
+        // Insert before the last Separator so plugin items group
+        // together at the bottom of the menu, matching the layout
+        // the old RegisterContextMenuItem produced.
         var insertBefore = viewer.ContextMenu.Items.OfType<Separator>().LastOrDefault();
         if (insertBefore != null)
-            viewer.ContextMenu.Items.Insert(viewer.ContextMenu.Items.IndexOf(insertBefore), item);
+            viewer.ContextMenu.Items.Insert(viewer.ContextMenu.Items.IndexOf(insertBefore), content);
         else
-            viewer.ContextMenu.Items.Add(item);
+            viewer.ContextMenu.Items.Add(content);
     }
 
-    public void UnregisterPluginMenuItems(object pluginTag)
+    private static object? GetPluginTag(object content)
     {
-        var menuPlugins = TitleBar?.MenuPluginsRef;
-        if (menuPlugins != null)
-        {
-            for (int i = menuPlugins.Items.Count - 1; i >= 0; i--)
-            {
-                if (menuPlugins.Items[i] is System.Windows.Controls.MenuItem mi && Equals(mi.Tag, pluginTag))
-                    menuPlugins.Items.RemoveAt(i);
-            }
-        }
-        var viewer = ViewerPanel?.ImageViewerRef;
-        if (viewer?.ContextMenu != null)
-        {
-            for (int i = viewer.ContextMenu.Items.Count - 1; i >= 0; i--)
-            {
-                if (viewer.ContextMenu.Items[i] is System.Windows.Controls.MenuItem mi && Equals(mi.Tag, pluginTag))
-                    viewer.ContextMenu.Items.RemoveAt(i);
-            }
-        }
+        // Plugins are expected to set FrameworkElement.Tag to their
+        // own IPluginModule instance per the IPluginContext contract.
+        // Read it here so AddToTitleBarMenu / AddToViewerContextMenu
+        // can dedup by-tag without the plugin having to track its
+        // own slot list.
+        if (content is System.Windows.FrameworkElement fe) return fe.Tag;
+        return null;
     }
 
     /// <summary>

@@ -9,7 +9,7 @@ using ApertureNeo.Services;
 
 namespace ApertureNeo.Plugins.Ocr;
 
-public sealed class OcrPlugin : IPlugin
+public sealed class OcrPlugin : IPluginModule
 {
     private OcrService? _service;
     private IPluginContext? _context;
@@ -70,18 +70,19 @@ public sealed class OcrPlugin : IPlugin
         _context = context;
         _service = new OcrService();
 
-        // Only register the image context-menu item. The 插件
-        // submenu is reserved for the on/off toggle — the action
-        // button doesn't belong there.
-        // Tag = this so MainWindow.UnregisterPluginMenuItems can
-        // find and remove this item when the user disables.
+        // P4: contribute the action item to the ViewerContextMenu
+        // region via ViewSlot (replacing the old
+        // RegisterContextMenuItem call). Tag = this so
+        // IPluginContext.ClearSlots(this) finds it on Deactivate.
+        // Idempotent: if the plugin re-Activates, MainWindow's
+        // ViewSlot implementation dedups by tag before inserting.
         var ctxItem = new System.Windows.Controls.MenuItem
         {
             Header = "提取当前图片文字",
             Tag = this,
         };
         ctxItem.Click += async (_, _) => await OnExtractAsync(context);
-        context.RegisterContextMenuItem(ctxItem);
+        context.ViewSlot(ShellRegions.ViewerContextMenu, ctxItem);
 
         // Background warmup: load the 3 ONNX models (~16MB) into
         // memory now so the first OCR run is fast. Fire-and-forget;
@@ -93,13 +94,13 @@ public sealed class OcrPlugin : IPlugin
     /// <summary>
     /// Called when the user disables the plugin. Disposes the
     /// OcrService (releases the ONNX engine + model memory) and
-    /// asks the context to remove our menu items.
+    /// asks the context to clear our contributed UI.
     /// </summary>
     public void Deactivate()
     {
         _service?.Dispose();
         _service = null;
-        _context?.UnregisterPluginMenuItems(this);
+        _context?.ClearSlots(this);
         _context = null;
     }
 

@@ -20,7 +20,7 @@ public static class PluginLoader
     // Tracks which plugins have been Activate()'d so repeated
     // Activate calls are no-ops (each Activate would otherwise
     // re-register menu items).
-    private static readonly HashSet<IPlugin> _active = new();
+    private static readonly HashSet<IPluginModule> _active = new();
 
     /// <summary>
     /// Scan <paramref name="pluginsDirectory"/> for IPlugin DLLs, load
@@ -81,8 +81,12 @@ public static class PluginLoader
             Type? pluginType;
             try
             {
+                // P4: IPlugin → IPluginModule. Plugins implement the
+                // module interface and contribute UI to named regions
+                // via IPluginContext.ViewSlot (replacing the old
+                // RegisterXxx methods).
                 pluginType = assembly.GetTypes()
-                    .FirstOrDefault(t => typeof(IPlugin).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
+                    .FirstOrDefault(t => typeof(IPluginModule).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
             }
             catch (ReflectionTypeLoadException rtex)
             {
@@ -93,10 +97,10 @@ public static class PluginLoader
 
             if (pluginType == null) continue; // transitive dep, not a plugin
 
-            IPlugin plugin;
+            IPluginModule plugin;
             try
             {
-                plugin = (IPlugin)Activator.CreateInstance(pluginType)!;
+                plugin = (IPluginModule)Activator.CreateInstance(pluginType)!;
             }
             catch (Exception ex)
             {
@@ -112,9 +116,10 @@ public static class PluginLoader
     }
 
     /// <summary>
-    /// Activate a discovered plugin — calls its IPlugin.Activate so it
-    /// can load heavy resources and register menu items. Idempotent:
-    /// a no-op if the plugin is already active.
+    /// Activate a discovered plugin — calls its IPluginModule.Activate
+    /// so it can load heavy resources and contribute UI via
+    /// <see cref="IPluginContext.ViewSlot"/>. Idempotent: a no-op if
+    /// the plugin is already active.
     /// </summary>
     public static void Activate(PluginInfo info, IPluginContext context)
     {
@@ -132,8 +137,9 @@ public static class PluginLoader
     }
 
     /// <summary>
-    /// Deactivate an active plugin — calls its IPlugin.Deactivate so
-    /// it can release heavy resources and unregister menu items.
+    /// Deactivate an active plugin — calls its IPluginModule.Deactivate
+    /// so it can release heavy resources and clear its contributed UI
+    /// via <see cref="IPluginContext.ClearSlots"/>.
     /// </summary>
     public static void Deactivate(PluginInfo info)
     {

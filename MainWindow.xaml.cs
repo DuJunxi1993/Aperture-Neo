@@ -411,8 +411,14 @@ public partial class MainWindow : FluentWindow, IPluginContext
 
     private void WireImageViewerPanelVM()
     {
+        // P1: both the image-viewer VM (handles double-click fit↔zoom
+        // toggle) and the floating-bar VM (Fit / 100% buttons) need
+        // the SkiaImageViewer reference. Hand the same instance to
+        // both so they target the same viewer the user is looking at.
         if (ViewerPanel.DataContext is ImageViewerPanelViewModel vm)
             vm.SetViewer(ViewerPanel.ImageViewerRef);
+        if (FloatingBar.DataContext is FloatingBarViewModel barVm)
+            barVm.SetViewer(ViewerPanel.ImageViewerRef);
     }
 
     private void WireEdgeNavEvents()

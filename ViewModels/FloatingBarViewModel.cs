@@ -21,6 +21,14 @@ public partial class FloatingBarViewModel : ObservableObject
 {
     private readonly INavigationService _navigation;
     private readonly IUiState _uiState;
+    // SkiaImageViewer reference is set by MainWindow (after the
+    // viewer's Loaded event) via SetViewer. Both Fit and
+    // ZoomToOriginal commands route through this viewer — the VM
+    // is UI-agnostic for everything else (image index, zoom
+    // text, prev/next) but viewer-specific actions like fit/zoom
+    // need the actual control. We keep the reference nullable so
+    // the VM can be constructed before the viewer is loaded.
+    private ApertureNeo.Controls.SkiaImageViewer? _viewer;
 
     public FloatingBarViewModel(INavigationService navigation, IUiState uiState)
     {
@@ -38,6 +46,13 @@ public partial class FloatingBarViewModel : ObservableObject
                 ZoomText = $"{_uiState.CurrentZoom * 100:F0}%";
         };
     }
+
+    /// <summary>Called by MainWindow after ViewerPanel.ImageViewerRef
+    /// is available. The same instance is also handed to
+    /// ImageViewerPanelViewModel; sharing it across the two VMs
+    /// keeps Fit/Zoom commands pointing at the same viewer the
+    /// double-click handler is hooked on.</summary>
+    public void SetViewer(ApertureNeo.Controls.SkiaImageViewer viewer) => _viewer = viewer;
 
     [ObservableProperty]
     private string _imageIndexInfo = "0/0";
@@ -62,22 +77,17 @@ public partial class FloatingBarViewModel : ObservableObject
     [RelayCommand]
     private void Next() => _navigation.MoveNext();
 
-    // Fit / ZoomToOriginal commands are present for XAML binding
-    // (the floating bar's 100% and Fit buttons reference them) but
-    // currently no-op: the original implementation raised VM events
-    // that the View was supposed to forward into MainWindow's
-    // SkiaImageViewer instance. The forwarding chain was never
-    // wired up end-to-end (no consumer ever assigned the View's
-    // Action properties), so the commands silently did nothing.
-    // Restoring real behaviour needs the View to take a hard
-    // reference to the viewer, or MainWindow to subscribe to a
-    // different VM event — both are out of scope for the
-    // modularity-cleanup pass.
+    // Fit and ZoomToOriginal route to the viewer. The buttons
+    // in FloatingBarView.xaml are Command-bound to these
+    // [RelayCommand]s (FitCommand / ZoomToOriginalCommand); the
+    // 100% label's MouseBinding also calls ZoomToOriginalCommand.
+    // Both methods no-op gracefully if the viewer hasn't been
+    // set yet (race between VM construction and View's Loaded).
     [RelayCommand]
-    private void Fit() { }
+    private void Fit() => _viewer?.FitToScreen();
 
     [RelayCommand]
-    private void ZoomToOriginal() { }
+    private void ZoomToOriginal() => _viewer?.ZoomToOriginal();
 
     [RelayCommand]
     private void ToggleSlideshow()

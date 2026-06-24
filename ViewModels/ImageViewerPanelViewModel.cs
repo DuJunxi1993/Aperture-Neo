@@ -1,5 +1,7 @@
 using System;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ApertureNeo.Controls;
@@ -27,6 +29,20 @@ public partial class ImageViewerPanelViewModel : ObservableObject
     private readonly INavigationService _navigation;
     private readonly IUiState _uiState;
     private SkiaImageViewer? _viewer;
+    // P1 fix: timestamp of the last double-click action. Used to
+    // debounce rapid additional clicks that WPF reports as part
+    // of the same click sequence (ClickCount=3, 4, 5...). Without
+    // this, double-click → click → triggers another toggle
+    // (because WPF keeps incrementing ClickCount for clicks
+    // within the system double-click window).
+    private DateTime _lastDoubleClickHandledAt = DateTime.MinValue;
+    // Cached system double-click time. WPF 10's SystemParameters
+    // doesn't expose MouseDoubleClickTime (it was removed at some
+    // point), so we ask the Win32 user32.dll directly via
+    // GetDoubleClickTime. The value rarely changes during a
+    // session, so cache it on first use. Default 500ms if the
+    // call ever returns 0 (which shouldn't happen on Windows).
+    private static readonly int _doubleClickTimeMs = GetCachedDoubleClickTime();
 
     public ImageViewerPanelViewModel(INavigationService navigation, IUiState uiState)
     {
@@ -89,6 +105,20 @@ public partial class ImageViewerPanelViewModel : ObservableObject
                 walker = System.Windows.Media.VisualTreeHelper.GetParent(walker);
             }
         }
+        // P1 fix: debounce rapid additional clicks that WPF
+        // reports as part of the same click sequence. WPF keeps
+        // incrementing ClickCount (3, 4, 5...) for clicks within
+        // the system double-click window, so without this guard a
+        // double-click → click would re-trigger the toggle (the
+        // third click comes in as ClickCount=3 ≥ 2). The window
+        // is the OS double-click time (typically 500ms on
+        // Windows). After the window elapses, the user has
+        // effectively started a fresh sequence; the next
+        // double-click is a deliberate new action.
+        var now = DateTime.UtcNow;
+        if ((now - _lastDoubleClickHandledAt).TotalMilliseconds < _doubleClickTimeMs)
+            return;
+        _lastDoubleClickHandledAt = now;
         // Toggle between Fit and 100%, in both window mode and
         // fullscreen mode. (Matches the floating-bar percent label
         // click semantics, but in both directions — clicking the
@@ -136,4 +166,23 @@ public partial class ImageViewerPanelViewModel : ObservableObject
 
     [RelayCommand]
     private void ZoomOut() => _viewer?.ZoomOut();
+
+    // P1: Win32 GetDoubleClickTime returns the system double-click
+    // time in milliseconds. We use it as the debounce window for
+    // the viewer's double-click fit↔zoom toggle: any additional
+    // clicks within this window are treated as part of the same
+    // sequence (WPF's ClickCount keeps incrementing for rapid
+    // follow-up clicks), so we suppress the second toggle. WPF's
+    // own SystemParameters class used to expose this as a static
+    // property but the binding is gone in current WPF, so we
+    // call user32 directly. Default fallback to 500ms if the
+    // call ever returns 0.
+    [DllImport("user32.dll")]
+    private static extern int GetDoubleClickTime();
+
+    private static int GetCachedDoubleClickTime()
+    {
+        var t = GetDoubleClickTime();
+        return t > 0 ? t : 500;
+    }
 }

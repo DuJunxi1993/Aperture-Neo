@@ -59,7 +59,27 @@ public partial class ThumbnailPanelViewModel : ObservableObject
     }
 
     public IReadOnlyList<ImageItem> Items => _navigation.Items;
-    public ImageItem? SelectedItem => _navigation.Current;
+    public ImageItem? SelectedItem
+    {
+        get => _navigation.Current;
+        set
+        {
+            // P1 fix: setter required for TwoWay binding.
+            // The binding writes the target's SelectedItem
+            // back to the source on every change; without a
+            // setter the binding fails at activation
+            // ("read-only property 'SelectedItem' cannot be
+            // TwoWay-bound"). Forward to NavigationService
+            // so the underlying state matches what the user
+            // clicked. The value==current guard prevents
+            // re-entrant NavigateTo calls when the binding
+            // round-trips the same value back (binding →
+            // setter → NavigateTo → CurrentImageChanged →
+            // PropertyChanged → binding → setter is a no-op).
+            if (value != null && value != _navigation.Current)
+                _navigation.NavigateTo(value.FilePath);
+        }
+    }
 
     public bool IsEmpty => _navigation.Count == 0;
 

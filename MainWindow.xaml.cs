@@ -242,15 +242,34 @@ public partial class MainWindow : FluentWindow, IPluginContext
         // .NavigateTo). MainWindow no longer needs to know about
         // the click event.
 
-        // P1 fix: the overlay-hide timers were removed —
-        // the exit hint and edge nav are now persistent in
-        // fullscreen (no auto-hide). The previous 3s
-        // auto-hide left the user with no visual
-        // affordance for "how do I exit?" or "how do I
-        // navigate?" once the chrome faded. The fields
-        // stay declared (so the .Stop() calls in the
-        // Closed handler below still compile against the
-        // nullable instance) but no timer is constructed.
+        // P1 fix: the overlay-hide timers are restored. P0 commit
+        // 4b0cbbb removed them as a misguided fix for the
+        // invisible-overlay bug; the real fix was the parent
+        // Opacity bug at 9b2cc0f (WPF composites parent×child
+        // Opacity multiplicatively, so animating the inner
+        // Border was a no-op because the parent UserControl
+        // had Opacity=0 in XAML). With the parent-opacity fix
+        // in place we can bring back the auto-hide so the
+        // chrome doesn't permanently sit on top of the image:
+        //   - exit hint: 5s (user needs time to read the
+        //     "Esc / Ctrl+F" reminder, especially on first
+        //     fullscreen entry)
+        //   - edge nav:  3s (the buttons should stay visible
+        //     during active navigation but not block the
+        //     image when the user has stopped moving)
+        _overlayHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.0) };
+        _overlayHideTimer.Tick += (s, e) =>
+        {
+            if (_isFullscreen) HideEdgeNav();
+            _overlayHideTimer?.Stop();
+        };
+
+        _exitHintHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5.0) };
+        _exitHintHideTimer.Tick += (s, e) =>
+        {
+            if (_isFullscreen) HideExitFullscreenHint();
+            _exitHintHideTimer.Stop();
+        };
 
         Loaded += (_, _) =>
         {

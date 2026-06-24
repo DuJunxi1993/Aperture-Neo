@@ -181,20 +181,21 @@ public partial class MainWindow
                 // move — which left a user who tapped Ctrl+F
                 // and then sat still with no prev/next
                 // affordance. Now both are visible from t=0.
+                // The auto-hide timers (restored in 9b2cc0f's
+                // follow-up commit) start inside ShowEdgeNav /
+                // ShowExitFullscreenHint so each overlay's own
+                // countdown begins at its own show time.
                 ShowEdgeNav();
-                // Show the exit hint. The hint used to auto-
-                // hide after 3s, but that left the user with
-                // no "how do I exit?" affordance once it
-                // faded away. We now keep it persistent for
-                // the entire fullscreen session — the only
-                // time it disappears is on fullscreen exit
-                // (HideExitFullscreenHint in the exit branch).
-                // Stop the auto-hide timer (legacy wiring
-                // kept around for clean shutdown in the
-                // Closed handler) so it doesn't fire and hide
-                // the hint out from under us.
+                // Show the exit hint. The hint auto-hides
+                // after 5s (longer than the edge nav's 3s
+                // because the "Esc / Ctrl+F" reminder is
+                // something the user might need a moment to
+                // absorb, especially on first fullscreen
+                // entry). Start its timer here so the
+                // countdown begins at the show.
                 ShowExitFullscreenHint();
                 _exitHintHideTimer?.Stop();
+                _exitHintHideTimer?.Start();
                 _overlayHideTimer?.Stop();
             }
             else
@@ -310,14 +311,12 @@ public partial class MainWindow
         if (Math.Abs(pos.X - _lastMousePosition.X) > 5 || Math.Abs(pos.Y - _lastMousePosition.Y) > 5)
         {
             _lastMousePosition = pos;
-            // P1 fix: edge nav is now persistent in fullscreen
-            // (it shows on the first mouse move after entry
-            // and stays visible until the user exits
-            // fullscreen). The previous auto-hide timer left
-            // the user with no nav affordance 3s after every
-            // mouse-stop. We still no-op if it's already
-            // visible so the no-op branch doesn't re-trigger
-            // the fade-in on every micro-movement.
+            // ShowEdgeNav no-ops if already visible AND
+            // (since the P1 restoration) restarts the 3s
+            // auto-hide timer via ResetOverlayHideTimer. So
+            // a continuous mouse-move stream keeps the
+            // edge nav visible; once the mouse stops for
+            // 3s, the timer fires and the buttons fade out.
             ShowEdgeNav();
         }
     }
@@ -325,10 +324,11 @@ public partial class MainWindow
     /// <summary>
     /// Show the fullscreen edge-nav buttons (left + right). Cancels any
     /// in-flight fade-out, makes the UserControls Visible, and animates
-    /// their Opacity 0→1 over 200ms. Subsequent calls while already
-    /// visible are a no-op — the buttons stay visible until fullscreen
-    /// exits (no auto-hide, since the user needs persistent navigation
-    /// affordance in fullscreen).
+    /// their Opacity 0→1 over 200ms. The 3s auto-hide timer is
+    /// (re)started so the buttons fade away after the user stops
+    /// moving the mouse — OnWindowMouseMove calls ResetOverlayHideTimer
+    /// continuously, so any in-flight mouse activity keeps them
+    /// visible.
     ///
     /// P1 fix: animates the UserControl's Opacity, not the inner
     /// Border's. The UserControl has Opacity=0 in XAML; the WPF
@@ -338,7 +338,7 @@ public partial class MainWindow
     /// </summary>
     private void ShowEdgeNav()
     {
-        if (_edgeNavVisible) return;
+        if (_edgeNavVisible) { ResetOverlayHideTimer(); return; }
         _edgeNavVisible = true;
         EdgeNavLeftControl.BeginAnimation(UIElement.OpacityProperty, null);
         EdgeNavRightControl.BeginAnimation(UIElement.OpacityProperty, null);
@@ -347,6 +347,7 @@ public partial class MainWindow
         var fadeIn = new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(200));
         EdgeNavLeftControl.BeginAnimation(UIElement.OpacityProperty, fadeIn);
         EdgeNavRightControl.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+        ResetOverlayHideTimer();
     }
 
     /// <summary>
@@ -375,12 +376,14 @@ public partial class MainWindow
 
     private void ResetOverlayHideTimer()
     {
-        // No-op stub kept for binary compat: the auto-hide
-        // timer was removed in the P1 fix that made the
-        // exit hint + edge nav persistent in fullscreen.
-        // ResetOverlayHideTimer was previously called from
-        // OnWindowMouseMove and ShowEdgeNav, both of which
-        // no longer restart the timer.
+        // Restop + restart so a Stop-then-Start from the
+        // same call (e.g. mouse moving while the previous
+        // countdown is mid-flight) resets the 3s window
+        // cleanly. ShowEdgeNav and OnWindowMouseMove both
+        // call this so consecutive mouse moves keep the
+        // edge-nav visible.
+        _overlayHideTimer?.Stop();
+        _overlayHideTimer?.Start();
     }
 
     private void ShowExitFullscreenHint()

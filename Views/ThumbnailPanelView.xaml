@@ -12,7 +12,7 @@
             <controls:ThumbnailGrid x:Name="ThumbGrid" FocusVisualStyle="{x:Null}"
                                     ItemTemplate="{StaticResource LinearThumbnailTemplate}"
                                     ItemsSource="{Binding Items}"
-                                    SelectedItem="{Binding SelectedItem}"
+                                    SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                                     Padding="8,2,8,2"
                                     BorderThickness="0"
                                     Loaded="ThumbGrid_Loaded"

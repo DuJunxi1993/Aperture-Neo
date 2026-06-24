@@ -27,7 +27,7 @@ namespace ApertureNeo;
 /// and <see cref="SlideshowService"/>; this class orchestrates
 /// them and proxies UI events.
 /// </summary>
-public partial class MainWindow : FluentWindow, IPluginContext
+public partial class MainWindow : FluentWindow
 {
     // P3: design-token access. Resolved from DI once at
     // construction; the brushes are frozen so they're safe
@@ -87,10 +87,10 @@ public partial class MainWindow : FluentWindow, IPluginContext
     // measure pass, not hardcoded guesses).
     private AutoFitPanel? _autoFit;
     // Discovered plugins (set once at startup by App.xaml.cs via
-    // SetAvailablePlugins). We hold them so the 插件 submenu can
-    // build a checkbox per plugin, and so check/uncheck handlers
-    // can call PluginLoader.Activate/Deactivate.
-    private IReadOnlyList<PluginInfo> _availablePlugins = Array.Empty<PluginInfo>();
+    // SetAvailablePlugins). The 插件 submenu's checkbox list
+    // lives in the plugin shell VM; MainWindow only holds the
+    // VM reference for the App to call SetAvailablePlugins on.
+    private PluginShellViewModel? _pluginShell;
 
     public MainWindow()
     {
@@ -147,6 +147,16 @@ public partial class MainWindow : FluentWindow, IPluginContext
             TreeFloatingPopup = TreeFloatingPopup,
             SyncFloatingTree = () => FolderTreeFloating.SyncFrom(FolderTree),
         });
+
+        // P1: construct the plugin shell VM after
+        // InitializeComponent (so XAML element references are
+        // available) and attach the 插件 submenu MenuItem
+        // + the viewer ContextMenu. The VM implements
+        // IPluginContext, so App.RunViewerAsync hands this
+        // VM to PluginLoader.Activate so plugins see the
+        // same IPluginContext contract they always have.
+        _pluginShell = new PluginShellViewModel(_settings, _theme, _navigation);
+        _pluginShell.AttachShell(MenuPlugins, ImageViewer.ContextMenu);
 
         // ---- P1: wire up the 9 extracted UserControls ----
         // P2: TitleBarView's events are gone (replaced by VM
@@ -248,15 +258,19 @@ public partial class MainWindow : FluentWindow, IPluginContext
         // P2: CurrentImageChanged no longer routes through
         // InfoPopoverController.OnCurrentImageChanged. The thumb
         // grid's SelectedItem binding + the View's scroll-into-view
-        // are VM-driven; the remaining side effects here are
+        // are VM-driven; the remaining side effect here is
         // window-level (title text + viewer context-menu close).
+        // P1: CurrentImageChanged for the IPluginContext
+        // contract is raised by PluginShellViewModel (which
+        // implements IPluginContext and subscribes to the
+        // navigation event itself) — MainWindow no longer
+        // re-raises the event for plugin consumption.
         _navigation.CurrentImageChanged += item =>
         {
             if (item == null) return;
             Title = $"Aperture Neo · {item.FileName} ({_navigation.CurrentIndex + 1}/{_navigation.Count})";
             if (ImageViewer.ContextMenu != null) ImageViewer.ContextMenu.IsOpen = false;
         };
-        _navigation.CurrentImageChanged += item => CurrentImageChanged?.Invoke(this, item?.FilePath);
         _slideshow.NextRequested += () => Dispatcher.Invoke(() => _navigation.MoveNext());
 
         // P2: the ZoomText and ImageIndexInfo text blocks are
@@ -623,294 +637,20 @@ public partial class MainWindow : FluentWindow, IPluginContext
     private void CtxSetWallpaper_Click(object sender, RoutedEventArgs e)
     { if (_navigation.Current != null) WallpaperService.TrySetDesktop(_navigation.Current.FilePath); }
 
-    public string? CurrentImagePath => _navigation.Current?.FilePath;
+    // ---- P1: plugin shell forwarding ----
+    // The 200+ lines of plugin shell logic (IPluginContext
+    // implementation, 插件 submenu construction, viewer
+    // context menu item insertion, status dot rendering,
+    // checkbox handlers) all moved to PluginShellViewModel.
+    // MainWindow only forwards the two entry points that
+    // App.RunViewerAsync calls + exposes the VM as
+    // IPluginContext for the same App code to hand to
+    // PluginLoader.Activate.
+    public ApertureNeo.ViewModels.PluginShellViewModel? PluginShell => _pluginShell;
 
-    public IReadOnlyList<string> SelectedImagePaths
-        => _navigation.Current == null ? Array.Empty<string>() : new[] { _navigation.Current.FilePath };
-
-    public event EventHandler<string?>? CurrentImageChanged;
-
-    // P4: ViewSlot routes plugin UI to the named shell region.
-    // Replaces the old RegisterMenuItem / RegisterContextMenuItem /
-    // UnregisterPluginMenuItems methods — plugins now push UI
-    // generically (any UIElement, not just MenuItem) and identify
-    // their own contributions via Tag = this for cleanup.
-    public void ViewSlot(string region, object content)
-    {
-        switch (region)
-        {
-            case ShellRegions.TitleBarMenu:
-                AddToTitleBarMenu(content);
-                break;
-            case ShellRegions.ViewerContextMenu:
-                AddToViewerContextMenu(content);
-                break;
-            default:
-                DebugLog.Write("Plugin", $"unknown region '{region}'; content ignored");
-                break;
-        }
-    }
-
-    /// <summary>Remove every contribution tagged with
-    /// <paramref name="pluginTag"/> from every wired region.</summary>
-    public void ClearSlots(object pluginTag)
-    {
-        RemoveTaggedFrom(MenuPlugins?.Items, pluginTag);
-        var viewer = ViewerPanel?.ImageViewerRef;
-        if (viewer?.ContextMenu != null)
-            RemoveTaggedFrom(viewer.ContextMenu.Items, pluginTag);
-    }
-
-    private static void RemoveTaggedFrom(System.Windows.Controls.ItemCollection? items, object? pluginTag)
-    {
-        if (items == null) return;
-        for (int i = items.Count - 1; i >= 0; i--)
-        {
-            if (Equals(items[i] is System.Windows.FrameworkElement fe ? fe.Tag : null, pluginTag))
-                items.RemoveAt(i);
-        }
-    }
-
-    private void AddToTitleBarMenu(object content)
-    {
-        if (MenuPlugins == null) return;
-        // Idempotent: if the same plugin re-Activates, replace the
-        // existing item with the same Tag rather than appending a
-        // duplicate. Plugin authors set Tag = this per the IPluginContext
-        // contract, so any existing contribution from this plugin is
-        // safe to remove before insertion.
-        RemoveTaggedFrom(MenuPlugins.Items, GetPluginTag(content));
-        MenuPlugins.Items.Add(content);
-    }
-
-    private void AddToViewerContextMenu(object content)
-    {
-        var viewer = ViewerPanel?.ImageViewerRef;
-        if (viewer?.ContextMenu == null) return;
-        // Idempotent: drop any existing contribution from this plugin
-        // before inserting the new one (see AddToTitleBarMenu).
-        RemoveTaggedFrom(viewer.ContextMenu.Items, GetPluginTag(content));
-        // Insert before the last Separator so plugin items group
-        // together at the bottom of the menu, matching the layout
-        // the old RegisterContextMenuItem produced.
-        var insertBefore = viewer.ContextMenu.Items.OfType<Separator>().LastOrDefault();
-        if (insertBefore != null)
-            viewer.ContextMenu.Items.Insert(viewer.ContextMenu.Items.IndexOf(insertBefore), content);
-        else
-            viewer.ContextMenu.Items.Add(content);
-    }
-
-    private static object? GetPluginTag(object content)
-    {
-        // Plugins are expected to set FrameworkElement.Tag to their
-        // own IPluginModule instance per the IPluginContext contract.
-        // Read it here so AddToTitleBarMenu / AddToViewerContextMenu
-        // can dedup by-tag without the plugin having to track its
-        // own slot list.
-        if (content is System.Windows.FrameworkElement fe) return fe.Tag;
-        return null;
-    }
-
-    /// <summary>
-    /// Called by App.xaml.cs after PluginLoader.Discover. Builds a
-    /// checkbox MenuItem per discovered plugin in the 插件 submenu.
-    /// Plugins are not activated yet — the user has to check the
-    /// box (or the box is auto-checked by RestoreEnabledPlugins if
-    /// the plugin was enabled in a previous session).
-    /// </summary>
     public void SetAvailablePlugins(IReadOnlyList<PluginInfo> plugins)
-    {
-        _availablePlugins = plugins;
-        if (MenuPlugins == null) return;
+        => _pluginShell?.SetAvailablePlugins(plugins);
 
-        // Clear any existing items (e.g. leftover from a previous
-        // call in a test scenario).
-        MenuPlugins.Items.Clear();
-
-        // Sync checkbox visuals when the submenu is first opened.
-        // WPF ContextMenus don't realize their child items until
-        // the menu is shown, so we can't set IsChecked in
-        // SetAvailablePlugins/RestoreEnabledPlugins — the property
-        // setter is a no-op on an unrealized MenuItem. Instead we
-        // hook SubmenuOpened and apply the checked state from the
-        // SettingsStore at that point. The same handler also
-        // refreshes the status dot so any change since last open
-        // (e.g. model files copied in) is reflected immediately.
-        MenuPlugins.SubmenuOpened += MenuPlugins_SubmenuOpened;
-
-        foreach (var info in plugins)
-        {
-            var item = new System.Windows.Controls.MenuItem
-            {
-                // Build the header as a horizontal Grid: [dot] [name].
-                // We don't use MenuItem.Icon for the dot because
-                // WPF's default MenuItem template wraps non-Image
-                // icons in a ContentPresenter that doesn't size the
-                // child correctly — the dot either doesn't render
-                // or gets stretched. A Grid header sidesteps this
-                // entirely and lays out the dot + text exactly the
-                // way we want.
-                Header = BuildPluginHeader(info),
-                IsCheckable = true,
-                // Greyed-out checkbox when the plugin can't run
-                // (e.g. missing ONNX model files). The user can
-                // still see what's installed but can't toggle it on
-                // until the missing files are restored.
-                IsEnabled = info.Instance.Status != PluginStatus.Unavailable,
-                Tag = info,
-            };
-            item.Checked += PluginItem_Checked;
-            item.Unchecked += PluginItem_Unchecked;
-            MenuPlugins.Items.Add(item);
-        }
-    }
-
-    /// <summary>
-    /// Build the [dot] [plugin name] header layout for a plugin
-    /// toggle. The dot is stored as the Border's Tag so
-    /// SubmenuOpened / Checked / Unchecked can find it and swap the
-    /// Background brush when the status changes.
-    /// </summary>
-    // P3: was static; now instance because GetStatusBrush is
-    // instance (it reads the per-window _theme field).
-    private System.Windows.Controls.Grid BuildPluginHeader(PluginInfo info)
-    {
-        var grid = new System.Windows.Controls.Grid();
-        grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = System.Windows.GridLength.Auto });
-        grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
-
-        // 8×8 dot with 4 corner-radius = circle. Same proportions
-        // as the LinearDot style in Styles/Tag.xaml.
-        var dot = new System.Windows.Controls.Border
-        {
-            Width = 8,
-            Height = 8,
-            CornerRadius = new System.Windows.CornerRadius(4),
-            Background = GetStatusBrush(info.Instance.Status),
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new System.Windows.Thickness(0, 0, 8, 0),
-            // Tag the dot so refresh handlers can find it.
-            Tag = "PluginStatusDot",
-        };
-        System.Windows.Controls.Grid.SetColumn(dot, 0);
-        grid.Children.Add(dot);
-
-        var text = new System.Windows.Controls.TextBlock
-        {
-            Text = info.Name,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        System.Windows.Controls.Grid.SetColumn(text, 1);
-        grid.Children.Add(text);
-
-        return grid;
-    }
-
-    /// <summary>
-    /// When the 插件 submenu is first opened, sync each plugin
-    /// toggle's IsChecked with the persisted SettingsStore state
-    /// and refresh the status dot (which can change between opens
-    /// — e.g. the user copied model files in, or the warmup
-    /// finished). WPF ContextMenus don't realize their child
-    /// MenuItems until the menu is shown, so this is the first
-    /// point where the IsChecked setter actually takes effect.
-    /// </summary>
-    private void MenuPlugins_SubmenuOpened(object sender, RoutedEventArgs e)
-    {
-        if (MenuPlugins == null) return;
-        foreach (var item in MenuPlugins.Items.OfType<System.Windows.Controls.MenuItem>())
-        {
-            if (item.Tag is not PluginInfo info) continue;
-            // IsChecked setter suppresses re-entrancy if the value
-            // doesn't change, so calling this on every open is safe
-            // and cheap.
-            item.IsChecked = _settings.IsPluginEnabled(info.Name);
-            RefreshPluginDot(item, info);
-            item.IsEnabled = info.Instance.Status != PluginStatus.Unavailable;
-        }
-    }
-
-    /// <summary>
-    /// Read the persisted enabled-plugins list from SettingsStore and
-    /// activate the previously-enabled plugins. The visual checkbox
-    /// state is synced lazily by MenuPlugins_SubmenuOpened when the
-    /// user first opens the menu.
-    /// </summary>
     public void RestoreEnabledPlugins()
-    {
-        foreach (var info in _availablePlugins)
-        {
-            if (!_settings.IsPluginEnabled(info.Name)) continue;
-            // Activate the plugin directly. We can't set IsChecked
-            // here (the ContextMenu is unrealized, so the setter is
-            // a no-op) — the visual state gets applied in
-            // MenuPlugins_SubmenuOpened.
-            PluginLoader.Activate(info, this);
-        }
-    }
-
-    private void PluginItem_Checked(object sender, RoutedEventArgs e)
-    {
-        if (sender is not System.Windows.Controls.MenuItem item) return;
-        if (item.Tag is not PluginInfo info) return;
-        PluginLoader.Activate(info, this);
-        _settings.SetPluginEnabled(info.Name, true);
-        // Refresh the dot — status may have transitioned to
-        // Enabled (green). SetChecked doesn't fire SubmenuOpened.
-        RefreshPluginDot(item, info);
-    }
-
-    private void PluginItem_Unchecked(object sender, RoutedEventArgs e)
-    {
-        if (sender is not System.Windows.Controls.MenuItem item) return;
-        if (item.Tag is not PluginInfo info) return;
-        PluginLoader.Deactivate(info);
-        _settings.SetPluginEnabled(info.Name, false);
-        // Refresh the dot — status transitioned back to
-        // Disabled (gray). SetChecked doesn't fire SubmenuOpened.
-        RefreshPluginDot(item, info);
-    }
-
-    /// <summary>
-    /// Find the status dot inside the item's Grid header and update
-    /// its Background brush. The dot is tagged "PluginStatusDot" in
-    /// BuildPluginHeader so we can find it without walking every
-    /// Border descendant.
-    /// </summary>
-    // P3: was static; now instance because GetStatusBrush is
-    // instance (reads the per-window _theme field).
-    private void RefreshPluginDot(System.Windows.Controls.MenuItem item, PluginInfo info)
-    {
-        if (item.Header is not System.Windows.Controls.Grid grid) return;
-        foreach (var child in grid.Children)
-        {
-            if (child is System.Windows.Controls.Border dot
-                && Equals(dot.Tag, "PluginStatusDot"))
-            {
-                dot.Background = GetStatusBrush(info.Instance.Status);
-                return;
-            }
-        }
-    }
-
-    /// <summary>
-    /// P3: maps PluginStatus → a brush via <see cref="ITheme"/>.
-    /// Was a static method that fished the brush out of
-    /// <c>Application.Current.Resources</c> by string key;
-    /// now an instance method on MainWindow because the
-    /// theme is per-instance (DI-resolved singleton, but
-    /// we still need the instance reference). Reuses the
-    /// design tokens the rest of the app uses for status colors
-    /// so the dot visually matches the main interface's status
-    /// indicators (info pill dot, status pills, etc.).
-    /// </summary>
-    private System.Windows.Media.Brush GetStatusBrush(PluginStatus status)
-    {
-        return status switch
-        {
-            PluginStatus.Enabled => _theme.StatusGreen,
-            PluginStatus.Unavailable => _theme.StatusRed,
-            _ => _theme.TextTertiary,  // gray for Disabled
-        };
-    }
+        => _pluginShell?.RestoreEnabledPlugins();
 }

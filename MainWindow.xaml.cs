@@ -66,24 +66,26 @@ public partial class MainWindow : FluentWindow, IPluginContext
     private readonly ThumbnailLoadCoordinator _thumbCoordinator =
         AppHost.Services!.GetRequiredService<ThumbnailLoadCoordinator>();
 
-    private bool _isFullscreen;
     private bool _isTreeVisible = true;
     private bool _isThumbVisible = true;
-    private WindowState _prevWindowState;
-    private DispatcherTimer? _overlayHideTimer;
-    private DispatcherTimer? _exitHintHideTimer;
-    private Point _lastMousePosition;
+    // P1: fullscreen state machine + transitions + edge-nav /
+    // exit-hint animations + tree floating popup. Owns the
+    // transition generation counter, the 3s edge-nav hide timer
+    // and 5s exit-hint hide timer, the mouse-position tracking
+    // for ShowEdgeNav, and the visual-tree FindClientAreaBorder
+    // walk. The controller is constructed right after
+    // InitializeComponent (so all XAML element references are
+    // resolved) with a FullscreenShell carrying the visual
+    // elements + the chrome-update callbacks. MainWindow only
+    // routes IUiState.IsFullscreen changes + keyboard / mouse
+    // input to it.
+    private readonly IFullscreenController _fullscreen;
+
     // Cached in ThumbGrid_Loaded. Used by ThumbScroller_ScrollChanged to
     // convert a scroll offset/viewport into the actual visible item
     // range (real row height + real column count from the panel's
     // measure pass, not hardcoded guesses).
     private AutoFitPanel? _autoFit;
-    /// <summary>
-    /// True while edge-nav buttons are mid-fade or fully shown. Suppresses
-    /// re-triggering the show animation on every micro mouse-move event
-    /// (otherwise the Opacity would fight the timer restart constantly).
-    /// </summary>
-    private bool _edgeNavVisible;
     // Discovered plugins (set once at startup by App.xaml.cs via
     // SetAvailablePlugins). We hold them so the 插件 submenu can
     // build a checkbox per plugin, and so check/uncheck handlers
@@ -115,6 +117,36 @@ public partial class MainWindow : FluentWindow, IPluginContext
                 ThumbColumn.MaxWidth = Math.Max(160, e.NewSize.Width - 400);
             }
         };
+
+        // P1: construct the fullscreen controller after
+        // InitializeComponent (so all XAML element references
+        // resolve) and after the field initializers above (so
+        // _theme is available). The shell carries the visual
+        // elements (EdgeNavLeft, EdgeNavRight, ExitHint,
+        // ExitHintTransform, ViewerColumn) + the chrome +
+        // fit-to-viewer + ClientAreaBorder padding callbacks +
+        // the tree floating popup reference. The tree sync
+        // callback (FolderTreeFloating.SyncFrom(FolderTree))
+        // is wired inline; the popup's Child is the
+        // FolderTreeFloating UserControl declared in MainWindow.xaml.
+        _fullscreen = new FullscreenController(_theme, new FullscreenShell
+        {
+            Window = this,
+            EdgeNavLeft = EdgeNavLeftControl,
+            EdgeNavRight = EdgeNavRightControl,
+            ExitHint = ExitFullscreenHintControl,
+            ExitHintTransform = ExitFullscreenTransform,
+            ViewerColumn = ViewerColumn,
+            FitImageToViewer = () =>
+            {
+                ImageViewer.FitToScreenSkipAnimation = true;
+                ImageViewer.FitToScreen();
+            },
+            ResetClientAreaBorderPadding = ResetClientAreaBorderPadding,
+            ApplyChrome = ApplyChrome,
+            TreeFloatingPopup = TreeFloatingPopup,
+            SyncFloatingTree = () => FolderTreeFloating.SyncFrom(FolderTree),
+        });
 
         // ---- P1: wire up the 9 extracted UserControls ----
         // P2: TitleBarView's events are gone (replaced by VM
@@ -152,14 +184,21 @@ public partial class MainWindow : FluentWindow, IPluginContext
                     ApplyColumnVisibility();
                     break;
                 case nameof(IUiState.IsFullscreen):
-                    // P2: FloatingBarViewModel.ToggleFullscreen
-                    // flips IUiState.IsFullscreen (it doesn't know
-                    // about the window-level transition). MainWindow
-                    // observes the change and runs the actual
-                    // TransitionToFullscreen (the entry/exit
-                    // animation, chrome hide/show, WPF-UI padding
-                    // reset, edge-nav reset, exit-hint show).
-                    ToggleFullscreen();
+                    // P1: FloatingBarViewModel.ToggleFullscreen
+                    // (and the Ctrl+F / Esc key handlers via
+                    // HandleKey) flip IUiState.IsFullscreen. The
+                    // controller runs the actual transition
+                    // (entry / exit animation, chrome hide/show,
+                    // WPF-UI padding reset, edge-nav show,
+                    // exit-hint show, background cross-fade,
+                    // image re-fit). MainWindow only routes the
+                    // flag change into the controller.
+                    // P1 fix: capture the previous WindowState
+                    // before toggling so the exit transition can
+                    // re-maximize a window that was Maximized
+                    // before fullscreen entry.
+                    _fullscreen.NotifyEnteringFullscreen();
+                    _fullscreen.Toggle();
                     break;
                 case nameof(IUiState.IsSlideshowRunning):
                     // P2: FloatingBarViewModel.ToggleSlideshow
@@ -253,34 +292,21 @@ public partial class MainWindow : FluentWindow, IPluginContext
         // .NavigateTo). MainWindow no longer needs to know about
         // the click event.
 
-        // P1 fix: the overlay-hide timers are restored. P0 commit
-        // 4b0cbbb removed them as a misguided fix for the
-        // invisible-overlay bug; the real fix was the parent
-        // Opacity bug at 9b2cc0f (WPF composites parent×child
-        // Opacity multiplicatively, so animating the inner
-        // Border was a no-op because the parent UserControl
-        // had Opacity=0 in XAML). With the parent-opacity fix
-        // in place we can bring back the auto-hide so the
-        // chrome doesn't permanently sit on top of the image:
-        //   - exit hint: 5s (user needs time to read the
-        //     "Esc / Ctrl+F" reminder, especially on first
-        //     fullscreen entry)
-        //   - edge nav:  3s (the buttons should stay visible
-        //     during active navigation but not block the
-        //     image when the user has stopped moving)
-        _overlayHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.0) };
-        _overlayHideTimer.Tick += (s, e) =>
-        {
-            if (_isFullscreen) HideEdgeNav();
-            _overlayHideTimer?.Stop();
-        };
-
-        _exitHintHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5.0) };
-        _exitHintHideTimer.Tick += (s, e) =>
-        {
-            if (_isFullscreen) HideExitFullscreenHint();
-            _exitHintHideTimer.Stop();
-        };
+        // P1 fix: the overlay-hide timers (3s edge nav, 5s exit
+        // hint, 250ms tree popup) used to live here and were
+        // tick-handled by inline lambdas that closed over
+        // MainWindow. The lambdas held MainWindow alive past
+        // process exit if the window closed mid-animation.
+        // They're now owned by FullscreenController (created
+        // in its ctor), and Detach() stops them on window
+        // close. The controller also owns the mouse-position
+        // tracking + edge-nav visibility state.
+        // P1: App.OnStartup re-saves the LastOpenedImage on
+        // exit, but the field is also written here so a crash
+        // doesn't lose the position. The previous P0 fix kept
+        // HideEdgeNav / HideExitFullscreenHint + timer Stop()
+        // calls in the Closed handler; those are now in
+        // _fullscreen.Detach() (called below).
 
         Loaded += (_, _) =>
         {
@@ -303,26 +329,17 @@ public partial class MainWindow : FluentWindow, IPluginContext
             if (current != null)
                 _settings.LastOpenedImage = current.FilePath;
 
-            // P0 fix: stop all active animations and detach
-            // CompositionTarget.Rendering subscribers before disposing
-            // the rest. The fade-out and exit-hint animations register
-            // their handlers on a process-wide static event; if the
-            // window closes mid-animation (Esc during the 150ms fade,
-            // rapid toggle, etc.) the handler reference captures this
-            // MainWindow and prevents GC until the process exits.
-            HideEdgeNav();
-            HideExitFullscreenHint();
+            // P1: fullscreen state machine cleanup (timers,
+            // in-flight fade animations). The controller's
+            // Detach cancels its BeginAnimation calls so the
+            // Completed lambdas don't fire after detach and
+            // capture this MainWindow via the closure.
+            _fullscreen.Detach();
             // Defensive: kill any cross-fade the SkiaImageViewer
-            // might still be running so its OnRendering handler (which
-            // also captures this MainWindow via the lambda) is detached.
+            // might still be running so its OnRendering handler
+            // (which also captures this MainWindow via the lambda)
+            // is detached.
             ImageViewer?.AbortAnimations();
-            if (_treeHideTimer != null)
-            {
-                _treeHideTimer.Stop();
-                _treeHideTimer = null;
-            }
-            _overlayHideTimer?.Stop();
-            _exitHintHideTimer?.Stop();
 
             _thumbCoordinator.Dispose();
             _slideshow.Dispose();
@@ -330,7 +347,13 @@ public partial class MainWindow : FluentWindow, IPluginContext
         };
 
         PreviewKeyDown += (_, e) => { if (HandleKey(e.Key)) e.Handled = true; };
-        MouseMove += OnWindowMouseMove;
+        // P1: forward MouseMove to the fullscreen controller
+        // (which decides whether to show the edge-nav buttons
+        // based on the 5px-jitter threshold and restarts the 3s
+        // auto-hide timer). The controller also owns the
+        // last-mouse-position field, so MainWindow no longer
+        // carries _lastMousePosition.
+        MouseMove += (_, e) => _fullscreen.OnMouseMove(e.GetPosition(this));
         Drop += OnWindowDrop;
     }
 
@@ -481,6 +504,41 @@ public partial class MainWindow : FluentWindow, IPluginContext
         if (firstIdx < 0) return;
         _thumbCoordinator.EnsureVisible(firstIdx, lastIdx);
     }
+
+    // P1: callbacks passed to FullscreenController via the
+    // FullscreenShell. They run on the UI thread inside the
+    // transition's Completed callback (after WindowState has
+    // been swapped) so the visual state is consistent by the
+    // time the viewer's opacity fade-in starts.
+
+    /// <summary>Walk the visual tree looking for the WPF-UI
+    /// FluentWindow.ClientAreaBorder (an internal class; we
+    /// match by name) and zero its Padding. WPF-UI's
+    /// OnWindowStateChanged sets Padding to ~5px in Maximized
+    /// state to keep the OS's "Aero" border visible — but our
+    /// viewer is edge-to-edge, so the 5px of transparent
+    /// padding shows the window's SurfaceCanvas tone around
+    /// the white viewer, producing a 1-2px seam at every
+    /// screen edge. Called both synchronously in the
+    /// transition (so it beats the FluentWindow padding on the
+    /// same dispatcher turn) and at Loaded priority
+    /// (catches the case where FluentWindow sets padding
+    /// after we do).</summary>
+    private void ResetClientAreaBorderPadding()
+    {
+        var cab = VisualTreeHelpers.FindClientAreaBorder(this);
+        if (cab == null) return;
+        cab.SetValue(System.Windows.Controls.Border.PaddingProperty, new Thickness(0));
+    }
+
+    /// <summary>Chrome update wrapper. The fullscreen
+    /// controller dispatches to this after the OS-level
+    /// WindowState swap (so the chrome collapses / re-shows
+    /// in sync with the window change). MainWindow owns the
+    /// actual logic — it's the only class that has the column
+    /// definitions + the title-bar / floating-bar / info-pill
+    /// forwarding properties.</summary>
+    private void ApplyChrome() => UpdateOverlayVisibility();
 
     // Convenience properties for the controllers (which still
     // reach into XAML elements). These forward to the

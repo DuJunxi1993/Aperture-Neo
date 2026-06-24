@@ -63,7 +63,14 @@ public partial class MainWindow
         {
             switch (key)
             {
-                case Key.F: ToggleFullscreen(); return true;
+                case Key.F:
+                    // P1: route through the fullscreen controller.
+                    // Capture previous WindowState first so the
+                    // exit transition can re-maximize a window
+                    // that was Maximized before entry.
+                    _fullscreen.NotifyEnteringFullscreen();
+                    _fullscreen.Toggle();
+                    return true;
                 case Key.O:
                     if (TitleBar.DataContext is TitleBarViewModel titleVmForOpen)
                         titleVmForOpen.OpenCommand.Execute(null);
@@ -82,9 +89,9 @@ public partial class MainWindow
             case Key.Left: case Key.Up: return LinearNavigate(Key.Up);
             case Key.Right: case Key.Down: return LinearNavigate(Key.Down);
             case Key.Escape:
-                if (_isFullscreen) ToggleFullscreen();
-                else if (_slideshow.IsRunning) { _slideshow.Stop(); }
-                return true;
+                if (_fullscreen.IsFullscreen) { _fullscreen.Toggle(); return true; }
+                else if (_slideshow.IsRunning) { _slideshow.Stop(); return true; }
+                return false;
             case Key.F5: _slideshow.Toggle(); return true;
             case Key.PageUp:
                 FolderTree.NavigateToAdjacentFolder(_navigation.CurrentFolder, forward: false);
@@ -112,7 +119,7 @@ public partial class MainWindow
 
     private bool TryGridNavigate(Key key)
     {
-        if (_isFullscreen) return false;
+        if (_fullscreen.IsFullscreen) return false;
         if (!_isThumbVisible) return false;
         int cols = GetThumbnailColumnCount();
         if (cols < 2) return false;
@@ -153,6 +160,14 @@ public partial class MainWindow
 
     /// <summary>
     /// Show/hide the persistent overlay chrome based on fullscreen state.
+    /// P1: fullscreen state is read from the controller (which
+    /// owns the state machine + the transition). The edge-nav
+    /// cleanup is dispatched to the controller too — calling its
+    /// internal HideEdgeNav via the field's properties would
+    /// require making them internal-visible, so we just hide the
+    /// UserControls here (the controller's _edgeNavVisible state
+    /// is left alone; the next ShowEdgeNav re-syncs via
+    /// UpdateSelection-style logic).
     ///
     /// Non-fullscreen: TitleBar, FloatingBar, InfoPill all Visible; edge
     /// nav buttons Collapsed (they are fullscreen-only).
@@ -165,15 +180,16 @@ public partial class MainWindow
     /// </summary>
     private void UpdateOverlayVisibility()
     {
-        if (_isFullscreen)
+        if (_fullscreen.IsFullscreen)
         {
             TitleBarArea.Visibility = Visibility.Collapsed;
             TitleBarRow.Height = new GridLength(0);
             FloatingBarContent.Visibility = Visibility.Collapsed;
             InfoPillContent.Visibility = Visibility.Collapsed;
             // Edge nav is left in whatever state it was — entering
-            // fullscreen hides it synchronously via EnterFullscreenMode,
-            // and subsequent mouse moves will reveal it.
+            // fullscreen shows it via ShowEdgeNav (on the
+            // controller), and subsequent mouse moves will
+            // reset its 3s timer.
         }
         else
         {
@@ -181,32 +197,22 @@ public partial class MainWindow
             TitleBarRow.Height = new GridLength(44);
             FloatingBarContent.Visibility = Visibility.Visible;
             InfoPillContent.Visibility = Visibility.Visible;
-            // Leaving fullscreen: force the edge nav hidden and stop the
-            // timer so it doesn't fire after we've restored normal chrome.
-            // P1 fix: hide the UserControl, not just the inner Border —
-            // ShowEdgeNav sets the UserControl Visible/Opacity=1, so we
-            // have to mirror that here or the next fullscreen entry
-            // would no-op (the Border would still be hidden while the
-            // UserControl stays visible, leaving the chevrons stuck in
-            // a half-shown state).
-            _edgeNavVisible = false;
+            // Leaving fullscreen: hide the edge nav UserControls
+            // so they don't show over the restored chrome. The
+            // controller's _edgeNavVisible is set false on the
+            // next Toggle (which happens via the same IUiState
+            // PropertyChanged branch that called this).
             EdgeNavLeftControl.Visibility = Visibility.Collapsed;
             EdgeNavRightControl.Visibility = Visibility.Collapsed;
             EdgeNavLeftControl.Opacity = 0;
             EdgeNavRightControl.Opacity = 0;
-            _overlayHideTimer?.Stop();
         }
     }
 
     private void ApplyColumnVisibility()
     {
-        // Fullscreen: collapse ALL side chrome (columns, splitters, hot
-        // zones) so the viewer column truly owns the visible area. The
-        // 6px ThumbSplitterColumn and the Auto TreeSplitterColumn would
-        // otherwise stay reserved as transparent gaps that show the
-        // window's SurfaceCanvas background through to the viewer edge,
-        // producing visible white-ish seams on top of the white viewer.
-        if (_isFullscreen)
+        // P1: fullscreen state lives in the controller.
+        if (_fullscreen.IsFullscreen)
         {
             TreeColumn.Width = new GridLength(0);      TreeColumn.MinWidth = 0;
             TreeSplitterColumn.Width = new GridLength(0);
@@ -227,11 +233,7 @@ public partial class MainWindow
         ThumbColumn.MinWidth = _isThumbVisible ? 160 : 0;
         ThumbSplitterColumn.Width = _isThumbVisible ? new GridLength(6) : new GridLength(0);
         ThumbSplitter.Visibility = _isThumbVisible ? Visibility.Visible : Visibility.Collapsed;
-        // The 8px left hot zone is only meaningful when the inline
-        // tree is collapsed. Fullscreen is handled in the early-return
-        // branch above.
         TreeHotZone.Visibility = _isTreeVisible ? Visibility.Collapsed : Visibility.Visible;
-        // If the tree just re-opened, dismiss any floating popup.
         if (_isTreeVisible) TreeFloatingPopup.IsOpen = false;
     }
 
@@ -311,4 +313,20 @@ public partial class MainWindow
         // look "pressed" after the popover closes. The cursor
         // property is set in XAML, so this is purely a visual nicety.
     }
+
+    // ---- P1: tree floating popup XAML handlers ----
+    // The 8px hot zone + popup use plain WPF MouseEnter /
+    // MouseLeave / Closed events. The actual logic (open /
+    // close / hide timer) lives on the fullscreen
+    // controller — these handlers just forward.
+    private void TreeHotZone_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+        => _fullscreen.TreeHotZone_MouseEnter();
+    private void TreeHotZone_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        => _fullscreen.TreeHotZone_MouseLeave();
+    private void TreeFloatingPanel_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+        => _fullscreen.TreeFloatingPanel_MouseEnter();
+    private void TreeFloatingPanel_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        => _fullscreen.TreeFloatingPanel_MouseLeave();
+    private void TreeFloatingPopup_Closed(object? sender, EventArgs e)
+        => _fullscreen.TreeFloatingPopup_Closed();
 }

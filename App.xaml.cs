@@ -14,16 +14,16 @@ using SQLitePCL;
 namespace ApertureNeo;
 
 /// <summary>
-/// Application entry point. Owns the long-lived singletons
-/// (ThumbnailCache, SettingsStore), the SQLite native init,
-/// and the global exception handlers that keep the process
-/// alive across screenshot-tool reentrancy.
+/// Application entry point. Owns the SQLite native init and
+/// the global exception handlers that keep the process alive
+/// across screenshot-tool reentrancy. Long-lived services
+/// (SettingsStore, ThumbnailCache, NavigationService, etc.)
+/// are owned by <see cref="AppHost"/>; consumers resolve them
+/// from <see cref="AppHost.Services"/> via field initializers
+/// or ctor injection.
 /// </summary>
 public partial class App : Application
 {
-    public static ThumbnailCache ThumbnailCache { get; private set; } = null!;
-    public static SettingsStore SettingsStore { get; private set; } = null!;
-
     /// <summary>
     /// DI composition root. Set in <see cref="OnStartup"/>
     /// after <see cref="AppHost.Build"/> runs. WPF UserControls
@@ -161,12 +161,6 @@ public partial class App : Application
     {
         await Task.Yield();   // keep the async signature; MIGRATE was sync
 
-        // Static forwarders — read from DI for backward compat.
-        // Will be deleted in P2 once all consumers take the
-        // services via ctor instead.
-        SettingsStore = (SettingsStore)AppHost.Services!.GetRequiredService<ISettingsStore>();
-        ThumbnailCache = (ThumbnailCache)AppHost.Services!.GetRequiredService<IThumbnailCache>();
-
         // The light-mode DesignTokens dictionary is loaded statically
         // in App.xaml (MergedDictionaries). There is no runtime theme
         // apply — the app is Linear light mode only (theme switching
@@ -177,16 +171,22 @@ public partial class App : Application
         //   1. command-line argument (user passed a file)
         //   2. LastOpenedImage from settings (previous session)
         //   3. none (just open the empty main window)
+        // ISettingsStore is resolved from DI here because the
+        // startup-file check runs before any window is constructed
+        // (and therefore before any field-initializer DI lookup has
+        // happened). The service is a singleton so this is the
+        // only call site outside MainWindow that needs the instance.
+        var settings = AppHost.Services!.GetRequiredService<ISettingsStore>();
         string? startupFile = null;
         if (e.Args.Length > 0 && File.Exists(e.Args[0]) && FormatHelper.IsSupported(e.Args[0]))
         {
             startupFile = e.Args[0];
         }
-        else if (!string.IsNullOrEmpty(SettingsStore.LastOpenedImage)
-                 && File.Exists(SettingsStore.LastOpenedImage)
-                 && FormatHelper.IsSupported(SettingsStore.LastOpenedImage))
+        else if (!string.IsNullOrEmpty(settings.LastOpenedImage)
+                 && File.Exists(settings.LastOpenedImage)
+                 && FormatHelper.IsSupported(settings.LastOpenedImage))
         {
-            startupFile = SettingsStore.LastOpenedImage;
+            startupFile = settings.LastOpenedImage;
         }
 
         var mainWindow = startupFile != null
@@ -281,8 +281,16 @@ public partial class App : Application
         // plugin's _engine handle dangling (GC would clean it
         // up eventually, but model files stay mapped).
         PluginLoader.DeactivateAll();
-        SettingsStore?.Save();
-        ThumbnailCache?.Dispose();
+        // Save the settings + dispose the SQLite-backed thumbnail
+        // cache. We resolve from the AppHost service provider so
+        // the exit path doesn't depend on any window instance still
+        // being alive (which is the case for the Shutdown(0) /
+        // unhandled-exception paths that go through here too).
+        if (AppHost.Services is { } sp)
+        {
+            (sp.GetService<ISettingsStore>() as SettingsStore)?.Save();
+            (sp.GetService<IThumbnailCache>() as ThumbnailCache)?.Dispose();
+        }
         base.OnExit(e);
     }
 
@@ -307,19 +315,13 @@ public partial class App : Application
             Path.Combine(appData, "HighSpeedImageViewer", "settings.json"),
             Path.Combine(appData, "ApertureNeo", "settings.json"));
 
-        // After the move, the next read of SettingsStore will pick
-        // up the migrated file. SettingsStore is now lazy, so we
-        // also need to invalidate any pre-loaded cache.
-        // AppHost hasn't been built yet here, so we can't go
-        // through DI. Try to reach the static forwarder; if the
-        // app was launched with `--ocr` (which skips AppHost),
-        // SettingsStore is still null and there's nothing to
-        // reload.
-        try
-        {
-            if (SettingsStore != null) SettingsStore.Reload();
-        }
-        catch { /* not built yet — first read will pick up the file */ }
+        // The SettingsStore DI factory in AppHost is lazy (it calls
+        // s.Load() the first time anyone requests the service, which
+        // is MainWindow's field initializer). At this point in
+        // startup AppHost hasn't been built, and no consumer has
+        // resolved ISettingsStore yet, so there's no pre-loaded cache
+        // to invalidate — the first Load() call will see the
+        // just-migrated file at its new path. No Reload() needed.
     }
 
     private static void TryMove(string src, string dst)

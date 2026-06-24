@@ -46,14 +46,25 @@ public partial class MainWindow : FluentWindow, IPluginContext
     // bound to a real ImageItem.
     private readonly INavigationService _navigation =
         AppHost.Services!.GetRequiredService<INavigationService>();
-    private readonly SlideshowService _slideshow = new();
+    // SettingsStore + ThumbnailCache + SlideshowService +
+    // ThumbnailLoadCoordinator are all DI singletons. The previous
+    // App.SettingsStore / App.ThumbnailCache static forwarders were
+    // removed in a cleanup pass; these field initializers are the
+    // single point of contact between MainWindow and the DI
+    // container for non-VM services.
+    private readonly ISettingsStore _settings =
+        AppHost.Services!.GetRequiredService<ISettingsStore>();
+    private readonly IThumbnailCache _thumbnailCache =
+        AppHost.Services!.GetRequiredService<IThumbnailCache>();
+    private readonly SlideshowService _slideshow =
+        AppHost.Services!.GetRequiredService<SlideshowService>();
     // 8 parallel decodes: roughly matches modern CPU core count; the
     // old default of 2 wasted most of the available IO+decode bandwidth
     // and made folder loads feel sluggish past ~50 items. Cache is
     // resolved from the DI container — see AppHost.Build() in
     // App.OnStartup; the field initializer runs after the host is built.
-    private readonly ThumbnailLoadCoordinator _thumbCoordinator = new(
-        AppHost.Services!.GetRequiredService<IThumbnailCache>(), maxConcurrent: 8);
+    private readonly ThumbnailLoadCoordinator _thumbCoordinator =
+        AppHost.Services!.GetRequiredService<ThumbnailLoadCoordinator>();
 
     private bool _isFullscreen;
     private bool _isTreeVisible = true;
@@ -278,7 +289,7 @@ public partial class MainWindow : FluentWindow, IPluginContext
             {
                 UpdateOverlayVisibility();
 
-                var recent = App.SettingsStore.Recent;
+                var recent = _settings.Recent;
                 if (recent.Count > 0 && Directory.Exists(recent[0].Path))
                 {
                     _navigation.LoadFolder(recent[0].Path);
@@ -290,7 +301,7 @@ public partial class MainWindow : FluentWindow, IPluginContext
         {
             var current = _navigation.Current;
             if (current != null)
-                App.SettingsStore.LastOpenedImage = current.FilePath;
+                _settings.LastOpenedImage = current.FilePath;
 
             // P0 fix: stop all active animations and detach
             // CompositionTarget.Rendering subscribers before disposing
@@ -451,7 +462,7 @@ public partial class MainWindow : FluentWindow, IPluginContext
         var autoFit = VisualTreeHelpers.FindVisualChild<AutoFitPanel>(grid);
         if (autoFit != null)
         {
-            App.ThumbnailCache.SetSizeProvider(() => (int)autoFit.ActualItemWidth);
+            _thumbnailCache.SetSizeProvider(() => (int)autoFit.ActualItemWidth);
             _autoFit = autoFit;
         }
     }
@@ -472,9 +483,6 @@ public partial class MainWindow : FluentWindow, IPluginContext
     // UserControl wrapper layer).
 
     private System.Windows.Controls.MenuItem MenuPlugins => TitleBar.MenuPluginsRef;
-    private System.Windows.Controls.MenuItem MenuAbout => TitleBar.MenuAboutRef;
-    private System.Windows.Controls.TextBlock AboutUpdateSuffix => TitleBar.AboutUpdateSuffixRef;
-    private Wpf.Ui.Controls.SymbolIcon MaximizeIcon => TitleBar.MaximizeIconRef;
     // P2: SlideshowIcon / ImageIndexInfo / ZoomTextBlock are
     // now VM properties (bound via XAML on FloatingBarView).
     // The legacy convenience properties are removed; the
@@ -528,9 +536,9 @@ public partial class MainWindow : FluentWindow, IPluginContext
             if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
             {
                 if (FormatHelper.FolderHasImages(folder))
-                    App.SettingsStore.AddRecent(folder);
-                _navigation.LoadFolder(folder);
-                _navigation.NavigateTo(filePath);
+                    _settings.AddRecent(folder);
+                    _navigation.LoadFolder(folder);
+                    _navigation.NavigateTo(filePath);
             }
         }
     }
@@ -752,7 +760,7 @@ public partial class MainWindow : FluentWindow, IPluginContext
             // IsChecked setter suppresses re-entrancy if the value
             // doesn't change, so calling this on every open is safe
             // and cheap.
-            item.IsChecked = App.SettingsStore.IsPluginEnabled(info.Name);
+            item.IsChecked = _settings.IsPluginEnabled(info.Name);
             RefreshPluginDot(item, info);
             item.IsEnabled = info.Instance.Status != PluginStatus.Unavailable;
         }
@@ -768,7 +776,7 @@ public partial class MainWindow : FluentWindow, IPluginContext
     {
         foreach (var info in _availablePlugins)
         {
-            if (!App.SettingsStore.IsPluginEnabled(info.Name)) continue;
+            if (!_settings.IsPluginEnabled(info.Name)) continue;
             // Activate the plugin directly. We can't set IsChecked
             // here (the ContextMenu is unrealized, so the setter is
             // a no-op) — the visual state gets applied in
@@ -782,7 +790,7 @@ public partial class MainWindow : FluentWindow, IPluginContext
         if (sender is not System.Windows.Controls.MenuItem item) return;
         if (item.Tag is not PluginInfo info) return;
         PluginLoader.Activate(info, this);
-        App.SettingsStore.SetPluginEnabled(info.Name, true);
+        _settings.SetPluginEnabled(info.Name, true);
         // Refresh the dot — status may have transitioned to
         // Enabled (green). SetChecked doesn't fire SubmenuOpened.
         RefreshPluginDot(item, info);
@@ -793,7 +801,7 @@ public partial class MainWindow : FluentWindow, IPluginContext
         if (sender is not System.Windows.Controls.MenuItem item) return;
         if (item.Tag is not PluginInfo info) return;
         PluginLoader.Deactivate(info);
-        App.SettingsStore.SetPluginEnabled(info.Name, false);
+        _settings.SetPluginEnabled(info.Name, false);
         // Refresh the dot — status transitioned back to
         // Disabled (gray). SetChecked doesn't fire SubmenuOpened.
         RefreshPluginDot(item, info);
@@ -822,18 +830,15 @@ public partial class MainWindow : FluentWindow, IPluginContext
     }
 
     /// <summary>
-    /// Map PluginStatus → the brush for the status dot. Reuses the
-    /// design tokens the rest of the app uses for status colors so
-    /// the dot visually matches the main interface's status
-    /// indicators (info pill dot, status pills, etc.).
-    /// </summary>
-    /// <summary>
     /// P3: maps PluginStatus → a brush via <see cref="ITheme"/>.
     /// Was a static method that fished the brush out of
     /// <c>Application.Current.Resources</c> by string key;
     /// now an instance method on MainWindow because the
     /// theme is per-instance (DI-resolved singleton, but
-    /// we still need the instance reference).
+    /// we still need the instance reference). Reuses the
+    /// design tokens the rest of the app uses for status colors
+    /// so the dot visually matches the main interface's status
+    /// indicators (info pill dot, status pills, etc.).
     /// </summary>
     private System.Windows.Media.Brush GetStatusBrush(PluginStatus status)
     {

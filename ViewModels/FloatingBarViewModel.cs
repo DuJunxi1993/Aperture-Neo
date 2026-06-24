@@ -62,15 +62,22 @@ public partial class FloatingBarViewModel : ObservableObject
     [RelayCommand]
     private void Next() => _navigation.MoveNext();
 
-    /// <summary>VM doesn't know about SkiaImageViewer; the View
-    /// subscribes to this event and calls FitToScreen().</summary>
+    // Fit / ZoomToOriginal commands are present for XAML binding
+    // (the floating bar's 100% and Fit buttons reference them) but
+    // currently no-op: the original implementation raised VM events
+    // that the View was supposed to forward into MainWindow's
+    // SkiaImageViewer instance. The forwarding chain was never
+    // wired up end-to-end (no consumer ever assigned the View's
+    // Action properties), so the commands silently did nothing.
+    // Restoring real behaviour needs the View to take a hard
+    // reference to the viewer, or MainWindow to subscribe to a
+    // different VM event — both are out of scope for the
+    // modularity-cleanup pass.
     [RelayCommand]
-    private void Fit() => FitRequested?.Invoke(this, EventArgs.Empty);
-    public event EventHandler? FitRequested;
+    private void Fit() { }
 
     [RelayCommand]
-    private void ZoomToOriginal() => ZoomToOriginalRequested?.Invoke(this, EventArgs.Empty);
-    public event EventHandler? ZoomToOriginalRequested;
+    private void ZoomToOriginal() { }
 
     [RelayCommand]
     private void ToggleSlideshow()

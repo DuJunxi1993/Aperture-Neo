@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
+using ApertureNeo.Controls;
 using ApertureNeo.Services;
 using ApertureNeo.ViewModels;
 
@@ -13,14 +14,14 @@ namespace ApertureNeo;
 /// for WPF-created UserControls that need to look up services via
 /// constructor-less instantiation.
 ///
-/// Migration note: this is the first step in the P0→P3 modularity
-/// refactor. After P0 the static <c>App.SettingsStore</c> /
-/// <c>App.ThumbnailCache</c> properties are thin forwarders to the
-/// DI singleton instances — they exist for backward compatibility
-/// with the ~28 existing call sites that haven't been migrated to
-/// constructor injection yet. P1/P2 will replace those call sites
-/// with VM / UserControl constructors, at which point the static
-/// forwarders can be deleted.
+/// DI completeness note: every long-lived service the main window
+/// uses — SettingsStore, ThumbnailCache, IUiState, INavigationService,
+/// ITheme, SlideshowService, ThumbnailLoadCoordinator — is registered
+/// here. MainWindow resolves them via field initializers that read
+/// <see cref="Services"/>. The old <c>App.SettingsStore</c> /
+/// <c>App.ThumbnailCache</c> static forwarders were removed in a
+/// cleanup pass; the only consumers (MainWindow + its partials) now
+/// take the services via DI like the VMs do.
 /// </summary>
 public static class AppHost
 {
@@ -66,6 +67,26 @@ public static class AppHost
             Directory.CreateDirectory(cacheDir);
             return new ThumbnailCache(Path.Combine(cacheDir, "cache.db"));
         });
+
+        // SlideshowService owns the slideshow tick timer + the
+        // NextRequested event the main window subscribes to.
+        // Singleton because the timer must survive across the
+        // view-model lifetime (the user can toggle it on / off
+        // repeatedly during a single window's life).
+        services.AddSingleton<SlideshowService>();
+
+        // ThumbnailLoadCoordinator batches thumbnail decode
+        // requests at 8 concurrent workers. The IThumbnailCache
+        // dependency is resolved from the singleton registered
+        // above. Per-window was considered (each window has its
+        // own visible-range) but the cache + work queue are
+        // shared across windows anyway, so a single coordinator
+        // is the simpler choice and matches NavigationService's
+        // singleton scope.
+        services.AddSingleton<ThumbnailLoadCoordinator>(sp =>
+            new ThumbnailLoadCoordinator(
+                sp.GetRequiredService<IThumbnailCache>(),
+                maxConcurrent: 8));
 
         // -- Transient / per-use -------------------------------------
         // NavigationService holds an ObservableCollection bound to

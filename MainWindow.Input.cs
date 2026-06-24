@@ -47,7 +47,7 @@ public partial class MainWindow
         // Bailing out keeps state consistent. (The user can always
         // drop a different file.)
         if (!FormatHelper.FolderHasImages(folder)) return;
-        App.SettingsStore.AddRecent(folder);
+        _settings.AddRecent(folder);
         _navigation.LoadFolder(folder);
         _navigation.NavigateTo(file);
     }

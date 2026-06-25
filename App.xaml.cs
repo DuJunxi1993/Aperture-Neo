@@ -3,6 +3,7 @@ using System.CommandLine;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using ApertureNeo.Cli;
@@ -44,8 +45,50 @@ public partial class App : Application
     private static readonly System.Collections.Generic.HashSet<string> CommandTokens =
         new(System.StringComparer.OrdinalIgnoreCase) { "ocr", "plugin-list", "help" /*, "convert" (future) */ };
 
+    // P2 fix: WinExe (ApertureNeo.csproj: <OutputType>WinExe</OutputType>)
+    // doesn't allocate a console on launch — Console.Out writes to a
+    // null stream by default. When the user runs the .exe from a parent
+    // terminal (PowerShell / cmd.exe / Windows Terminal), the parent
+    // console is NOT automatically inherited (because the child is a
+    // GUI-mode process), so System.CommandLine's IConsole output goes
+    // to the void. AttachConsole(ATTACH_PARENT_PROCESS) hooks the child
+    // process up to the parent's console so output reaches the terminal.
+    // Returns false when the parent has no console (Explorer double-
+    // click, Task Scheduler, service host) — in that case we just
+    // continue as a GUI app with no console, which is the intended
+    // WinExe behavior.
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool AttachConsole(uint dwProcessId);
+    private const uint ATTACH_PARENT_PROCESS = 0xFFFFFFFF;
+
     protected override async void OnStartup(StartupEventArgs e)
     {
+        // P2 fix: attach to the parent process's console (if any)
+        // and re-bind Console.Out/Error so CLI invocations
+        // (`--help`, `plugin-list`, `ocr …`, etc.) actually reach
+        // the terminal. See the AttachConsole P/Invoke comment for
+        // the WinExe background. Must run before OnStartupCore so
+        // the rebinding is in place when IsCliInvocation dispatches
+        // to RunCliAsync → root.InvokeAsync → IConsole.Write.
+        // AttachConsole is a no-op when the parent has no console
+        // (e.g. Explorer double-click), so this is safe to call
+        // unconditionally for every launch.
+        if (AttachConsole(ATTACH_PARENT_PROCESS))
+        {
+            // After AttachConsole succeeds, the OS-level stdout /
+            // stderr handles now point to the parent console.
+            // .NET's cached Console.Out / Console.Error still
+            // point at the original (closed) handle, so writes
+            // would still go nowhere. Re-open via
+            // OpenStandardOutput / OpenStandardError (which calls
+            // GetStdHandle and returns a stream over the NEW
+            // handle) and re-bind via SetOut / SetError. AutoFlush
+            // because we want each line visible before the
+            // process exits via Shutdown.
+            Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
+            Console.SetError(new StreamWriter(Console.OpenStandardError()) { AutoFlush = true });
+        }
+
         // P1 fix: async void with no try/catch means any unhandled
         // exception during startup hangs the process. The global
         // DispatcherUnhandledException handler only fires for

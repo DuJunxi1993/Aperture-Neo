@@ -551,8 +551,22 @@ public partial class MainWindow : FluentWindow
     /// in sync with the window change). MainWindow owns the
     /// actual logic — it's the only class that has the column
     /// definitions + the title-bar / floating-bar / info-pill
-    /// forwarding properties.</summary>
-    private void ApplyChrome() => UpdateOverlayVisibility();
+    /// forwarding properties.
+    ///
+    /// P1 fix: must call BOTH <see cref="UpdateOverlayVisibility"/>
+    /// (title bar / floating bar / info pill) AND
+    /// <see cref="ApplyColumnVisibility"/> (side columns:
+    /// tree column + thumbnail column + splitters + tree hot
+    /// zone). Missing the column call leaves the thumbnail
+    /// column + tree column visible in fullscreen, since
+    /// <see cref="UpdateOverlayVisibility"/> only touches the
+    /// overlay chrome (Visibility flags) and not the column
+    /// widths.</summary>
+    private void ApplyChrome()
+    {
+        UpdateOverlayVisibility();
+        ApplyColumnVisibility();
+    }
 
     // Convenience properties for the controllers (which still
     // reach into XAML elements). These forward to the

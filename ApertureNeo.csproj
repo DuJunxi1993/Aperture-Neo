@@ -25,13 +25,16 @@
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <!-- Versioning. The OCR plugin release is independently versioned
          (its own csproj's <Version> is independent); the last main-app
-         release on GitHub is v2.0.2, and v3.0.0 is the next major
-         cut adding the plugin system + OCR plugin + in-app update
-         flow. <Version> drives <InformationalVersion> and
-         <AssemblyVersion>; <FileVersion> feeds the EXE/Win32 version
-         tab. publish.ps1 overrides all three via -p: flags for the
-         release build. -->
-    <Version>3.0.0</Version>
+         release on GitHub is v2.0.2, and v3.0.0 added the plugin
+         system + OCR plugin + in-app update flow. v3.1.0 adds the
+         Win11 right-click menu OCR (SystemFileAssociations\image
+         + per-extension), per-user PATH integration so `aperture
+         ocr ...` is invokable from any terminal, and the bilingual
+         installer (English + 简体中文). <Version> drives
+         <InformationalVersion> and <AssemblyVersion>; <FileVersion>
+         feeds the EXE/Win32 version tab. publish.ps1 overrides
+         all three via -p: flags for the release build. -->
+    <Version>3.1.0</Version>
     <AssemblyVersion>$(Version).0</AssemblyVersion>
     <FileVersion>$(Version).0</FileVersion>
   </PropertyGroup>

@@ -2,6 +2,13 @@
 ; Requires Inno Setup 6.0 or later
 ; Compiled with: ISCC /dMyAppVersion=x.y.z /dPublishDir="<abs>" Installer\installer.iss
 ;
+; Bilingual installer (English + 简体中文). Inno Setup shows a
+; language selection dialog at startup when 2+ languages are
+; listed in the [Languages] section; the chosen language is
+; then used for every [Messages], [Tasks] description, and
+; [Code] CustomMessage lookup. English is the default (first
+; in the list); Chinese(simplified) is the second language.
+;
 ; Per-user, no-admin installer:
 ;   - PrivilegesRequired=user
 ;   - Installs to {localappdata}\Programs\ApertureNeo
@@ -10,6 +17,16 @@
 ;   - Detects an existing installation of the same AppId and silently
 ;     uninstalls it (after user confirmation) before installing the new
 ;     version. Settings/cache are preserved by the app's MigrateLegacyData().
+;
+; v3.1.0 features:
+;   - Win11 right-click OCR: registers under both the per-extension
+;     HKCU\Software\Classes\.<ext>\shell\ocr (legacy + Win11
+;     "Show more options") and the SystemFileAssociations\image
+;     key (Win11 compact menu attempt).
+;   - Per-user PATH integration: appends the install directory to
+;     HKCU\Environment\Path (REG_EXPAND_SZ) so `aperture ocr ...`
+;     is invokable from any terminal. Toggled via the addtopath
+;     task, default checked. Removed on uninstall.
 
 #define MyAppName "Aperture Neo"
 #define MyAppPublisher "DuJunxi1993"
@@ -54,26 +71,79 @@ VersionInfoProductName={#MyAppName}
 VersionInfoDescription={#MyAppName} Setup
 
 [Languages]
+; English first (international default), Chinese(simplified) second.
+; Inno Setup automatically shows the language selection dialog at
+; startup when 2+ languages are listed here; the user's choice is
+; then used for every [Messages] / [Tasks] / [CustomMessages] lookup.
+;
+; The Chinese (Simplified) language file is not bundled with the
+; standard Inno Setup install (the official translation lives at
+; https://jrsoftware.org/files/istrans/), so we ship a copy in
+; Languages/ChineseSimplified.isl and reference it via a relative
+; path. Without this, ISCC would fail at compile time with
+; "Couldn't open include file compiler:Languages\Chinese.isl".
 Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "chinesesimp"; MessagesFile: "Languages\ChineseSimplified.isl"
 
 [Messages]
+; Default (English) WelcomeLabel2. The Chinese override below
+; takes effect when the user picks 简体中文 at the language dialog.
 WelcomeLabel2=This will install [name/ver] on your computer.%n%nAperture Neo is a fast, lightweight WPF image viewer. This package is self-contained and includes the .NET runtime, so no additional software installation is required.%n%nThis installer runs in your user profile (no administrator rights required).%n%nWebView2 Runtime is recommended for the modern UI. If not already present, you will be prompted to install it.
+WelcomeLabel2=即将在您的电脑上安装 [name/ver]。%n%nAperture Neo 是一款快速、轻量级的 WPF 图片查看器。本安装包为自包含模式,已包含 .NET 运行时,无需额外安装其他组件。%n%n本安装器在您的用户配置目录下运行,无需管理员权限。%n%n建议安装 WebView2 运行时以获得完整的现代化界面。如未安装,稍后会提示您下载。; Languages: chinesesimp
 
 [Tasks]
+; Default descriptions (English) — apply to English and any other
+; language without an override. Chinese overrides follow each task
+; with the `; Languages: chinesesimp` qualifier so the user sees
+; the Chinese version when they pick 简体中文 at install time.
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Shortcuts:"
+Name: "desktopicon"; Description: "创建桌面快捷方式(&D)"; GroupDescription: "快捷方式:"; Languages: chinesesimp
+
 Name: "fileassoc"; Description: "Register as a supported image viewer (adds to 'Open With')"; GroupDescription: "File associations:"
+Name: "fileassoc"; Description: "注册为受支持的图片查看器(加入「打开方式」菜单)"; GroupDescription: "文件关联:"; Languages: chinesesimp
+
 Name: "setdefault"; Description: "Set as the &default image viewer for all supported types"; GroupDescription: "File associations:"
-; Adds "OCR文字提取" to the right-click menu for every supported
-; extension. The verb invokes ApertureNeo.exe with the `ocr -g`
-; subcommand, which (for single files) reuses the existing
-; OcrResultWindow from Plugins.Ocr.Ui. The OCR feature depends
-; on the bundled PaddleOCR engine and ONNX models, so users who
-; don't want OCR can simply uncheck this option at install time.
-Name: "ocrverb"; Description: "Add 'OCR &文字提取' to the right-click menu"; GroupDescription: "Shell integration:"
+Name: "setdefault"; Description: "设为所有受支持格式的默认图片查看器(&S)"; GroupDescription: "文件关联:"; Languages: chinesesimp
+
+; OCR shell verb: each-image-extension registration (legacy menu +
+; Win11 "Show more options") PLUS SystemFileAssociations\image
+; registration further down (Win11 compact menu attempt). v3.1.0
+; defaults to checked. Inno Setup's [Tasks] Flags parameter
+; rejects the `Languages:` qualifier in the same task entry,
+; so we use the standard "leave unchecked" default — the user
+; can still opt in via the task checkbox on the install wizard.
+; (The previous `Flags: checked` + `Languages: chinesesimp`
+; form triggered an ISCC parser bug in 6.7.1.)
+Name: "ocrverb"; Description: "Add OCR &文字提取 to the right-click menu (Win11 top-level + legacy)"; GroupDescription: "Shell integration:"
+Name: "ocrverb"; Description: "添加「OCR &文字提取」到右键菜单(Win11 顶层 + 传统菜单)"; GroupDescription: "系统集成:"; Languages: chinesesimp
+
+; v3.1.0: per-user PATH integration. Adds the install directory
+; to HKCU\Environment\Path (REG_EXPAND_SZ) so `aperture ocr ...`
+; is invokable from any terminal. Windows caches environment
+; variables at process start — already-running terminals need
+; a restart to see the change. Toggled via this task; user opts
+; in via the install wizard checkbox. Removed on uninstall.
+Name: "addtopath"; Description: "Add install dir to &PATH (use 'aperture' command from any terminal)"; GroupDescription: "Shell integration:"
+Name: "addtopath"; Description: "将安装目录添加到 &PATH(任意终端可用 `aperture` 命令)"; GroupDescription: "系统集成:"; Languages: chinesesimp
+
+[CustomMessages]
+; Custom messages used by the [Code] section via CustomMessage('KeyName').
+; English entries without a `; Languages:` qualifier are the default;
+; `chinesesimp.` (with the `; Languages: chinesesimp` qualifier)
+; overrides them when the user picks 简体中文. %1, %2, ... in the
+; message are replaced with positional parameters passed to
+; CustomMessage('KeyName', Param1, Param2, ...).
+PreviousVersionPrompt=A previous version of Aperture Neo was detected on this computer.%n%nIt will be uninstalled automatically before this new version is installed.%n%nYour settings, thumbnails and favorites will be preserved by the application itself.%n%nContinue?
+UninstallFailedMsg=Failed to launch the previous version's uninstaller:%n%1%n%nPlease remove it manually (Settings -> Apps -> Installed apps) and run this installer again.
+WebView2Prompt=WebView2 Runtime was not detected on this system.%n%nAperture Neo can still be installed, but the modern UI (Mica / FluentWindow) requires WebView2. The classic WPF chrome will be used as a fallback.%n%nDownload WebView2 Evergreen Bootstrapper now?%n%n(You can also install it later from:%nhttps://developer.microsoft.com/microsoft-edge/webview2/)
+
+PreviousVersionPrompt=检测到您的电脑已安装了旧版 Aperture Neo。%n%n安装新版之前,系统将自动卸载旧版。%n%n您的设置、缩略图和收藏夹由应用本身保留。%n%n是否继续?; Languages: chinesesimp
+UninstallFailedMsg=无法启动旧版的卸载程序:%n%1%n%n请手动卸载旧版(设置 → 应用 → 已安装的应用),然后再次运行本安装程序。; Languages: chinesesimp
+WebView2Prompt=未在系统中检测到 WebView2 运行时。%n%n您仍可安装 Aperture Neo,但现代化界面(Mica / FluentWindow)需要 WebView2,回退到经典 WPF 界面。%n%n立即下载 WebView2 Evergreen Bootstrapper?%n%n(也可稍后从以下地址下载安装:%nhttps://developer.microsoft.com/microsoft-edge/webview2/); Languages: chinesesimp
 
 [Files]
 ; Self-contained publish output. The path is overridden at compile time via:
-;   ISCC /dPublishDir="<absolute>" Installer\installer.iss
+;   ISCC /dPublishDir="<absolute>" Installer/installer.iss
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\Assets\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\Assets\THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
@@ -157,6 +227,19 @@ Root: HKCU; Subkey: "Software\Classes\.avif\shell\ocr\command"; ValueType: strin
 Root: HKCU; Subkey: "Software\Classes\.ico\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
 Root: HKCU; Subkey: "Software\Classes\.ico\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
 
+; v3.1.0: Win11 top-level context menu registration. The per-extension
+; HKCU\Software\Classes\.<ext>\shell\ocr entries above appear
+; under "Show more options" in Win11's modern menu; the
+; SystemFileAssociations\image registration is what Win11's
+; compact menu reads for image files regardless of extension.
+; If Win11 still classifies the verb as "heavy" (it spawns a
+; GUI window), it may still go to "Show more options" — the
+; per-extension entries above provide the fallback. Gated by
+; the same `ocrverb` task.
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr"; ValueType: string; ValueName: ""; ValueData: "OCR 文字提取"; Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"""; Tasks: ocrverb
+
 ; Per-user font registration under HKCU\Software\Microsoft\Windows NT\CurrentVersion\Fonts.
 ; Windows automatically loads any .ttf from %LOCALAPPDATA%\Microsoft\Windows\Fonts\
 ; on the next session when its name appears under this HKCU key.
@@ -171,6 +254,81 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows NT\CurrentVersion\Fonts"; ValueT
 const
   WebView2Guid = '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
   AppIdGuid    = '{1B6E2D4A-3C8F-4A2E-9D7B-5E1F2A3B4C6D}';
+  PathEnvVar   = 'Path';
+
+// Minimal SplitString implementation — ISCC 6.7's `uses
+// StrUtils;` clause hit a parser bug ("Unknown identifier ''"
+// at column 6 of the `uses` line) and we don't actually need
+// anything else from the unit. Allocates a TArrayOfString
+// and returns the elements between the delimiter. Empty
+// entries (consecutive delimiters) are skipped, matching
+// StringSplitOptions.RemoveEmptyEntries semantics.
+function SplitPath(const S, Delimiter: string): TArrayOfString;
+var
+  Chars: TArrayOfString;
+  I, Count, Start, DLen, SLen: Integer;
+begin
+  SetLength(Result, 0);
+  if S = '' then Exit;
+  SLen := Length(S);
+  DLen := Length(Delimiter);
+  if DLen = 0 then Exit;
+  SetLength(Chars, SLen);
+  Count := 0;
+  Start := 1;
+  for I := 1 to SLen do
+  begin
+    if Copy(S, I, DLen) = Delimiter then
+    begin
+      if I > Start then
+      begin
+        Chars[Count] := Copy(S, Start, I - Start);
+        Count := Count + 1;
+      end;
+      Start := I + DLen;
+      I := Start - 1;  // skip the delimiter chars
+    end;
+  end;
+  if Start <= SLen then
+  begin
+    Chars[Count] := Copy(S, Start, SLen - Start + 1);
+    Count := Count + 1;
+  end;
+  SetLength(Result, Count);
+  for I := 0 to Count - 1 do
+    Result[I] := Chars[I];
+end;
+
+// v3.1.0: per-user PATH integration helpers. Read / write
+// HKCU\Environment (REG_EXPAND_SZ so %USERPROFILE% etc. keep
+// working) and modify the Path value to add or remove a single
+// entry. No admin required — purely per-user. The Path value is
+// semicolon-separated on Windows; comparisons are case-insensitive
+// (CompareText) to match the OS's case-insensitive path handling.
+//
+// Uses the high-level Inno Setup registry API (RegQueryStringValue
+// / RegWriteExpandStringValue) instead of RegOpenKeyEx so the
+// [Code] section doesn't need `uses Windows;` — ISCC 6.7's
+// `uses` parser intermittently rejects the otherwise-valid form.
+
+function GetEnvVarValue(const EnvVarName: string; var EnvVarValue: string): Boolean;
+begin
+  Result := RegQueryStringValue(HKEY_CURRENT_USER, 'Environment', EnvVarName, EnvVarValue);
+end;
+
+function SetEnvVarValue(const EnvVarName, EnvVarValue: string): Boolean;
+begin
+  // Must use the EXPAND variant: HKCU\Environment\Path is
+  // REG_EXPAND_SZ (Windows evaluates %USERPROFILE% etc. on
+  // read). RegWriteStringValue would write a plain string and
+  // break any %-prefixed entries already in the user's PATH.
+  Result := RegWriteExpandStringValue(HKEY_CURRENT_USER, 'Environment', EnvVarName, EnvVarValue);
+  // Note: we don't broadcast WM_SETTINGCHANGE because the
+  // SendMessage call requires `uses Windows;` which has parser
+  // issues in ISCC 6.7. New processes (e.g. newly opened
+  // terminals) will see the new PATH anyway; already-running
+  // terminals need to be restarted.
+end;
 
 function IsWebView2Installed(): Boolean;
 begin
@@ -262,10 +420,7 @@ begin
   end;
 
   if MsgBox(
-    'A previous version of Aperture Neo was detected on this computer.' + #13#10#13#10 +
-    'It will be uninstalled automatically before this new version is installed.' + #13#10 +
-    'Your settings, thumbnails and favorites will be preserved by the application itself.' + #13#10#13#10 +
-    'Continue?',
+    CustomMessage('PreviousVersionPrompt'),
     mbConfirmation, MB_YESNO) = IDNO then
   begin
     Result := False;
@@ -278,12 +433,87 @@ begin
   if not Exec(UninstExe, '/SILENT /NORESTART', '', SW_HIDE,
               ewWaitUntilTerminated, ResultCode) then
   begin
-    MsgBox('Failed to launch the previous version''s uninstaller:' + #13#10 +
-           UninstExe + #13#10#13#10 +
-           'Please remove it manually (Settings -> Apps -> Installed apps) and run this installer again.',
+    MsgBox(
+      FmtMessage(CustomMessage('UninstallFailedMsg'), [UninstExe]),
       mbCriticalError, MB_OK);
     Result := False;
   end;
+end;
+
+// v3.1.0: per-user PATH integration helpers. Read / write HKCU\Environment
+// (REG_EXPAND_SZ so %USERPROFILE% etc. keep working) and modify the Path
+// value to add or remove a single entry. No admin required — purely
+// per-user. The Path value is semicolon-separated on Windows; comparisons
+// are case-insensitive (CompareText) to match the OS's case-insensitive
+// path handling.
+//
+// GetEnvVarValue and SetEnvVarValue are defined above (near the
+// AppIdGuid constant block) to keep all PATH-related code together
+// in source order — the earlier definition uses LongWord instead of
+// HKEY (the latter isn't in the standard Inno Setup types and the
+// compiler rejects the declaration). See the comment block there.
+
+function PathEntryExists(const PathValue, NewEntry: string): Boolean;
+var
+  Entries: TArrayOfString;
+  I: Integer;
+begin
+  Result := False;
+  if PathValue = '' then Exit;
+  Entries := SplitPath(PathValue, ';');
+  for I := 0 to GetArrayLength(Entries) - 1 do
+    if CompareText(Trim(Entries[I]), Trim(NewEntry)) = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+end;
+
+function AddPathEntry(const NewEntry: string): Boolean;
+var
+  CurrentPath, NewPath: string;
+begin
+  Result := False;
+  if not GetEnvVarValue(PathEnvVar, CurrentPath) then
+    CurrentPath := '';
+  if PathEntryExists(CurrentPath, NewEntry) then
+  begin
+    // Idempotent: already present, treat as success.
+    Result := True;
+    Exit;
+  end;
+  if CurrentPath = '' then
+    NewPath := NewEntry
+  else
+    NewPath := CurrentPath + ';' + NewEntry;
+  Result := SetEnvVarValue(PathEnvVar, NewPath);
+end;
+
+function RemovePathEntry(const OldEntry: string): Boolean;
+var
+  CurrentPath, NewPath: string;
+  Entries: TArrayOfString;
+  I: Integer;
+begin
+  Result := False;
+  if not GetEnvVarValue(PathEnvVar, CurrentPath) then Exit;
+  if not PathEntryExists(CurrentPath, OldEntry) then
+  begin
+    // Idempotent: not present, treat as success.
+    Result := True;
+    Exit;
+  end;
+  Entries := SplitPath(CurrentPath, ';');
+  NewPath := '';
+  for I := 0 to GetArrayLength(Entries) - 1 do
+  begin
+    if CompareText(Trim(Entries[I]), Trim(OldEntry)) = 0 then Continue;
+    if NewPath = '' then
+      NewPath := Trim(Entries[I])
+    else
+      NewPath := NewPath + ';' + Trim(Entries[I]);
+  end;
+  Result := SetEnvVarValue(PathEnvVar, NewPath);
 end;
 
 // Show a warning at startup if WebView2 is missing. The app will still install
@@ -302,12 +532,7 @@ begin
   if NeedsWebView2() then
   begin
     if MsgBox(
-      'WebView2 Runtime was not detected on this system.' + #13#10 + #13#10 +
-      'Aperture Neo can still be installed, but the modern UI (Mica / FluentWindow) ' +
-      'requires WebView2. The classic WPF chrome will be used as a fallback.' + #13#10 + #13#10 +
-      'Download WebView2 Evergreen Bootstrapper now?' + #13#10 + #13#10 +
-      '(You can also install it later from:' + #13#10 +
-      'https://developer.microsoft.com/microsoft-edge/webview2/)',
+      CustomMessage('WebView2Prompt'),
       mbConfirmation, MB_YESNO) = IDYES then
     begin
       ShellExec('open', 'https:' + '/' + '/go.microsoft.com/fwlink/p/?LinkId=2124703', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
@@ -323,6 +548,12 @@ begin
     // Font registry entries and font file copies are written by the [Registry]
     // and [Files] sections. The app's MigrateLegacyData() (App.OnStartup)
     // preserves user data when the new build starts.
+    //
+    // v3.1.0: per-user PATH integration. Only runs if the user
+    // checked the `addtopath` task at install time. Idempotent —
+    // AddPathEntry is a no-op when the path is already in PATH.
+    if WizardIsTaskSelected('addtopath') then
+      AddPathEntry(ExpandConstant('{app}'));
   end;
 end;
 
@@ -352,6 +583,18 @@ begin
       RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\' + Ext + '\shell\ocr');
     end;
     RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\{#ProgId}');
+
+    // v3.1.0: clean Win11 top-level OCR menu registration
+    // (the per-extension entries above are handled by the loop
+    // via the uninsdeletekey flag on the [Registry] entries).
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\SystemFileAssociations\image\shell\ocr');
+
+    // v3.1.0: clean per-user PATH entry. Idempotent — no-op if
+    // the path wasn't in PATH (or if the addtopath task wasn't
+    // checked at install time). Runs unconditionally on
+    // uninstall so we don't need to track whether the task was
+    // selected.
+    RemovePathEntry(ExpandConstant('{app}'));
 
     // Remove the per-user font registration values. The .ttf files in
     // %LOCALAPPDATA%\Microsoft\Windows\Fonts\ are left in place so other apps

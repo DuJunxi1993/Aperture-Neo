@@ -27,11 +27,13 @@
            main exe has Platform=x64 so it lives at
            bin\x64\Debug\net10.0-windows\ApertureNeo.exe and looks for
            plugins at bin\x64\Debug\net10.0-windows\Plugins\.
-           $(Platform) is "x64" when building x64 and "" for AnyCPU;
-           we include it in the path only when non-empty so the same
-           csproj works in either configuration. -->
-      <MainPluginDir Condition="'$(Platform)' != ''">$(MSBuildThisFileDirectory)..\bin\$(Platform)\$(Configuration)\net10.0-windows\Plugins\</MainPluginDir>
-      <MainPluginDir Condition="'$(Platform)' == ''">$(MSBuildThisFileDirectory)..\bin\$(Configuration)\net10.0-windows\Plugins\</MainPluginDir>
+           $(Platform) is "x64" when building x64 and "AnyCPU" for
+           AnyCPU; we use $(Platform) in the path unconditionally so
+           the same csproj works in either configuration and
+           publish.ps1 (which uses AnyCPU by default) can find the
+           deployed plugin folder at bin\AnyCPU\$(Configuration)\...\
+           Plugins\. -->
+      <MainPluginDir>$(MSBuildThisFileDirectory)..\bin\$(Platform)\$(Configuration)\net10.0-windows\Plugins\</MainPluginDir>
       <OpenCvRuntimeDir>$(NuGetPackageRoot)opencvsharp4.runtime.win\4.13.0.20260528\runtimes\win-x64\native\</OpenCvRuntimeDir>
       <RapidOcrRuntime>$(NuGetPackageRoot)rapidocrsharponnx\1.2.2\lib\net10.0\RapidOCRSharpOnnx.dll</RapidOcrRuntime>
       <OpenCvSharpRuntime>$(NuGetPackageRoot)opencvsharp4\4.13.0.20260528\lib\net8.0\OpenCvSharp.dll</OpenCvSharpRuntime>

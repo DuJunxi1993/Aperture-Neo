@@ -11,7 +11,7 @@
     Build configuration. Default: Release
 
 .PARAMETER Version
-    Version string baked into the installer filename. Default: 2.0.0
+    Version string baked into the installer filename. Default: 3.1.0
 
 .PARAMETER SkipInstaller
     Only run dotnet publish; skip Inno Setup compile.
@@ -26,7 +26,7 @@
 [CmdletBinding()]
 param(
     [string]$Configuration = 'Release',
-    [string]$Version = '2.0.0',
+    [string]$Version = '3.1.0',
     [switch]$SkipInstaller,
     [switch]$Zip
 )
@@ -90,7 +90,7 @@ if (-not (Test-Path $ocrProj)) {
     & dotnet build $ocrProj -c $Configuration -v:q
     if ($LASTEXITCODE -ne 0) { throw "Plugins.Ocr build failed with exit code $LASTEXITCODE" }
 
-    $pluginSrc = Join-Path $root "bin\$Configuration\net10.0-windows\Plugins"
+    $pluginSrc = Join-Path $root "bin\AnyCPU\$Configuration\net10.0-windows\Plugins"
     $pluginDst = Join-Path $publishDir "Plugins"
     if (-not (Test-Path $pluginSrc)) {
         throw "Plugins.Ocr deploy target didn't produce $pluginSrc (DeployToMain target missing?)"

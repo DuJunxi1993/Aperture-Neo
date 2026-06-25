@@ -93,6 +93,24 @@ public class FullscreenController : IFullscreenController
 
     public void Toggle()
     {
+        // Capture the pre-toggle WindowState ONLY when entering
+        // fullscreen. Calling Toggle on the way OUT must not
+        // re-capture: by then WindowState is already Maximized
+        // (set by the entering transition itself), which the
+        // exit transition's "restore Maximized if user was
+        // Maximized" path would then misread as "user was
+        // Maximized before fullscreen" and re-maximize a
+        // window that was actually Normal. P2 fix: move the
+        // capture inside Toggle so the two-method
+        // NotifyEnteringFullscreen + Toggle protocol can't
+        // be misused by future call sites.
+        if (!_isFullscreen)
+        {
+            _previousWindowState = _shell.Window.WindowState == WindowState.Maximized
+                ? WindowState.Maximized
+                : WindowState.Normal;
+        }
+
         _isFullscreen = !_isFullscreen;
         if (_isFullscreen) Enter();
         else               Exit();
@@ -252,22 +270,13 @@ public class FullscreenController : IFullscreenController
     /// <summary>
     /// WindowState captured just before the entering
     /// transition, so the exit transition can restore it
-    /// (e.g. re-maximize a previously-maximized window). Set
-    /// by MainWindow before Toggle via
-    /// <see cref="NotifyEnteringFullscreen"/>.
+    /// (e.g. re-maximize a previously-maximized window).
+    /// Captured automatically inside <see cref="Toggle"/>
+    /// on the entering direction only — the field is read
+    /// by the exit transition's "restore Maximized" branch
+    /// (see line ~230).
     /// </summary>
     private WindowState _previousWindowState;
-
-    // MainWindow calls this just before Toggle so the
-    // "restore Maximized" path in the exit transition can
-    // re-maximize the window.
-    public void NotifyEnteringFullscreen()
-    {
-        if (_shell.Window.WindowState == WindowState.Maximized)
-            _previousWindowState = WindowState.Maximized;
-        else
-            _previousWindowState = WindowState.Normal;
-    }
 
     /// <summary>
     /// Cross-fade the viewer column background over 200ms.

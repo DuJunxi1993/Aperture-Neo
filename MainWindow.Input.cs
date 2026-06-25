@@ -64,11 +64,13 @@ public partial class MainWindow
             switch (key)
             {
                 case Key.F:
-                    // P1: route through the fullscreen controller.
-                    // Capture previous WindowState first so the
-                    // exit transition can re-maximize a window
-                    // that was Maximized before entry.
-                    _fullscreen.NotifyEnteringFullscreen();
+                    // P2: route through the fullscreen controller.
+                    // Toggle handles the pre-toggle WindowState
+                    // capture internally (on the entering
+                    // direction only), so the exit press can't
+                    // re-capture the in-fullscreen Maximized
+                    // state and trick the exit transition into
+                    // re-maximizing a window that was Normal.
                     _fullscreen.Toggle();
                     return true;
                 case Key.O:

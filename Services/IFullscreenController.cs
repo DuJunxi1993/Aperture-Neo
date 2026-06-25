@@ -42,15 +42,12 @@ public interface IFullscreenController
     /// the 300ms transition (150ms fade-out, OS swap, 150ms
     /// fade-in). No-op if the transition generation has moved
     /// on (rapid Ctrl+F, Ctrl+F) — only the latest toggle
-    /// applies its OS swap.</summary>
+    /// applies its OS swap. The pre-toggle WindowState is
+    /// captured automatically on the entering direction so
+    /// the exit transition can restore a previously-
+    /// maximized window; callers do not need to notify
+    /// separately.</summary>
     void Toggle();
-
-    /// <summary>Capture the current WindowState so the next
-    /// exit transition can restore it (re-maximize a window
-    /// that was Maximized before fullscreen entry). Call this
-    /// immediately before <see cref="Toggle"/> when the toggle
-    /// direction is entering fullscreen.</summary>
-    void NotifyEnteringFullscreen();
 
     /// <summary>Called from MainWindow's MouseMove handler in
     /// fullscreen mode. Shows the edge-nav buttons (if not

@@ -194,31 +194,22 @@ public partial class MainWindow : FluentWindow
                     ApplyColumnVisibility();
                     break;
                 case nameof(IUiState.IsFullscreen):
-                    // P1: FloatingBarViewModel.ToggleFullscreen
+                    // P2: FloatingBarViewModel.ToggleFullscreen
                     // flips IUiState.IsFullscreen; the controller
                     // runs the actual transition (entry / exit
                     // animation, chrome hide/show, WPF-UI padding
                     // reset, edge-nav show, exit-hint show,
                     // background cross-fade, image re-fit).
                     // MainWindow only routes the flag change into
-                    // the controller.
-                    //
-                    // P1 fix: capture the previous WindowState on
-                    // ENTRY only. The IUiState PropertyChanged
-                    // handler fires on both entry AND exit, so
-                    // unconditionally calling
-                    // NotifyEnteringFullscreen() would re-capture
-                    // WindowState on the way OUT — and on exit,
-                    // WindowState is already Maximized (set by
-                    // the entering transition), which would
-                    // confuse the exit transition's "restore
-                    // Maximized if user was Maximized" path
-                    // into re-maximizing a window that was
-                    // actually Normal before fullscreen. Keyboard
-                    // Esc doesn't have this problem because it
-                    // calls Toggle() directly without notifying.
-                    if (uiState.IsFullscreen)
-                        _fullscreen.NotifyEnteringFullscreen();
+                    // the controller. The pre-toggle WindowState
+                    // capture lives inside Toggle() now (on the
+                    // entering direction only) so callers don't
+                    // need to notify separately — that protocol
+                    // was the source of the "exit auto-maximize"
+                    // bug, where the call site would re-capture
+                    // the in-fullscreen Maximized state on exit
+                    // and trick the exit transition into
+                    // re-maximizing a window that was Normal.
                     _fullscreen.Toggle();
                     break;
                 case nameof(IUiState.IsSlideshowRunning):

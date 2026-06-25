@@ -28,8 +28,18 @@ namespace ApertureNeo.Cli;
 public sealed class PluginListCommand : Command
 {
     public PluginListCommand()
-        : base("plugin-list", "List all discovered plugins and their status. Diagnostic; " +
-                              "bypasses the GUI so it can be used from scripts.")
+        : base("plugin-list",
+              "List all discovered plugins and their status. Diagnostic; " +
+              "bypasses the GUI so it can be used from scripts.\n\n" +
+              "OUTPUT:\n" +
+              "  For each plugin: [status] name (vversion)\n" +
+              "    status is one of:\n" +
+              "      ON   plugin is enabled (loaded + heavy resources ready)\n" +
+              "      off  plugin is discovered but disabled by user\n" +
+              "      ERR  plugin cannot run (missing ONNX model files, etc.)\n\n" +
+              "EXAMPLES:\n" +
+              "  ApertureNeo plugin-list                    List all discovered plugins\n" +
+              "  ApertureNeo plugin-list | grep -i ocr      Check if the OCR plugin is present")
     {
         this.SetHandler((InvocationContext _) =>
         {

@@ -42,7 +42,7 @@ public partial class App : Application
     /// match a token here).
     /// </summary>
     private static readonly System.Collections.Generic.HashSet<string> CommandTokens =
-        new(System.StringComparer.OrdinalIgnoreCase) { "ocr", "plugin-list" /*, "convert" (future) */ };
+        new(System.StringComparer.OrdinalIgnoreCase) { "ocr", "plugin-list", "help" /*, "convert" (future) */ };
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -141,12 +141,44 @@ public partial class App : Application
     /// </summary>
     private async Task RunCliAsync(string[] args)
     {
-        var root = new RootCommand("Aperture Neo - image viewer with OCR.")
+        // Use a deferred root reference for HelpCommand: the
+        // HelpCommand itself lives INSIDE the RootCommand, so we
+        // cannot pass `root` in the constructor (chicken-and-egg).
+        // The provider closure captures the local `root` variable
+        // by reference and resolves it after RootCommand is fully
+        // constructed. When HelpCommand's handler runs, the root
+        // is available.
+        Command? rootRef = null;
+        var ocr = new OcrCommand(this);
+        var pluginList = new PluginListCommand();
+        var help = new HelpCommand(() => rootRef!);
+        var root = new RootCommand(
+            "Aperture Neo - image viewer with OCR.\n\n" +
+            "USAGE:\n" +
+            "  ApertureNeo [command] [options]\n\n" +
+            "EXAMPLES:\n" +
+            "  ApertureNeo                          Launch the image viewer (default)\n" +
+            "  ApertureNeo ocr photo.jpg            Extract text from photo.jpg to clipboard\n" +
+            "  ApertureNeo ocr -g photo.jpg         OCR with the result window\n" +
+            "  ApertureNeo plugin-list              List installed plugins\n" +
+            "  ApertureNeo help <command>           Show detailed help for a command\n" +
+            "  ApertureNeo help                     Show this overview\n\n" +
+            "CONFIGURATION:\n" +
+            "  Plugins directory  Plugins/  (next to the executable)\n" +
+            "  OCR ONNX models    Plugins.Ocr.Core/Assets/models/paddleocr/*.onnx\n" +
+            "  User settings      %APPDATA%\\ApertureNeo\\settings.json\n" +
+            "  Thumbnail cache    %TEMP%\\ApertureNeo\\thumbs\\cache.db\n\n" +
+            "EXIT CODES (CLI subcommands):\n" +
+            "  0  Success\n" +
+            "  1  Command failed (OCR error, plugin error, etc.)\n" +
+            "  2  Invalid arguments")
         {
-            new OcrCommand(this),
-            new PluginListCommand(),
+            help,
+            ocr,
+            pluginList,
             // future: new ConvertCommand(),
         };
+        rootRef = root;
         var exitCode = await root.InvokeAsync(args);
         Shutdown(exitCode);
     }

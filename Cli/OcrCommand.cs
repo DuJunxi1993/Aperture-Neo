@@ -37,9 +37,28 @@ public sealed class OcrCommand : Command
     private readonly Application _app;
 
     public OcrCommand(Application app)
-        : base("ocr", "Extract text from images using PaddleOCR v4 (Chinese-optimized). " +
-                      "By default the result is copied to the clipboard; pass -g to open " +
-                      "the result window instead.")
+        : base("ocr",
+              "Extract text from images using PaddleOCR v4 (Chinese-optimized).\n\n" +
+              "By default, the result is concatenated and copied to the clipboard. " +
+              "Pass -g to open the result window instead.\n\n" +
+              "EXAMPLES:\n" +
+              "  ApertureNeo ocr photo.jpg               OCR one image, copy result to clipboard\n" +
+              "  ApertureNeo ocr a.jpg b.png c.webp      OCR multiple images (batch, concatenated)\n" +
+              "  ApertureNeo ocr -g photo.jpg            Open the result window for one file\n" +
+              "  ApertureNeo ocr -g a.jpg b.png          Open the multi-file result window\n\n" +
+              "SUPPORTED FORMATS:\n" +
+              "  jpg, jpeg, png, bmp, tif, tiff, webp, heic, heif, jxl, avif, raw, dng\n\n" +
+              "NOTES:\n" +
+              "  - One file's failure does not abort the batch; failed files are marked\n" +
+              "    with \"[失败]\" in the clipboard output.\n" +
+              "  - The clipboard write can fail if another process holds the clipboard\n" +
+              "    lock; OCR result is still computed and the error is reported to stderr.\n" +
+              "  - The CLI bypasses the in-app OCR plugin toggle (in the 插件 submenu) by\n" +
+              "    design — `ocr` is its own entry point.\n\n" +
+              "EXIT CODES:\n" +
+              "  0  Success (OCR completed; clipboard write may still have failed — see stderr)\n" +
+              "  1  OCR failure (file read error, model load error, etc.)\n" +
+              "  2  Invalid arguments")
     {
         _app = app;
 

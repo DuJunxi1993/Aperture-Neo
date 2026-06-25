@@ -195,19 +195,30 @@ public partial class MainWindow : FluentWindow
                     break;
                 case nameof(IUiState.IsFullscreen):
                     // P1: FloatingBarViewModel.ToggleFullscreen
-                    // (and the Ctrl+F / Esc key handlers via
-                    // HandleKey) flip IUiState.IsFullscreen. The
-                    // controller runs the actual transition
-                    // (entry / exit animation, chrome hide/show,
-                    // WPF-UI padding reset, edge-nav show,
-                    // exit-hint show, background cross-fade,
-                    // image re-fit). MainWindow only routes the
-                    // flag change into the controller.
-                    // P1 fix: capture the previous WindowState
-                    // before toggling so the exit transition can
-                    // re-maximize a window that was Maximized
-                    // before fullscreen entry.
-                    _fullscreen.NotifyEnteringFullscreen();
+                    // flips IUiState.IsFullscreen; the controller
+                    // runs the actual transition (entry / exit
+                    // animation, chrome hide/show, WPF-UI padding
+                    // reset, edge-nav show, exit-hint show,
+                    // background cross-fade, image re-fit).
+                    // MainWindow only routes the flag change into
+                    // the controller.
+                    //
+                    // P1 fix: capture the previous WindowState on
+                    // ENTRY only. The IUiState PropertyChanged
+                    // handler fires on both entry AND exit, so
+                    // unconditionally calling
+                    // NotifyEnteringFullscreen() would re-capture
+                    // WindowState on the way OUT — and on exit,
+                    // WindowState is already Maximized (set by
+                    // the entering transition), which would
+                    // confuse the exit transition's "restore
+                    // Maximized if user was Maximized" path
+                    // into re-maximizing a window that was
+                    // actually Normal before fullscreen. Keyboard
+                    // Esc doesn't have this problem because it
+                    // calls Toggle() directly without notifying.
+                    if (uiState.IsFullscreen)
+                        _fullscreen.NotifyEnteringFullscreen();
                     _fullscreen.Toggle();
                     break;
                 case nameof(IUiState.IsSlideshowRunning):

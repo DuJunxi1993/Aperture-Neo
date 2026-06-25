@@ -409,6 +409,24 @@ public class FolderTreeView : ItemsControl
             if (match == null) return;
             if (!HasSubdirectories(match.Path!)) return;
             NavigateInto(match, fireFolderSelected: false);
+            // P2 fix: self-subscribe only updates
+            // CurrentLoadedFolder when FolderSelected fires, but
+            // these intermediate drills suppress the fire (to
+            // avoid loading the intermediate folders' images).
+            // Update explicitly here so the NEXT push (and the
+            // final target-push below) captures this drill
+            // level as the "loaded folder" — i.e. the level
+            // the user would have been viewing if the jump
+            // had been a manual drill. Without this, the
+            // pushed frames carry the previous
+            // CurrentLoadedFolder (whatever the user was
+            // viewing before JumpToDirectory) and
+            // back-navigation jumps to that unrelated folder
+            // instead of the target's parent. Matches
+            // 2aeeaf6's leaf-in-drill semantics: the drilled
+            // level is the implicit "currently loaded"
+            // folder at that tree depth.
+            CurrentLoadedFolder = match.Path;
         }
 
         // Find the target folder as a child of the current Items.
@@ -423,6 +441,23 @@ public class FolderTreeView : ItemsControl
                 break;
             }
         }
+
+        // P2 fix: push a virtual frame for the final target so
+        // back-navigation from the target returns to the drill
+        // level (the target's parent in the tree), not the
+        // level the loop just drilled into. The frame's
+        // loadedFolder is CurrentLoadedFolder at this point,
+        // which the loop's last iteration just set to the
+        // target's parent path (via the explicit assignment
+        // above). The subsequent FolderSelected fire below
+        // updates CurrentLoadedFolder to the target path
+        // itself, so forward navigation (clicking the target
+        // in the tree later) still works correctly. Mirrors
+        // 2aeeaf6's leaf-in-drill push: any "entry into a
+        // folder from the tree" leaves a back frame whose
+        // loadedFolder is the level the user was on just
+        // before.
+        _navStack.Push((Items.ToList(), CurrentLoadedFolder));
 
         // Load the target folder's images into the main viewer. Use
         // the original path so casing/whitespace is preserved.

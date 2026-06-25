@@ -92,47 +92,61 @@ WelcomeLabel2=This will install [name/ver] on your computer.%n%nAperture Neo is 
 WelcomeLabel2=即将在您的电脑上安装 [name/ver]。%n%nAperture Neo 是一款快速、轻量级的 WPF 图片查看器。本安装包为自包含模式,已包含 .NET 运行时,无需额外安装其他组件。%n%n本安装器在您的用户配置目录下运行,无需管理员权限。%n%n建议安装 WebView2 运行时以获得完整的现代化界面。如未安装,稍后会提示您下载。; Languages: chinesesimp
 
 [Tasks]
-; Default descriptions (English) — apply to English and any other
-; language without an override. Chinese overrides follow each task
-; with the `; Languages: chinesesimp` qualifier so the user sees
-; the Chinese version when they pick 简体中文 at install time.
-Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Shortcuts:"
-Name: "desktopicon"; Description: "创建桌面快捷方式(&D)"; GroupDescription: "快捷方式:"; Languages: chinesesimp
+; Each task declares itself ONCE with {cm:KeyName} references for
+; Description and GroupDescription. The actual strings live in
+; [CustomMessages] with English as the default and a
+; `; Languages: chinesesimp` override. The {cm:...} lookup is
+; resolved at runtime based on the active language, so the
+; user sees exactly one entry per task in either language.
+;
+; P2 fix: the previous design duplicated each task (one entry
+; without a `Languages:` qualifier, one with `Languages:
+; chinesesimp`). Inno Setup treats those as two separate tasks
+; — the English-default one is created for ALL languages
+; (including Chinese), so when the user picked 简体中文 they
+; saw BOTH the English and the Chinese entry as duplicates.
+; The {cm:...} indirection is the only correct way to do
+; bilingual tasks in Inno Setup.
+Name: "desktopicon"; Description: "{cm:Task_DesktopIcon_Description}"; GroupDescription: "{cm:Task_Group_Shortcuts}"
 
-Name: "fileassoc"; Description: "Register as a supported image viewer (adds to 'Open With')"; GroupDescription: "File associations:"
-Name: "fileassoc"; Description: "注册为受支持的图片查看器(加入「打开方式」菜单)"; GroupDescription: "文件关联:"; Languages: chinesesimp
+Name: "fileassoc"; Description: "{cm:Task_FileAssoc_Description}"; GroupDescription: "{cm:Task_Group_FileAssoc}"
 
-Name: "setdefault"; Description: "Set as the &default image viewer for all supported types"; GroupDescription: "File associations:"
-Name: "setdefault"; Description: "设为所有受支持格式的默认图片查看器(&S)"; GroupDescription: "文件关联:"; Languages: chinesesimp
+Name: "setdefault"; Description: "{cm:Task_SetDefault_Description}"; GroupDescription: "{cm:Task_Group_FileAssoc}"
 
 ; OCR shell verb: each-image-extension registration (legacy menu +
 ; Win11 "Show more options") PLUS SystemFileAssociations\image
 ; registration further down (Win11 compact menu attempt). v3.1.0
-; defaults to checked. Inno Setup's [Tasks] Flags parameter
-; rejects the `Languages:` qualifier in the same task entry,
-; so we use the standard "leave unchecked" default — the user
-; can still opt in via the task checkbox on the install wizard.
-; (The previous `Flags: checked` + `Languages: chinesesimp`
-; form triggered an ISCC parser bug in 6.7.1.)
-Name: "ocrverb"; Description: "Add OCR &文字提取 to the right-click menu (Win11 top-level + legacy)"; GroupDescription: "Shell integration:"
-Name: "ocrverb"; Description: "添加「OCR &文字提取」到右键菜单(Win11 顶层 + 传统菜单)"; GroupDescription: "系统集成:"; Languages: chinesesimp
+; defaults to checked via the Check: TrueFunc helper in [Code] —
+; the [Tasks] `Flags: checked` form triggers an ISCC 6.7.1
+; parser bug ("Parameter 'Flags' includes an unknown flag.")
+; that we can't work around at the script level.
+Name: "ocrverb"; Description: "{cm:Task_OcrVerb_Description}"; GroupDescription: "{cm:Task_Group_Shell}"; Check: OcrVerbShouldBeChecked
 
 ; v3.1.0: per-user PATH integration. Adds the install directory
 ; to HKCU\Environment\Path (REG_EXPAND_SZ) so `aperture ocr ...`
 ; is invokable from any terminal. Windows caches environment
 ; variables at process start — already-running terminals need
-; a restart to see the change. Toggled via this task; user opts
-; in via the install wizard checkbox. Removed on uninstall.
-Name: "addtopath"; Description: "Add install dir to &PATH (use 'aperture' command from any terminal)"; GroupDescription: "Shell integration:"
-Name: "addtopath"; Description: "将安装目录添加到 &PATH(任意终端可用 `aperture` 命令)"; GroupDescription: "系统集成:"; Languages: chinesesimp
+; a restart to see the change. Removed on uninstall. Default
+; checked via the Check: AddToPathShouldBeChecked helper.
+Name: "addtopath"; Description: "{cm:Task_AddToPath_Description}"; GroupDescription: "{cm:Task_Group_Shell}"; Check: AddToPathShouldBeChecked
 
 [CustomMessages]
-; Custom messages used by the [Code] section via CustomMessage('KeyName').
-; English entries without a `; Languages:` qualifier are the default;
-; `chinesesimp.` (with the `; Languages: chinesesimp` qualifier)
-; overrides them when the user picks 简体中文. %1, %2, ... in the
+; All custom messages are defined here in one place. English entries
+; without a `; Languages:` qualifier are the default; the
+; `; Languages: chinesesimp` overrides apply when the user picks
+; 简体中文 at the installer's language dialog. %1, %2, ... in a
 ; message are replaced with positional parameters passed to
 ; CustomMessage('KeyName', Param1, Param2, ...).
+;
+; The first block is consumed by the [Code] section's MsgBox
+; prompts. The second block is consumed by {cm:...} lookups in
+; [Tasks] / [Run] / etc. — putting every translatable string in
+; [CustomMessages] keeps the bilingual indirection uniform
+; (every {cm:...} is resolved at runtime against this single
+; table, with the same default + override pattern).
+
+; --- [Code] MsgBox prompts (used by MsgBox(CustomMessage(...))) ---
+
 PreviousVersionPrompt=A previous version of Aperture Neo was detected on this computer.%n%nIt will be uninstalled automatically before this new version is installed.%n%nYour settings, thumbnails and favorites will be preserved by the application itself.%n%nContinue?
 UninstallFailedMsg=Failed to launch the previous version's uninstaller:%n%1%n%nPlease remove it manually (Settings -> Apps -> Installed apps) and run this installer again.
 WebView2Prompt=WebView2 Runtime was not detected on this system.%n%nAperture Neo can still be installed, but the modern UI (Mica / FluentWindow) requires WebView2. The classic WPF chrome will be used as a fallback.%n%nDownload WebView2 Evergreen Bootstrapper now?%n%n(You can also install it later from:%nhttps://developer.microsoft.com/microsoft-edge/webview2/)
@@ -140,6 +154,41 @@ WebView2Prompt=WebView2 Runtime was not detected on this system.%n%nAperture Neo
 PreviousVersionPrompt=检测到您的电脑已安装了旧版 Aperture Neo。%n%n安装新版之前,系统将自动卸载旧版。%n%n您的设置、缩略图和收藏夹由应用本身保留。%n%n是否继续?; Languages: chinesesimp
 UninstallFailedMsg=无法启动旧版的卸载程序:%n%1%n%n请手动卸载旧版(设置 → 应用 → 已安装的应用),然后再次运行本安装程序。; Languages: chinesesimp
 WebView2Prompt=未在系统中检测到 WebView2 运行时。%n%n您仍可安装 Aperture Neo,但现代化界面(Mica / FluentWindow)需要 WebView2,回退到经典 WPF 界面。%n%n立即下载 WebView2 Evergreen Bootstrapper?%n%n(也可稍后从以下地址下载安装:%nhttps://developer.microsoft.com/microsoft-edge/webview2/); Languages: chinesesimp
+
+; --- [Tasks] descriptions + group headings (consumed by {cm:...}
+;     lookups in [Tasks]; see that section for the indirection
+;     pattern). One pair per task — keeping the text centralized
+;     here avoids the previous design's bug where each [Tasks]
+;     entry was duplicated (one with English, one with
+;     `Languages: chinesesimp`), which Inno Setup rendered as
+;     two separate checkboxes. ---
+
+Task_DesktopIcon_Description=Create a &desktop shortcut
+Task_DesktopIcon_Description=创建桌面快捷方式(&D); Languages: chinesesimp
+Task_Group_Shortcuts=Shortcuts:
+Task_Group_Shortcuts=快捷方式:; Languages: chinesesimp
+
+Task_FileAssoc_Description=Register as a supported image viewer (adds to 'Open With')
+Task_FileAssoc_Description=注册为受支持的图片查看器(加入「打开方式」菜单); Languages: chinesesimp
+Task_Group_FileAssoc=File associations:
+Task_Group_FileAssoc=文件关联:; Languages: chinesesimp
+
+Task_SetDefault_Description=Set as the &default image viewer for all supported types
+Task_SetDefault_Description=设为所有受支持格式的默认图片查看器(&S); Languages: chinesesimp
+
+Task_OcrVerb_Description=Add 'OCR &文字提取' to the right-click menu (Win11 top-level + legacy)
+Task_OcrVerb_Description=添加「OCR &文字提取」到右键菜单(Win11 顶层 + 传统菜单); Languages: chinesesimp
+
+Task_AddToPath_Description=Add install dir to &PATH (use 'aperture' command from any terminal)
+Task_AddToPath_Description=将安装目录添加到 &PATH(任意终端可用 `aperture` 命令); Languages: chinesesimp
+
+Task_Group_Shell=Shell integration:
+Task_Group_Shell=系统集成:; Languages: chinesesimp
+
+; --- [Run] "Launch" checkbox on the final wizard page ---
+
+Run_Launch_Description=Launch {#MyAppName}
+Run_Launch_Description=启动 {#MyAppName}; Languages: chinesesimp
 
 [Files]
 ; Self-contained publish output. The path is overridden at compile time via:
@@ -157,7 +206,7 @@ Name: "{userstartmenu}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:Run_Launch_Description}"; Flags: nowait postinstall skipifsilent
 
 [Registry]
 ; File association: ProgId under HKCU\Software\Classes (no admin required).
@@ -340,6 +389,28 @@ end;
 function NeedsWebView2(): Boolean;
 begin
   Result := not IsWebView2Installed();
+end;
+
+// v3.1.0: Default-checked helpers for the [Tasks] entries. Inno Setup's
+// [Tasks] `Flags: checked` parameter triggers an ISCC 6.7.1 parser
+// bug ("Parameter 'Flags' includes an unknown flag") that we can't
+// work around at the script level. The `Check:` parameter is a
+// Pascal Script expression evaluated at runtime to determine the
+// initial checked state — it doesn't share the same parser bug.
+// Both helpers return True unconditionally (the v3.1.0 spec
+// requires both OCR and PATH to be default-on). If a future
+// release wants to make either opt-in, the helper becomes:
+//   function OcrVerbShouldBeChecked: Boolean; begin Result := False; end;
+// or more sophisticated (e.g. check whether the user has previously
+// installed the OCR plugin via the registry).
+function OcrVerbShouldBeChecked(): Boolean;
+begin
+  Result := True;
+end;
+
+function AddToPathShouldBeChecked(): Boolean;
+begin
+  Result := True;
 end;
 
 // Resolve a previous installer (same AppId) and, if present, run its

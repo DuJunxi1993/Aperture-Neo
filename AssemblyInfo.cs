@@ -9,24 +9,38 @@
 // would conflict with it.
 //
 // The downside: with GenerateAssemblyInfo=false, the SDK doesn't emit
-// the [assembly: AssemblyVersion("3.0.0.0")] attribute that the
+// the [assembly: AssemblyVersion("X.Y.Z.0")] attribute that the
 // <AssemblyVersion> property normally produces, so the published
 // ApertureNeo.dll ends up with Version=0.0.0.0 — but the WPF markup
 // compiler (reading <AssemblyVersion> from the csproj) embeds
-// /ApertureNeo;V3.0.0.0;component/app.xaml in the auto-generated
+// /ApertureNeo;vX.Y.Z.0;component/app.xaml in the auto-generated
 // App.g.cs's pack URI. At runtime, the WPF resource manager tries
-// to load ApertureNeo, Version=3.0.0.0 to satisfy that URI, fails
+// to load ApertureNeo, Version=X.Y.Z.0 to satisfy that URI, fails
 // (the actual assembly is 0.0.0.0), and App.Main() throws
 // FileNotFoundException during InitializeComponent().
 //
 // This file re-introduces the AssemblyVersion + FileVersion +
-// AssemblyFileVersion + AssemblyInformationalVersion attributes
-// so the final DLL identity matches what WPF expects, without
-// re-enabling GenerateAssemblyInfo (and re-introducing CS0579
-// on a clean rebuild of the wpftmp intermediate).
+// AssemblyInformationalVersion attributes so the final DLL identity
+// matches what WPF expects, without re-enabling GenerateAssemblyInfo
+// (and re-introducing CS0579 on a clean rebuild of the wpftmp
+// intermediate).
+//
+// IMPORTANT: the version strings here MUST match <Version> /
+// <AssemblyVersion> / <FileVersion> in ApertureNeo.csproj. A
+// mismatch causes a FileNotFoundException at WPF resource load
+// (ApertureNeo, Version=WPF-expects-Y, actual assembly Version=Z).
+// When bumping the version: update ApertureNeo.csproj FIRST, then
+// update the strings below to match.
+//
+// v3.1.0 (bump): AssemblyVersion 3.0.0.0 → 3.1.0.0, InformationalVersion 3.0.0 → 3.1.0.
+// Bug: the previous hard-coded 3.0.0.0 leaked into the v3.1.0
+// publish (csproj was at 3.1.0 but this file was 3.0.0.0), so
+// App.xaml's pack URI pointed at Version=3.1.0.x while the actual
+// assembly was 3.0.0.0 — every WPF resource load failed with
+// FileNotFoundException at startup.
 
 using System.Reflection;
 
-[assembly: AssemblyVersion("3.0.0.0")]
-[assembly: AssemblyFileVersion("3.0.0.0")]
-[assembly: AssemblyInformationalVersion("3.0.0")]
+[assembly: AssemblyVersion("3.1.0.0")]
+[assembly: AssemblyFileVersion("3.1.0.0")]
+[assembly: AssemblyInformationalVersion("3.1.0")]

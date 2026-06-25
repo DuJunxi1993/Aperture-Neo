@@ -253,6 +253,22 @@ public class FolderTreeView : ItemsControl
         // Leaf directories — load images without drilling
         if (!HasSubdirectories(node.Path))
         {
+            // P2 fix: in drill mode, the leaf click is a
+            // "virtual drill" — push a frame so back-navigation
+            // returns to the current drill level (e.g.
+            // /level1/level2), not the level before the drill
+            // started (e.g. /level1). The at-root leaf /
+            // Recent / Favorite case is handled by the first if
+            // (gated on !IsInDrillMode), so this push only fires
+            // when the user is genuinely inside a drill
+            // hierarchy. Without this, clicking back from a
+            // leaf that's the deepest in the drill chain would
+            // skip one level (e.g. /level1/level2/level3 leaf
+            // → back → /level1 instead of /level1/level2).
+            if (IsInDrillMode)
+            {
+                _navStack.Push((Items.ToList(), CurrentLoadedFolder));
+            }
             FolderSelected?.Invoke(ResolveSourceForNode(node), node.Path!);
             return;
         }

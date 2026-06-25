@@ -41,7 +41,13 @@ public enum FolderSource
 public class FolderTreeView : ItemsControl
 {
     public new ObservableCollection<TreeNodeBase> Items { get; } = new();
-    private readonly Stack<(List<TreeNodeBase> items, string? parentPath)> _navStack = new();
+    // P2 fix: the second slot now carries the folder whose images
+    // were loaded BEFORE the drill — i.e. the folder the user was
+    // viewing when they drilled into the current level. NavigateBack
+    // reads this to reload the previous folder's images. Previously
+    // the slot was hard-coded to null, which made it impossible to
+    // restore the parent folder's images on back-navigation.
+    private readonly Stack<(List<TreeNodeBase> items, string? loadedFolder)> _navStack = new();
 
     /// <summary>
     /// Pop the drill stack back to the top-level
@@ -61,6 +67,25 @@ public class FolderTreeView : ItemsControl
         _pendingRecentRefresh = false;
         Init(skipAutoSelect);
         if (wasInDrill) DrillModeChanged?.Invoke();
+
+        // P2 fix: reload the most-recent folder's images so the
+        // thumbnail grid updates when the user returns to the
+        // root view. SelectFirstNode (called by Init) only sets
+        // SelectedNode on the Recent SECTION HEADER — a section
+        // header click is a no-op per HandleClick, so no
+        // FolderSelected would fire. We fire explicitly here
+        // using SettingsStore.Recent[0] (newest first), guarded
+        // on wasInDrill so an out-of-drill programmatic call
+        // (e.g. JumpToDirectory's pre-clear) doesn't clobber
+        // the currently-loaded folder.
+        if (wasInDrill && !skipAutoSelect)
+        {
+            var mostRecent = _settingsStore.Recent.FirstOrDefault();
+            if (mostRecent != null && Directory.Exists(mostRecent.Path))
+            {
+                FolderSelected?.Invoke(FolderSource.Recent, mostRecent.Path);
+            }
+        }
     }
 
     /// <summary>
@@ -159,9 +184,27 @@ public class FolderTreeView : ItemsControl
         Loaded += (_, _) => Init();
         _settingsStore.FavoritesChanged += RefreshFavorites;
         _settingsStore.RecentChanged += RefreshRecent;
+        // P2 fix: self-subscribe so CurrentLoadedFolder tracks
+        // every FolderSelected fire (direct click, drill,
+        // JumpToDirectory, PageUp/Down) without per-site updates.
+        // Self-subscription is added FIRST here, so this handler
+        // runs before the external subscribers (FolderTreePanelVM,
+        // MainWindow) when FolderSelected fires — the external
+        // handlers see CurrentLoadedFolder already updated.
+        FolderSelected += (_, path) => CurrentLoadedFolder = path;
     }
 
     private readonly ISettingsStore _settingsStore;
+
+    /// <summary>The folder whose images are currently loaded in
+    /// the thumbnail grid. Updated automatically by the ctor's
+    /// self-subscription to <see cref="FolderSelected"/>. Read by
+    /// <see cref="NavigateInto"/> (pushed onto the drill stack)
+    /// and <see cref="NavigateBack"/> (popped and re-fired) so
+    /// back-navigation restores the previous folder's images.
+    /// <see cref="ReturnToRoot"/> also reads it to decide whether
+    /// the most-recent folder reload is meaningful.</summary>
+    public string? CurrentLoadedFolder { get; private set; }
 
     private bool _pendingRecentRefresh;
 
@@ -230,7 +273,15 @@ public class FolderTreeView : ItemsControl
     private void NavigateInto(TreeNodeBase node, bool fireFolderSelected = true)
     {
         SelectedNode = node;
-        _navStack.Push((Items.ToList(), null));
+        // P2 fix: push the currently-loaded folder (not null) so
+        // NavigateBack can restore the previous loaded folder
+        // along with the previous tree view. The slot's old
+        // "parentPath" name was misleading — what we actually
+        // want is the folder whose images were loaded BEFORE
+        // this drill, which is tracked by CurrentLoadedFolder
+        // and stays accurate across all fire paths thanks to
+        // the self-subscription in the ctor.
+        _navStack.Push((Items.ToList(), CurrentLoadedFolder));
         Items.Clear();
         // "Back" is no longer injected as a fake tree node — the
         // floating chip in the sidebar (BtnTreeBack) handles the
@@ -373,12 +424,27 @@ public class FolderTreeView : ItemsControl
     {
         if (_navStack.Count == 0) return;
         var stackBefore = _navStack.Count;
-        var (previous, _) = _navStack.Pop();
+        var (previous, previouslyLoaded) = _navStack.Pop();
         Items.Clear();
         SelectedNode = null;
         foreach (var r in previous) Items.Add(r);
         if (_pendingRecentRefresh) RefreshRecent();
         DrillModeChanged?.Invoke();
+
+        // P2 fix: re-load the folder that was loaded before this
+        // drill, so the thumbnail grid updates. Previously the
+        // back chip left the grid showing the drilled-in folder's
+        // images because nothing fired FolderSelected here. The
+        // stack now carries the pre-drill loaded folder and we
+        // restore it via FolderSelected — the same event the
+        // forward path uses, so the rest of the navigation chain
+        // (FolderTreePanelVM.OnFolderSelected → AddRecent →
+        // MainWindow → NavigationService.LoadFolder) handles it
+        // uniformly.
+        if (previouslyLoaded != null && Directory.Exists(previouslyLoaded))
+        {
+            FolderSelected?.Invoke(FolderSource.Subdirectory, previouslyLoaded);
+        }
 
         // Popped back to root view (stack now empty): run the same
         // Recent-priority auto-select that Init() uses, so the user

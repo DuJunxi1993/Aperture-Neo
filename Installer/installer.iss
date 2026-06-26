@@ -35,6 +35,11 @@
 #define SupportedExtensions ".jpg|.jpeg|.png|.bmp|.gif|.tiff|.tif|.webp|.heic|.heif|.avif|.ico"
 #define ProgId "ApertureNeo.Image.1"
 #define FontDir "Fonts\HarmonyOS_Sans_SC"
+; CLSID of the Win11 IExplorerCommand shell extension. Must
+; match the [Guid] in Plugins.Ocr.ShellExt/OcrExplorerCommand.cs
+; exactly — the COM class is registered under this CLSID and
+; the [Registry] entries below point at the same string.
+#define OcrShellExtClsid "{{4E8A2D11-3F19-4F4D-A1C5-19B3C4B6F4A1}"
 
 [Setup]
 AppId={{1B6E2D4A-3C8F-4A2E-9D7B-5E1F2A3B4C6D}
@@ -251,66 +256,69 @@ Root: HKCU; Subkey: "Software\Classes\.heif"; ValueType: string; ValueName: ""; 
 Root: HKCU; Subkey: "Software\Classes\.avif"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
 Root: HKCU; Subkey: "Software\Classes\.ico"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
 
-; OCR shell verb: adds "OCR文字提取" to the right-click menu for every
-; supported extension. The verb invokes the headless `ocr -g` CLI
-; subcommand (single-file GUI reuses OcrResultWindow). Multi-file
-; selection invokes the verb once per file (Windows shell verb
-; semantics) — each file gets its own OCR result window. If the
-; OCR plugin's ONNX models are missing, the verb's process exits
-; with an error message in the result window, which is harmless.
-; Gated behind the `ocrverb` task so users can opt out.
-Root: HKCU; Subkey: "Software\Classes\.jpg\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.jpg\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.jpeg\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.jpeg\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.png\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.png\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.bmp\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.bmp\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.gif\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.gif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.tiff\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.tiff\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.tif\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.tif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.webp\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.webp\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.heic\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.heic\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.heif\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.heif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.avif\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.avif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.ico\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.ico\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+; v3.1.x: Win11 IExplorerCommand shell extension. Replaces
+; the previous per-extension IContextMenu verbs (which only
+; appeared under "Show more options" on Win11) and the
+; "快速 OCR 到剪贴板" IContextMenu attempt. Win11's compact
+; top-level context menu is populated by IExplorerCommand
+; implementations, so registering one is the only way to get
+; the verb to surface there.
+;
+; The COM class lives in {app}\Plugins\ApertureNeo.Plugins.Ocr.ShellExt.dll
+; (built by publish.ps1 step 2.6) and is registered as an
+; in-proc server under HKCR\CLSID\{OcrShellExtClsid}. The
+; shell extension DLL is loaded by the .NET COM activator
+; (mscoree.dll → hostruntime) from the path the installer
+; writes to InprocServer32. The .NET runtime is bundled
+; alongside (publish is self-contained), so the OS can find
+; it via the standard mscoree activation rules.
+;
+; At Invoke time, the shell extension extracts the selected
+; file paths from IShellItemArray and spawns ApertureNeo.exe
+; ocr <files> as a fire-and-forget child process. The CLI's
+; headless ocr path (load ONNX, OCR, concatenate, copy to
+; clipboard, show Windows toast via notify.ps1) handles the
+; actual work — the shell extension itself stays sub-second
+; so the right-click menu doesn't lag.
+;
+; For Win10: the same IExplorerCommand verb shows in the
+; classic right-click menu (Explorer falls back to IExplorerCommand
+; when no other extension is registered for the file type).
+; For Win11: it shows in the top-level (compact) context menu.
+;
+; Gated by the same `ocrverb` task as the old IContextMenu
+; entries so the user opts in / out once for OCR right-click
+; integration in general. Removing the task also unregisters
+; the COM class and the ExplorerCommand association.
 
-; v3.1.0: Win11 top-level context menu registration. The per-extension
-; HKCU\Software\Classes\.<ext>\shell\ocr entries above appear
-; under "Show more options" in Win11's modern menu; the
-; SystemFileAssociations\image registration is what Win11's
-; compact menu reads for image files regardless of extension.
-; If Win11 still classifies the verb as "heavy" (it spawns a
-; GUI window), it may still go to "Show more options" — the
-; per-extension entries above provide the fallback. Gated by
-; the same `ocrverb` task.
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr"; ValueType: string; ValueName: ""; ValueData: "OCR 文字提取"; Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"""; Tasks: ocrverb
+; (1) COM class — the actual server object
+Root: HKCU; Subkey: "Software\Classes\CLSID\{#OcrShellExtClsid}"; ValueType: string; ValueName: ""; ValueData: "Aperture Neo OCR Shell Extension"; Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\CLSID\{#OcrShellExtClsid}\InprocServer32"; ValueType: string; ValueName: ""; ValueData: "{app}\Plugins\ApertureNeo.Plugins.Ocr.ShellExt.dll"; Flags: uninsdeletekey; Tasks: ocrverb
+; Apartment threading is required for shell extensions that
+; receive IShellItemArray (the shell uses STA). Without this
+; value the COM activation picks the default (free / both) and
+; the shell crashes when it tries to call Invoke.
+Root: HKCU; Subkey: "Software\Classes\CLSID\{#OcrShellExtClsid}\InprocServer32"; ValueType: string; ValueName: "ThreadingModel"; ValueData: "Apartment"; Flags: uninsdeletekey; Tasks: ocrverb
 
-; v3.1.x: Quick-OCR-to-clipboard verb. Headless variant (no
-; `-g` flag) that copies the OCR result to the clipboard and
-; shows a Windows toast via the bundled notify.ps1. Targeting
-; Win11's "light verb" heuristic for the compact top-level
-; context menu — the heavy `OCR 文字提取` (spawns a window)
-; stays under "Show more options", while this short-lived
-; non-GUI verb may surface in the modern menu. If the
-; heuristic rejects it, the verb still works from "Show more
-; options" alongside the GUI variant — both co-exist.
-; The same `ocrverb` task controls both verbs so the user
-; opts in / out once.
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr-quick"; ValueType: string; ValueName: ""; ValueData: "快速 OCR 到剪贴板"; Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr-quick\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr-quick"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"""; Tasks: ocrverb
+; (2) Link the COM class to the image file class. The shell
+; looks up IExplorerCommand implementations via
+; <extension>\shellex\ExplorerCommand\{<guid>}. We register
+; under SystemFileAssociations\image so the verb shows for
+; every image file (jpg, png, bmp, etc.) without needing a
+; per-extension entry — and so the verb also shows for
+; extensions we don't enumerate (heic, avif, raw, etc.) as
+; long as Windows classifies them under the "image" system
+; file association.
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shellex\ExplorerCommand\{#OcrShellExtClsid}"; ValueType: string; ValueName: ""; ValueData: "ApertureNeo.OcrQuick"; Flags: uninsdeletekey; Tasks: ocrverb
+
+; (3) Win11's "Shell Extensions\Approved" whitelist. Modern
+; Windows requires user opt-in for shell extensions — without
+; an entry here the verb may be silently disabled. We add the
+; CLSID under HKCU (per-user; no admin required) so the user
+; only authorizes extensions for their own account. The value
+; is a friendly name shown in the Shell Extensions control
+; panel for transparency.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved"; ValueType: string; ValueName: "{#OcrShellExtClsid}"; ValueData: "ApertureNeo.Plugins.Ocr.ShellExt"; Flags: uninsdeletevalue; Tasks: ocrverb
 
 ; Per-user font registration under HKCU\Software\Microsoft\Windows NT\CurrentVersion\Fonts.
 ; Windows automatically loads any .ttf from %LOCALAPPDATA%\Microsoft\Windows\Fonts\
@@ -678,14 +686,18 @@ begin
     end;
     RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\{#ProgId}');
 
-    // v3.1.0: clean Win11 top-level OCR menu registration
-    // (the per-extension entries above are handled by the loop
-    // via the uninsdeletekey flag on the [Registry] entries).
-    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\SystemFileAssociations\image\shell\ocr');
-
-    // v3.1.x: clean the quick-OCR-to-clipboard verb (same parent
-    // key as the GUI verb, but separate subkey).
-    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\SystemFileAssociations\image\shell\ocr-quick');
+    // v3.1.x: clean the Win11 IExplorerCommand shell extension
+    // registration. We delete the COM class subtree (which
+    // contains both InprocServer32 and the ThreadingModel) plus
+    // the ExplorerCommand association under image\, plus the
+    // Shell Extensions\Approved whitelist entry.
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\CLSID\{#OcrShellExtClsid}');
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\SystemFileAssociations\image\shellex\ExplorerCommand\{#OcrShellExtClsid}');
+    // The Approved key is shared by all shell extensions, so we
+    // only delete the value (not the key) and only if it matches
+    // ours — leaving other extensions' approvals intact.
+    if RegValueExists(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved', '{#OcrShellExtClsid}') then
+        RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved', '{#OcrShellExtClsid}');
 
     // v3.1.0: clean per-user PATH entry. Idempotent — no-op if
     // the path wasn't in PATH (or if the addtopath task wasn't

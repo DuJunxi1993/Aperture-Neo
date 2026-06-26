@@ -103,6 +103,41 @@ if (-not (Test-Path $ocrProj)) {
     Write-Host "  Plugins copied to $pluginDst ($modelCount ONNX model(s) bundled)" -ForegroundColor DarkGray
 }
 
+# Build the Win11 IExplorerCommand shell extension. This DLL is
+# a pure COM in-proc server — it doesn't depend on the main
+# ApertureNeo.exe; at Invoke time it spawns the host exe with
+# the selected file paths. Like Plugins.Ocr, it ships in
+# publish\win-x64\Plugins\ alongside the OCR plugin so the
+# shell extension stays co-located with the rest of the OCR
+# stack. Built with a default Configuration + Platform=AnyCPU
+# (the csproj forces x64) — output lands in
+# bin\AnyCPU\Release\net10.0-windows10.0.19041.0\.
+Write-Host "[2.6/4] Building Plugins.Ocr.ShellExt (Win11 right-click menu)..." -ForegroundColor Cyan
+$shellExtProj = Join-Path $root 'Plugins.Ocr.ShellExt\Plugins.Ocr.ShellExt.csproj'
+if (Test-Path $shellExtProj) {
+    & dotnet build $shellExtProj -c $Configuration -v:q
+    if ($LASTEXITCODE -ne 0) { throw "Plugins.Ocr.ShellExt build failed with exit code $LASTEXITCODE" }
+
+    # The shell ext's x64 build output. `dotnet build <project>`
+    # writes to the project's own bin\ (project-relative), not
+    # the solution-level bin\. So we look in
+    # Plugins.Ocr.ShellExt\bin\<Config>\... rather than
+    # bin\<Config>\... (the OCR plugin's DeployToMain target
+    # copies to the latter, but the shell ext doesn't have a
+    # DeployToMain target).
+    $shellExtBin = Join-Path $root "Plugins.Ocr.ShellExt\bin\$Configuration\net10.0-windows10.0.19041.0\ApertureNeo.Plugins.Ocr.ShellExt.dll"
+    if (-not (Test-Path $shellExtBin)) {
+        throw "Plugins.Ocr.ShellExt build didn't produce $shellExtBin"
+    }
+    # Drop it into the Plugins/ folder where installer.iss picks
+    # it up (via `Source: "..\Plugins.Ocr.ShellExt\bin\...\*"`).
+    $shellExtDst = Join-Path $pluginDst "ApertureNeo.Plugins.Ocr.ShellExt.dll"
+    Copy-Item -Path $shellExtBin -Destination $shellExtDst -Force
+    Write-Host "  Shell extension copied to $shellExtDst" -ForegroundColor DarkGray
+} else {
+    Write-Host "  Plugins.Ocr.ShellExt project not found at $shellExtProj — skipping." -ForegroundColor DarkYellow
+}
+
 if ($SkipInstaller) {
     Write-Host "[done] publish only (SkipInstaller set)." -ForegroundColor Green
     Write-Host "Output: $publishDir"

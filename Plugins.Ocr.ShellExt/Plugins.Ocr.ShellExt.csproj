@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <!-- Targeting net10.0-windows10.0.19041.0 so the build can
+         reference the Windows 10.0.19041 SDK for COM/WinRT
+         interop declarations. The target framework moniker
+         matters for IShellItem / IShellItemArray etc. — they
+         need the Windows 10 SDK headers to be importable. -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>ApertureNeo.Plugins.Ocr.ShellExt</RootNamespace>
+    <AssemblyName>ApertureNeo.Plugins.Ocr.ShellExt</AssemblyName>
+    <!-- No WPF, no WinForms. The shell extension is a pure
+         COM in-proc server that spawns a child process for the
+         actual OCR work, so it doesn't need a UI thread. -->
+    <UseWPF>false</UseWPF>
+    <UseWindowsForms>false</UseWindowsForms>
+    <!-- We expose a class via [ComVisible] + [Guid]; the GUID
+         below is fixed (chosen once) so the installer's
+         registry entries and the in-proc server match across
+         versions. The CLSID is intentionally separate from the
+         main ApertureNeo CLSID to keep the COM activation
+         surface stable even if the host exe's GUID changes. -->
+    <DefineConstants>$(DefineConstants);OCR_SHELL_EXT_CLSID</DefineConstants>
+  </PropertyGroup>
+
+  <!-- The shell extension runs in the Explorer process and is
+       loaded by the Windows shell via standard COM activation.
+       Its dependencies must be available in the same load
+       context. We declare the COM interfaces (IExplorerCommand,
+       IShellItemArray, IShellItem, IBindCtx) manually via
+       [ComImport] + [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+       — they're all stable Windows APIs and the manual approach
+       avoids the Microsoft.Windows.SDK.NET.Ref package which is
+       not yet .NET-10-compatible. The shell extension doesn't
+       reference the main app; at Invoke time it spawns
+       ApertureNeo.exe (the in-proc server path comes from the
+       installer's [Registry] entry — {app}\Plugins\ApertureNeo.Plugins.Ocr.ShellExt.dll). -->
+
+</Project>

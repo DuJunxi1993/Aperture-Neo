@@ -125,15 +125,31 @@ if (Test-Path $shellExtProj) {
     # bin\<Config>\... (the OCR plugin's DeployToMain target
     # copies to the latter, but the shell ext doesn't have a
     # DeployToMain target).
-    $shellExtBin = Join-Path $root "Plugins.Ocr.ShellExt\bin\$Configuration\net10.0-windows10.0.19041.0\ApertureNeo.Plugins.Ocr.ShellExt.dll"
-    if (-not (Test-Path $shellExtBin)) {
-        throw "Plugins.Ocr.ShellExt build didn't produce $shellExtBin"
+    #
+    # IMPORTANT: copy the whole bin folder, not just the .dll.
+    # The .NET runtime uses the .deps.json file co-located with
+    # the assembly to resolve runtime dependencies at COM
+    # activation time. If only the .dll is copied and the
+    # .deps.json is missing, the runtime throws a silent
+    # FileNotFoundException during type loading and the verb
+    # never appears in the right-click menu. We hit this with
+    # the previous single-dll copy: the .deps.json was left in
+    # Plugins.Ocr.ShellExt\bin\Release\... and never reached
+    # the publish output.
+    $shellExtBinDir = Join-Path $root "Plugins.Ocr.ShellExt\bin\$Configuration\net10.0-windows"
+    if (-not (Test-Path $shellExtBinDir)) {
+        throw "Plugins.Ocr.ShellExt build didn't produce $shellExtBinDir"
     }
-    # Drop it into the Plugins/ folder where installer.iss picks
-    # it up (via `Source: "..\Plugins.Ocr.ShellExt\bin\...\*"`).
+    # Copy the whole bin folder into Plugins/ — includes the
+    # .dll, the .pdb (helpful for post-mortem symbolication),
+    # and the .deps.json (the critical one for COM activation).
+    # The destination is a flat Plugins\ folder, so use Copy-Item
+    # with -Recurse on the bin folder's * content.
+    Get-ChildItem -Path $shellExtBinDir -File | ForEach-Object {
+        Copy-Item -Path $_.FullName -Destination $pluginDst -Force
+    }
     $shellExtDst = Join-Path $pluginDst "ApertureNeo.Plugins.Ocr.ShellExt.dll"
-    Copy-Item -Path $shellExtBin -Destination $shellExtDst -Force
-    Write-Host "  Shell extension copied to $shellExtDst" -ForegroundColor DarkGray
+    Write-Host "  Shell extension copied to $shellExtDst (deps.json + pdb included)" -ForegroundColor DarkGray
 } else {
     Write-Host "  Plugins.Ocr.ShellExt project not found at $shellExtProj — skipping." -ForegroundColor DarkYellow
 }

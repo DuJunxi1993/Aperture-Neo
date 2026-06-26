@@ -320,6 +320,59 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shellex\Explo
 ; panel for transparency.
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved"; ValueType: string; ValueName: "{#OcrShellExtClsid}"; ValueData: "ApertureNeo.Plugins.Ocr.ShellExt"; Flags: uninsdeletevalue; Tasks: ocrverb
 
+; v3.1.x (Plan C fallback): classic IContextMenu verbs. The
+; IExplorerCommand verb above targets Win11's top-level
+; (compact) context menu, but COM activation in self-contained
+; .NET 10 publishes has a history of subtle failures (missing
+; deps.json, .NET runtime location, etc.). The IContextMenu
+; path is the well-established Win32 shell verb path that
+; always works on Win10 + "Show more options" on Win11. We
+; register both so the user always has the verb available —
+; IExplorerCommand is the preferred Win11 path, IContextMenu
+; is the safety net. The same `ocrverb` task controls both.
+;
+; The verb invokes the headless `ocr -g` CLI subcommand
+; (single-file GUI reuses OcrResultWindow from Plugins.Ocr.Ui;
+; multi-file selection invokes the verb once per file —
+; Windows shell verb semantics — each file gets its own OCR
+; result window). If the OCR plugin's ONNX models are missing,
+; the verb's process exits with an error message in the result
+; window, which is harmless.
+Root: HKCU; Subkey: "Software\Classes\.jpg\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.jpg\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.jpeg\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.jpeg\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.png\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.png\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.bmp\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.bmp\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.gif\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.gif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.tiff\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.tiff\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.tif\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.tif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.webp\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.webp\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.heic\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.heic\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.heif\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.heif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.avif\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.avif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.ico\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.ico\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+
+; v3.1.x (Plan C fallback): also restore the legacy
+; SystemFileAssociations\image entry so the verb shows in the
+; classic menu regardless of which file extension is being
+; right-clicked (the IExplorerCommand verb already covers this
+; for the modern menu, but the IContextMenu entry is the safety
+; net for the legacy menu).
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr"; ValueType: string; ValueName: ""; ValueData: "OCR 文字提取"; Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"""; Tasks: ocrverb
+
 ; Per-user font registration under HKCU\Software\Microsoft\Windows NT\CurrentVersion\Fonts.
 ; Windows automatically loads any .ttf from %LOCALAPPDATA%\Microsoft\Windows\Fonts\
 ; on the next session when its name appears under this HKCU key.
@@ -698,6 +751,13 @@ begin
     // ours — leaving other extensions' approvals intact.
     if RegValueExists(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved', '{#OcrShellExtClsid}') then
         RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved', '{#OcrShellExtClsid}');
+
+    // v3.1.x (Plan C fallback): clean the legacy IContextMenu
+    // verbs. The per-extension `.<ext>\shell\ocr` keys are
+    // removed by the loop above (each .ext is in Extensions[]).
+    // The SystemFileAssociations\image one is a separate key
+    // that's not in the loop.
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\SystemFileAssociations\image\shell\ocr');
 
     // v3.1.0: clean per-user PATH entry. Idempotent — no-op if
     // the path wasn't in PATH (or if the addtopath task wasn't

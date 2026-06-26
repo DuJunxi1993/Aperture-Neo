@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -190,17 +192,30 @@ public sealed class OcrCommand : Command
     private static Task<int> CopyToClipboardAsync(IReadOnlyList<(string Path, OcrResult Result)> entries)
     {
         var sb = new StringBuilder();
+        int successCount = 0;
+        int failureCount = 0;
+        string firstError = "";
+        OcrResult? firstResult = null;
         for (int i = 0; i < entries.Count; i++)
         {
             var (path, result) = entries[i];
             sb.Append("==== ").Append(Path.GetFileName(path)).AppendLine(" ====");
             if (result.IsSuccess)
+            {
+                successCount++;
+                if (firstResult == null) firstResult = result;
                 sb.AppendLine(result.FullText);
+            }
             else
-                sb.Append("[失败] ").AppendLine(result.ErrorMessage ?? "未知错误");
+            {
+                failureCount++;
+                firstError = result.ErrorMessage ?? "未知错误";
+                sb.Append("[失败] ").AppendLine(firstError);
+            }
             sb.AppendLine();
         }
 
+        bool clipboardOk = false;
         try
         {
             // Clipboard.SetText can throw COMException when another
@@ -210,6 +225,7 @@ public sealed class OcrCommand : Command
             // and try the clipboard write again. Returning exit 1
             // here made shell scripts think the OCR failed.
             Clipboard.SetText(sb.ToString());
+            clipboardOk = true;
         }
         catch (Exception ex)
         {
@@ -218,7 +234,92 @@ public sealed class OcrCommand : Command
             // didn't. The user can pipe the OCR result to a file
             // (`aperture ocr ... > out.txt`) to bypass the clipboard.
         }
+
+        // Fire Windows Toast notification so the user gets feedback.
+        // The clipboard path is silent otherwise — without this,
+        // a right-click → "快速 OCR 到剪贴板" leaves the user
+        // staring at nothing for 3-10s wondering if it's working.
+        // The toast appears via a separate powershell.exe process
+        // (notify.ps1) so we can Shutdown immediately without
+        // racing the toast's lifetime.
+        if (clipboardOk)
+        {
+            if (successCount > 0)
+            {
+                var title = "OCR 完成";
+                string msg;
+                if (entries.Count == 1 && firstResult != null)
+                {
+                    // Single-file: include the character count so the
+                    // user can gauge how much was extracted at a glance.
+                    var len = firstResult.FullText?.Length ?? 0;
+                    msg = $"已复制 {len} 个字符到剪贴板";
+                }
+                else
+                {
+                    // Multi-file: summarize counts. Failure count
+                    // appended only when non-zero so the happy path
+                    // stays short.
+                    msg = failureCount > 0
+                        ? $"已复制 {successCount} 个文件的结果,{failureCount} 个失败"
+                        : $"已复制 {successCount} 个文件的结果";
+                }
+                ShowToast(title, msg);
+            }
+            else
+            {
+                ShowToast("OCR 失败", firstError);
+            }
+        }
+        else
+        {
+            ShowToast("OCR 失败", "剪贴板写入失败");
+        }
+
         Application.Current?.Shutdown(0);
         return Task.FromResult(0);
+    }
+
+    /// <summary>
+    /// Show a Windows 10/11 toast notification by launching the
+    /// bundled notify.ps1 in a separate PowerShell process.
+    /// Fire-and-forget — if the toast fails (WinRT missing,
+    /// PowerShell unavailable, no toast runtime), the clipboard
+    /// result is still valid; the user just won't see a
+    /// confirmation.
+    /// </summary>
+    private static void ShowToast(string title, string message)
+    {
+        try
+        {
+            var exeDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            if (exeDir == null) return;
+            var scriptPath = Path.Combine(exeDir, "notify.ps1");
+            if (!File.Exists(scriptPath))
+            {
+                DebugLog.Write("OcrCommand", "notify.ps1 not found at " + scriptPath);
+                return;
+            }
+
+            // Quote-escape the title and message for the powershell
+            // command line. The script's [Parameter(Mandatory)] will
+            // bind them positionally. Embedded `"` characters are
+            // escaped as `\"` to keep the powershell tokenizer happy.
+            var escTitle = title.Replace("\"", "\\\"");
+            var escMessage = message.Replace("\"", "\\\"");
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\" \"{escTitle}\" \"{escMessage}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            Process.Start(psi);
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write("OcrCommand", "ShowToast failed", ex);
+        }
     }
 }

@@ -199,6 +199,14 @@ Source: "..\Assets\THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignorevers
 ; HarmonyOS Sans SC font files (6 weights: Thin/Light/Regular/Medium/Bold/Black).
 ; Packaged inside the installer; copied to the per-user Windows fonts directory.
 Source: "{#FontDir}\*.ttf"; DestDir: "{localappdata}\Microsoft\Windows\Fonts"; Flags: ignoreversion
+; notify.ps1 — PowerShell helper that shows a Win10/11 toast via
+; Windows.UI.Notifications (WinRT). Invoked by Cli/OcrCommand.cs
+; after headless OCR completes, to give the user feedback
+; without spawning a window. The OcrQuick verb (SystemFileAssociations\
+; image\shell\ocr-quick) routes the verb's command through
+; ApertureNeo.exe ocr (no `-g`) which copies to the clipboard
+; and then calls this script.
+Source: "notify.ps1"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{userstartmenu}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -288,6 +296,21 @@ Root: HKCU; Subkey: "Software\Classes\.ico\shell\ocr\command"; ValueType: string
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr"; ValueType: string; ValueName: ""; ValueData: "OCR 文字提取"; Flags: uninsdeletekey; Tasks: ocrverb
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"""; Tasks: ocrverb
+
+; v3.1.x: Quick-OCR-to-clipboard verb. Headless variant (no
+; `-g` flag) that copies the OCR result to the clipboard and
+; shows a Windows toast via the bundled notify.ps1. Targeting
+; Win11's "light verb" heuristic for the compact top-level
+; context menu — the heavy `OCR 文字提取` (spawns a window)
+; stays under "Show more options", while this short-lived
+; non-GUI verb may surface in the modern menu. If the
+; heuristic rejects it, the verb still works from "Show more
+; options" alongside the GUI variant — both co-exist.
+; The same `ocrverb` task controls both verbs so the user
+; opts in / out once.
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr-quick"; ValueType: string; ValueName: ""; ValueData: "快速 OCR 到剪贴板"; Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr-quick\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr-quick"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"""; Tasks: ocrverb
 
 ; Per-user font registration under HKCU\Software\Microsoft\Windows NT\CurrentVersion\Fonts.
 ; Windows automatically loads any .ttf from %LOCALAPPDATA%\Microsoft\Windows\Fonts\
@@ -659,6 +682,10 @@ begin
     // (the per-extension entries above are handled by the loop
     // via the uninsdeletekey flag on the [Registry] entries).
     RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\SystemFileAssociations\image\shell\ocr');
+
+    // v3.1.x: clean the quick-OCR-to-clipboard verb (same parent
+    // key as the GUI verb, but separate subkey).
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\SystemFileAssociations\image\shell\ocr-quick');
 
     // v3.1.0: clean per-user PATH entry. Idempotent — no-op if
     // the path wasn't in PATH (or if the addtopath task wasn't

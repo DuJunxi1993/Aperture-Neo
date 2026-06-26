@@ -90,10 +90,6 @@
     <Page Remove="Plugins.Ocr.Ui\**" />
     <ApplicationDefinition Remove="Plugins.Ocr.Ui\**" />
     <Resource Remove="Plugins.Ocr.Ui\**" />
-    <Compile Remove="Plugins.Ocr.ShellExt\**" />
-    <Page Remove="Plugins.Ocr.ShellExt\**" />
-    <ApplicationDefinition Remove="Plugins.Ocr.ShellExt\**" />
-    <Resource Remove="Plugins.Ocr.ShellExt\**" />
     <Compile Remove="ApertureNeo.Strings\**" />
     <Page Remove="ApertureNeo.Strings\**" />
     <ApplicationDefinition Remove="ApertureNeo.Strings\**" />

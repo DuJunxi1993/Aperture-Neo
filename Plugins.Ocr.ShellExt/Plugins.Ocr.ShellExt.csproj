@@ -25,7 +25,25 @@
     <AssemblyName>ApertureNeo.Plugins.Ocr.ShellExt</AssemblyName>
     <!-- No WPF, no WinForms. The shell extension is a pure
          COM in-proc server that spawns a child process for the
-         actual OCR work, so it doesn't need a UI thread. -->
+         actual OCR work, so it doesn't need a UI thread.
+         EnableComHosting (Plan D): generates a native comhost.dll
+         alongside the managed DLL. Without this, .NET COM in-proc
+         activation relies on mscoree.dll + runtimeconfig.json —
+         but .NET Library projects never generate runtimeconfig.json,
+         so the COM activator can't find the runtime and fails
+         silently. EnableComHosting produces a lightweight native
+         shim (comhost.dll) that the OS loads directly; the shim
+         then loads the .NET runtime + resolves assemblies from
+         the same directory and instantiates the managed COM class.
+         This is the official .NET 6+ COM server path. -->
+    <EnableComHosting>true</EnableComHosting>
+    <!-- RuntimeIdentifier is required for EnableComHosting. The
+         self-contained publish bundles the .NET runtime alongside
+         the comhost so the shim can find it without depending on
+         a system-wide .NET install. Duplicates ~60 MB of runtime
+         DLLs already in the main app's {app} directory, which is
+         acceptable for reliability of COM activation. -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <UseWPF>false</UseWPF>
     <UseWindowsForms>false</UseWindowsForms>
     <!-- We expose a class via [ComVisible] + [Guid]; the GUID

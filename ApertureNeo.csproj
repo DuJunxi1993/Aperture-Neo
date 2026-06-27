@@ -94,6 +94,14 @@
     <Page Remove="ApertureNeo.Strings\**" />
     <ApplicationDefinition Remove="ApertureNeo.Strings\**" />
     <Resource Remove="ApertureNeo.Strings\**" />
+    <Compile Remove="Plugins.Screenshot\**" />
+    <Page Remove="Plugins.Screenshot\**" />
+    <ApplicationDefinition Remove="Plugins.Screenshot\**" />
+    <Resource Remove="Plugins.Screenshot\**" />
+    <Compile Remove="ScreenshotTool\**" />
+    <Page Remove="ScreenshotTool\**" />
+    <ApplicationDefinition Remove="ScreenshotTool\**" />
+    <Resource Remove="ScreenshotTool\**" />
   </ItemGroup>
 
   <!-- Main entry XAMLs -->

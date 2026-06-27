@@ -1,0 +1,22 @@
+<Window x:Class="ApertureNeo.Plugins.Screenshot.RegionOverlay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        WindowState="Maximized" Topmost="True"
+        ShowInTaskbar="False" Cursor="Cross"
+        Title="选择截图区域" KeyDown="Window_KeyDown">
+    <Canvas x:Name="OverlayCanvas" Background="Transparent">
+        <!-- Four dimming rectangles placed dynamically -->
+        <Rectangle x:Name="DimTop" Fill="#80000000"/>
+        <Rectangle x:Name="DimBottom" Fill="#80000000"/>
+        <Rectangle x:Name="DimLeft" Fill="#80000000"/>
+        <Rectangle x:Name="DimRight" Fill="#80000000"/>
+        <!-- Selection border -->
+        <Rectangle x:Name="SelRect" Stroke="White" StrokeThickness="2" StrokeDashArray="4,2" Fill="Transparent"
+                   Visibility="Collapsed"/>
+        <!-- Info text -->
+        <TextBlock x:Name="InfoText" Text="拖拽选择区域 · Enter=确认 · Esc=取消"
+                   Foreground="White" FontSize="14" VerticalAlignment="Bottom" HorizontalAlignment="Right"
+                   Margin="0,0,16,16"/>
+    </Canvas>
+</Window>

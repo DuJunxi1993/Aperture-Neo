@@ -103,27 +103,41 @@ if (-not (Test-Path $ocrProj)) {
     Write-Host "  Plugins copied to $pluginDst ($modelCount ONNX model(s) bundled)" -ForegroundColor DarkGray
 }
 
-# Build the Win11 IExplorerCommand shell extension. This DLL is
-# a pure COM in-proc server — it doesn't depend on the main
-# ApertureNeo.exe; at Invoke time it spawns the host exe with
-# the selected file paths. Like Plugins.Ocr, it ships in
-# publish\win-x64\Plugins\ alongside the OCR plugin so the
-# shell extension stays co-located with the rest of the OCR
-# stack. Built with a default Configuration + Platform=AnyCPU
-# (the csproj forces x64) — output lands in
-# bin\AnyCPU\Release\net10.0-windows10.0.19041.0\.
-# Step 2.6 (Plan D→rollback): the Plugins.Ocr.ShellExt IExplorerCommand
-# shell extension was removed. Four iterations (.NET COM
-# in-proc server, manual COM interop + deps.json, EnableComHosting
-# + comhost.dll) all failed to surface "OCR 文字提取" in Win11's
-# compact (top-level) context menu on the user's test machine.
-# Win11's modern menu appears to only honor IExplorerCommand
-# extensions from apps with MSIX package identity or signed shell
-# extensions; per-user Win32 installs without those properties
-# don't surface in the top-level menu. We accept the Win11
-# limitation and revert to the IContextMenu fallback only.
-# (For the same reason, notify.ps1 + ShowToast stay — they
-# work for the IContextMenu flow too.)
+# Build the Screenshot plugin (Library + standalone EXE). Both
+# projects target net10.0-windows with PlatformTarget=x64,
+# writing to their project-local bin\Release\ directories:
+#   bin\Release\net10.0-windows\ApertureNeo.Plugins.Screenshot.dll
+#   bin\Release\net10.0-windows\ScreenshotTool.exe
+# We copy both into publish\win-x64\ so the installer bundles
+# them. The DLL goes into Plugins\ (discovered by PluginLoader);
+# the EXE goes into the app root so it's on PATH (added by
+# the addtopath task) and discoverable from the Start Menu.
+Write-Host "[2.6/4] Building Screenshot plugin..." -ForegroundColor Cyan
+$ssLibProj = Join-Path $root 'Plugins.Screenshot\Plugins.Screenshot.csproj'
+$ssExeProj = Join-Path $root 'ScreenshotTool\ScreenshotTool.csproj'
+if (Test-Path $ssLibProj) {
+    & dotnet build $ssLibProj -c $Configuration -v:q
+    if ($LASTEXITCODE -ne 0) { throw "Plugins.Screenshot build failed with exit code $LASTEXITCODE" }
+    & dotnet build $ssExeProj -c $Configuration -v:q
+    if ($LASTEXITCODE -ne 0) { throw "ScreenshotTool build failed with exit code $LASTEXITCODE" }
+
+    $ssLibOutput = Join-Path $root "Plugins.Screenshot\bin\$Configuration\net10.0-windows\ApertureNeo.Plugins.Screenshot.dll"
+    $ssExeOutput = Join-Path $root "ScreenshotTool\bin\$Configuration\net10.0-windows\ScreenshotTool.exe"
+    $ssExePdb    = Join-Path $root "ScreenshotTool\bin\$Configuration\net10.0-windows\ScreenshotTool.pdb"
+    # SkiaSharp is a runtime dependency of the screenshot library.
+    # It's already in publish\win-x64\ (from the main app) but the
+    # PluginLoadContext only looks in the plugin directory
+    # (Plugins\). Copy it alongside the screenshot DLL.
+    $ssSkiaOutput = Join-Path $root "ScreenshotTool\bin\$Configuration\net10.0-windows\SkiaSharp.dll"
+
+    $ssDst = Join-Path $publishDir "Plugins"
+    if (-not (Test-Path $ssDst)) { New-Item -ItemType Directory -Force -Path $ssDst | Out-Null }
+    Copy-Item -Path $ssLibOutput -Destination (Join-Path $ssDst "ApertureNeo.Plugins.Screenshot.dll") -Force
+    Copy-Item -Path $ssExeOutput -Destination (Join-Path $ssDst "ScreenshotTool.exe") -Force
+    if (Test-Path $ssExePdb) { Copy-Item -Path $ssExePdb -Destination (Join-Path $ssDst "ScreenshotTool.pdb") -Force }
+    if (Test-Path $ssSkiaOutput) { Copy-Item -Path $ssSkiaOutput -Destination (Join-Path $ssDst "SkiaSharp.dll") -Force }
+    Write-Host "  Screenshot plugin copied to publish\win-x64\Plugins\" -ForegroundColor DarkGray
+}
 
 if ($SkipInstaller) {
     Write-Host "[done] publish only (SkipInstaller set)." -ForegroundColor Green

@@ -1,0 +1,52 @@
+<Window x:Class="ApertureNeo.Plugins.Screenshot.EditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Screenshot Editor" Width="960" Height="700"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1E1E" Foreground="White">
+    <DockPanel>
+        <!-- Toolbar -->
+        <ToolBarTray DockPanel.Dock="Top" Background="#2D2D2D">
+            <ToolBar Band="1" Background="Transparent">
+                <ToggleButton x:Name="PenToggle" Content="Pen" IsChecked="True" ToolTip="Pen / annotate"/>
+                <Button x:Name="ClearBtn" Content="Clear" Click="Clear_Click" ToolTip="Clear all annotations"/>
+                <Separator/>
+                <Label Content="Color:" Foreground="#CCC" VerticalAlignment="Center"/>
+                <ComboBox x:Name="ColorPicker" SelectedIndex="0" Width="80" VerticalAlignment="Center">
+                    <ComboBoxItem Foreground="Red">Red</ComboBoxItem>
+                    <ComboBoxItem Foreground="#00FF00">Green</ComboBoxItem>
+                    <ComboBoxItem Foreground="Blue">Blue</ComboBoxItem>
+                    <ComboBoxItem Foreground="Yellow">Yellow</ComboBoxItem>
+                    <ComboBoxItem Foreground="White">White</ComboBoxItem>
+                    <ComboBoxItem Foreground="Black">Black</ComboBoxItem>
+                </ComboBox>
+                <Label Content="Size:" Foreground="#CCC" VerticalAlignment="Center"/>
+                <Slider x:Name="SizeSlider" Minimum="2" Maximum="20" Value="4" Width="80"
+                        VerticalAlignment="Center" TickFrequency="1" IsSnapToTickEnabled="True"/>
+            </ToolBar>
+            <ToolBar Band="2" Background="Transparent" HorizontalAlignment="Right">
+                <Button x:Name="SaveBtn" Content="Save" Click="Save_Click" ToolTip="Save as PNG"/>
+                <Button x:Name="CopyBtn" Content="Copy" Click="Copy_Click" ToolTip="Copy to clipboard"/>
+                <Button x:Name="OcrBtn" Content="OCR" Click="Ocr_Click" ToolTip="Extract text via OCR"/>
+                <Separator/>
+                <Button x:Name="CancelBtn" Content="Cancel" Click="Cancel_Click"/>
+                <Button x:Name="OkBtn" Content="Done" Click="Ok_Click" FontWeight="Bold"/>
+            </ToolBar>
+        </ToolBarTray>
+
+        <!-- Image viewport with mouse input -->
+        <Border Background="#1E1E1E" ClipToBounds="True">
+            <Canvas x:Name="ViewportCanvas" Background="Transparent"
+                    MouseLeftButtonDown="Canvas_MouseDown" MouseMove="Canvas_MouseMove"
+                    MouseLeftButtonUp="Canvas_MouseUp">
+                <Image x:Name="ViewportImage" Stretch="Uniform"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
+            </Canvas>
+        </Border>
+
+        <!-- Status bar -->
+        <StatusBar DockPanel.Dock="Bottom" Background="#2D2D2D" Height="24">
+            <StatusBarItem x:Name="StatusText" Content="Ready" Foreground="#AAA"/>
+        </StatusBar>
+    </DockPanel>
+</Window>

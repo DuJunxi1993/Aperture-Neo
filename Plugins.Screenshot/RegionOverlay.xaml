@@ -6,7 +6,7 @@
         ShowInTaskbar="False" Cursor="Cross"
         KeyDown="Window_KeyDown">
     <Grid>
-        <Canvas x:Name="OverlayCanvas" Background="Transparent" IsHitTestVisible="True">
+        <Canvas x:Name="OverlayCanvas" Background="#01000000" IsHitTestVisible="True">
             <Rectangle x:Name="DimTop" Fill="#80000000"/>
             <Rectangle x:Name="DimBottom" Fill="#80000000"/>
             <Rectangle x:Name="DimLeft" Fill="#80000000"/>

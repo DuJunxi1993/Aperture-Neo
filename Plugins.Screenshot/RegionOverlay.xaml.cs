@@ -20,6 +20,7 @@ public partial class RegionOverlay : Window
         InitializeComponent();
         ConfirmBtn.IsEnabled = false;
         ActionBarText.Text = "Drag to select an area";
+        Loaded += (_, _) => UpdateDimRects();
     }
 
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)

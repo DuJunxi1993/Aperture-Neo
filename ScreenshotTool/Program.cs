@@ -10,7 +10,7 @@ public static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        var app = new Application { ShutdownMode = ShutdownMode.OnLastWindowClose };
+        var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
 
         string mode = args.Length > 0 ? args[0].ToLowerInvariant() : "--area";
 
@@ -44,14 +44,20 @@ public static class Program
             MessageBox.Show($"截图工具异常: {ex.Message}\n\n详情: %TEMP%\\ApertureNeo\\screenshot-error.log",
                 "ScreenshotTool", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+        finally
+        {
+            app.Shutdown();
+        }
 
         return 0;
     }
 
     private static void RunArea()
     {
+        Trace("RunArea: entered");
         var overlay = new RegionOverlay();
         var result = overlay.ShowDialog();
+        Trace($"RunArea: ShowDialog returned {result}, Confirmed={(overlay.ConfirmedCapture != null ? "set" : "null")}, Full={(overlay.FullscreenCapture != null ? "set" : "null")}, SelectedRegion={overlay.SelectedRegion}");
 
         if (result != true)
         {
@@ -64,8 +70,11 @@ public static class Program
         {
             try
             {
+                Trace("RunArea: creating EditorWindow (fullscreen)");
                 var editor = new EditorWindow(overlay.FullscreenCapture);
+                Trace("RunArea: calling editor.ShowDialog (fullscreen)");
                 editor.ShowDialog();
+                Trace("RunArea: editor.ShowDialog returned (fullscreen)");
             }
             finally { overlay.FullscreenCapture.Dispose(); }
         }
@@ -73,14 +82,16 @@ public static class Program
         {
             try
             {
+                Trace("RunArea: creating EditorWindow (region)");
                 var editor = new EditorWindow(overlay.ConfirmedCapture);
+                Trace("RunArea: calling editor.ShowDialog (region)");
                 editor.ShowDialog();
+                Trace("RunArea: editor.ShowDialog returned (region)");
             }
             finally { overlay.ConfirmedCapture.Dispose(); }
         }
         else
         {
-            // Last-resort fallback: capture region from coordinates
             LogError("RunArea.fallback", new InvalidOperationException(
                 $"Dialog closed with no captured bitmap. SelectedRegion={overlay.SelectedRegion}"));
         }
@@ -94,6 +105,18 @@ public static class Program
             Directory.CreateDirectory(dir);
             var path = Path.Combine(dir, "screenshot-error.log");
             File.AppendAllText(path, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {source}\n{ex}\n\n");
+        }
+        catch { }
+    }
+
+    private static void Trace(string message)
+    {
+        try
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "ApertureNeo");
+            Directory.CreateDirectory(dir);
+            var path = Path.Combine(dir, "screenshot-trace.log");
+            File.AppendAllText(path, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {message}\n");
         }
         catch { }
     }

@@ -76,24 +76,19 @@ public static class Program
 
     private static void CaptureAndShowEditor(Func<Bitmap> capture)
     {
-        Trace("CaptureAndShowEditor: scheduling at ContextIdle");
+        Trace("CaptureAndShowEditor: scheduling capture at ContextIdle");
+        var frame = new DispatcherFrame();
         Bitmap? bitmap = null;
         Exception? error = null;
 
         Dispatcher.CurrentDispatcher.BeginInvoke(new Action(() =>
         {
-            Trace("CaptureAndShowEditor: ContextIdle action running");
+            Trace("CaptureAndShowEditor: capture action running");
             try { bitmap = capture(); }
             catch (Exception ex) { error = ex; Trace("CaptureAndShowEditor: capture threw " + ex.Message); }
+            frame.Continue = false;
         }), DispatcherPriority.ContextIdle);
 
-        // Pump the dispatcher until the ContextIdle action completes.
-        var frame = new DispatcherFrame();
-        Dispatcher.CurrentDispatcher.BeginInvoke(new Action(() =>
-        {
-            Trace("CaptureAndShowEditor: post-action dispatcher message");
-            frame.Continue = false;
-        }), DispatcherPriority.Background);
         Trace("CaptureAndShowEditor: PushFrame (waiting for capture)");
         Dispatcher.PushFrame(frame);
         Trace($"CaptureAndShowEditor: frame done, bitmap={(bitmap != null ? "ok" : "null")}, error={(error != null ? error.GetType().Name : "none")}");

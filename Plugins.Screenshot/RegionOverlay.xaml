@@ -4,19 +4,28 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         WindowState="Maximized" Topmost="True"
         ShowInTaskbar="False" Cursor="Cross"
-        Title="选择截图区域" KeyDown="Window_KeyDown">
-    <Canvas x:Name="OverlayCanvas" Background="Transparent">
-        <!-- Four dimming rectangles placed dynamically -->
-        <Rectangle x:Name="DimTop" Fill="#80000000"/>
-        <Rectangle x:Name="DimBottom" Fill="#80000000"/>
-        <Rectangle x:Name="DimLeft" Fill="#80000000"/>
-        <Rectangle x:Name="DimRight" Fill="#80000000"/>
-        <!-- Selection border -->
-        <Rectangle x:Name="SelRect" Stroke="White" StrokeThickness="2" StrokeDashArray="4,2" Fill="Transparent"
-                   Visibility="Collapsed"/>
-        <!-- Info text -->
-        <TextBlock x:Name="InfoText" Text="拖拽选择区域 · Enter=确认 · Esc=取消"
-                   Foreground="White" FontSize="14" VerticalAlignment="Bottom" HorizontalAlignment="Right"
-                   Margin="0,0,16,16"/>
-    </Canvas>
+        KeyDown="Window_KeyDown">
+    <Grid>
+        <Canvas x:Name="OverlayCanvas" Background="Transparent" IsHitTestVisible="True">
+            <Rectangle x:Name="DimTop" Fill="#80000000"/>
+            <Rectangle x:Name="DimBottom" Fill="#80000000"/>
+            <Rectangle x:Name="DimLeft" Fill="#80000000"/>
+            <Rectangle x:Name="DimRight" Fill="#80000000"/>
+            <Rectangle x:Name="SelRect" Stroke="White" StrokeThickness="2"
+                       StrokeDashArray="4,2" Fill="Transparent" Visibility="Collapsed"/>
+        </Canvas>
+        <Border Background="#DD1E1E1E" CornerRadius="6" Padding="8,5"
+                HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,12,0,0">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="ActionBarText" Text="Drag to select area" Foreground="White"
+                           VerticalAlignment="Center" Margin="6,0,8,0" FontSize="12"/>
+                <Button x:Name="ConfirmBtn" Content="Confirm" Padding="12,4" Margin="2,0"
+                        IsEnabled="False" Click="ConfirmBtn_Click"/>
+                <Button x:Name="RecaptureBtn" Content="Recapture" Padding="12,4" Margin="2,0"
+                        Click="RecaptureBtn_Click"/>
+                <Button x:Name="CancelBtn" Content="Cancel" Padding="12,4" Margin="2,0"
+                        Click="CancelBtn_Click"/>
+            </StackPanel>
+        </Border>
+    </Grid>
 </Window>

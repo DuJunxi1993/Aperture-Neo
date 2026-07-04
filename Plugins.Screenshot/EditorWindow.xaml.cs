@@ -16,7 +16,6 @@ public partial class EditorWindow : Window
     private readonly Bitmap _originalBitmap;
     private readonly Bitmap _overlayBitmap;
     private readonly int _width, _height;
-    private bool _penMode = true;
     private bool _isDrawing;
     private List<SKPoint> _currentStroke = new();
     private int _strokeCount;
@@ -32,19 +31,22 @@ public partial class EditorWindow : Window
         using var g = System.Drawing.Graphics.FromImage(_overlayBitmap);
         g.Clear(System.Drawing.Color.Transparent);
 
-        RenderPreview();
-        PenToggle.IsChecked = true;
+        Loaded += (_, _) => RenderPreview();
+        SizeChanged += (_, _) => RenderPreview();
     }
 
     private void RenderPreview()
     {
+        if (_width < 1 || _height < 1) return;
         using var composite = new Bitmap(_width, _height, PixelFormat.Format32bppArgb);
         using (var g = System.Drawing.Graphics.FromImage(composite))
         {
             g.DrawImage(_originalBitmap, 0, 0);
             g.DrawImage(_overlayBitmap, 0, 0);
         }
-        ViewportImage.Source = CaptureEngine.BitmapToBitmapSource(composite);
+        var src = CaptureEngine.BitmapToBitmapSource(composite);
+        src.Freeze();
+        ViewportImage.Source = src;
     }
 
     private Bitmap BuildFinalImage()
@@ -88,21 +90,19 @@ public partial class EditorWindow : Window
 
     private float PenSize => (float)SizeSlider.Value;
 
-    // ---- Canvas mouse handlers (wired from XAML) ----
-
     private void Canvas_MouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (!_penMode) return;
         var pt = ToImageCoords(e.GetPosition(ViewportCanvas));
         if (pt == null) return;
-
         _isDrawing = true;
         _currentStroke = new List<SKPoint> { pt.Value };
+        ViewportCanvas.CaptureMouse();
     }
 
     private void Canvas_MouseMove(object sender, MouseEventArgs e)
     {
         if (!_isDrawing) return;
+        if (e.LeftButton != MouseButtonState.Pressed) return;
         var pt = ToImageCoords(e.GetPosition(ViewportCanvas));
         if (pt == null) return;
         _currentStroke.Add(pt.Value);
@@ -114,23 +114,22 @@ public partial class EditorWindow : Window
     {
         if (!_isDrawing) return;
         _isDrawing = false;
+        ReleaseMouseCapture();
         _strokeCount++;
-        StatusText.Content = $"{_strokeCount} stroke(s) drawn";
+        StatusText.Content = $"{_strokeCount} stroke(s)";
         RenderPreview();
     }
 
-    private unsafe void RenderStrokeToOverlay(List<SKPoint> points)
+    private void RenderStrokeToOverlay(List<SKPoint> points)
     {
-        if (points.Count < 2) return;
+        if (points.Count < 2 || _overlayBitmap == null) return;
 
         using var surface = SKSurface.Create(new SKImageInfo(_width, _height));
         var canvas = surface.Canvas;
 
-        // Draw existing overlay first
         using (var existing = SKBitmap.FromImage(SKImage.FromEncodedData(OverlayToBytes())))
             canvas.DrawBitmap(existing, 0, 0);
 
-        // Draw the new stroke
         using var paint = new SKPaint
         {
             Color = SelectedColor,
@@ -147,7 +146,6 @@ public partial class EditorWindow : Window
             path.LineTo(points[i]);
         canvas.DrawPath(path, paint);
 
-        // Write back to overlay bitmap
         using var image = surface.Snapshot();
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         using var ms = new MemoryStream(data.ToArray());
@@ -164,12 +162,9 @@ public partial class EditorWindow : Window
         return ms.ToArray();
     }
 
-    // ---- Toolbar handlers ----
-
     private void PenToggle_Click(object sender, RoutedEventArgs e)
     {
-        _penMode = PenToggle.IsChecked ?? true;
-        StatusText.Content = _penMode ? "Pen mode" : "View mode";
+        StatusText.Content = PenToggle.IsChecked == true ? "Pen mode" : "View mode";
     }
 
     private void Clear_Click(object sender, RoutedEventArgs e)
@@ -177,6 +172,7 @@ public partial class EditorWindow : Window
         using var g = System.Drawing.Graphics.FromImage(_overlayBitmap);
         g.Clear(System.Drawing.Color.Transparent);
         _strokeCount = 0;
+        _currentStroke.Clear();
         StatusText.Content = "Cleared";
         RenderPreview();
     }
@@ -193,15 +189,8 @@ public partial class EditorWindow : Window
         using var final = BuildFinalImage();
         var src = CaptureEngine.BitmapToBitmapSource(final);
         src.Freeze();
-        try
-        {
-            Clipboard.SetImage(src);
-            StatusText.Content = "Copied to clipboard";
-        }
-        catch (Exception ex)
-        {
-            StatusText.Content = $"Copy failed: {ex.Message}";
-        }
+        try { Clipboard.SetImage(src); StatusText.Content = "Copied to clipboard"; }
+        catch (Exception ex) { StatusText.Content = $"Copy failed: {ex.Message}"; }
     }
 
     private async void Ocr_Click(object sender, RoutedEventArgs e)
@@ -215,17 +204,12 @@ public partial class EditorWindow : Window
             await OcrIntegration.RunOcrAsync(path);
             StatusText.Content = "OCR done - result in clipboard + toast";
         }
-        catch (Exception ex)
-        {
-            StatusText.Content = $"OCR failed: {ex.Message}";
-        }
+        catch (Exception ex) { StatusText.Content = $"OCR failed: {ex.Message}"; }
         finally { OcrBtn.IsEnabled = true; }
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e) { DialogResult = false; Close(); }
-
     private void Ok_Click(object sender, RoutedEventArgs e) { Copy_Click(sender, e); DialogResult = true; Close(); }
-
     private void Window_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape) { DialogResult = false; Close(); }

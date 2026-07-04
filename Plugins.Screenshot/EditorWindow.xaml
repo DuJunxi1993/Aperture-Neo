@@ -5,11 +5,10 @@
         WindowStartupLocation="CenterScreen"
         Background="#1E1E1E" Foreground="White">
     <DockPanel>
-        <!-- Toolbar -->
         <ToolBarTray DockPanel.Dock="Top" Background="#2D2D2D">
             <ToolBar Band="1" Background="Transparent">
-                <ToggleButton x:Name="PenToggle" Content="Pen" IsChecked="True" ToolTip="Pen / annotate"/>
-                <Button x:Name="ClearBtn" Content="Clear" Click="Clear_Click" ToolTip="Clear all annotations"/>
+                <ToggleButton x:Name="PenToggle" Content="Pen" IsChecked="True"/>
+                <Button x:Name="ClearBtn" Content="Clear" Click="Clear_Click"/>
                 <Separator/>
                 <Label Content="Color:" Foreground="#CCC" VerticalAlignment="Center"/>
                 <ComboBox x:Name="ColorPicker" SelectedIndex="0" Width="80" VerticalAlignment="Center">
@@ -25,26 +24,26 @@
                         VerticalAlignment="Center" TickFrequency="1" IsSnapToTickEnabled="True"/>
             </ToolBar>
             <ToolBar Band="2" Background="Transparent" HorizontalAlignment="Right">
-                <Button x:Name="SaveBtn" Content="Save" Click="Save_Click" ToolTip="Save as PNG"/>
-                <Button x:Name="CopyBtn" Content="Copy" Click="Copy_Click" ToolTip="Copy to clipboard"/>
-                <Button x:Name="OcrBtn" Content="OCR" Click="Ocr_Click" ToolTip="Extract text via OCR"/>
+                <Button x:Name="SaveBtn" Content="Save" Click="Save_Click"/>
+                <Button x:Name="CopyBtn" Content="Copy" Click="Copy_Click"/>
+                <Button x:Name="OcrBtn" Content="OCR" Click="Ocr_Click"/>
                 <Separator/>
                 <Button x:Name="CancelBtn" Content="Cancel" Click="Cancel_Click"/>
                 <Button x:Name="OkBtn" Content="Done" Click="Ok_Click" FontWeight="Bold"/>
             </ToolBar>
         </ToolBarTray>
 
-        <!-- Image viewport with mouse input -->
-        <Border Background="#1E1E1E" ClipToBounds="True">
+        <Grid Background="#1E1E1E" ClipToBounds="True">
+            <Image x:Name="ViewportImage" Stretch="Uniform"
+                   IsHitTestVisible="False"
+                   RenderOptions.BitmapScalingMode="HighQuality"
+                   SnapsToDevicePixels="True"/>
             <Canvas x:Name="ViewportCanvas" Background="Transparent"
-                    MouseLeftButtonDown="Canvas_MouseDown" MouseMove="Canvas_MouseMove"
-                    MouseLeftButtonUp="Canvas_MouseUp">
-                <Image x:Name="ViewportImage" Stretch="Uniform"
-                       RenderOptions.BitmapScalingMode="HighQuality"/>
-            </Canvas>
-        </Border>
+                    MouseLeftButtonDown="Canvas_MouseDown"
+                    MouseMove="Canvas_MouseMove"
+                    MouseLeftButtonUp="Canvas_MouseUp"/>
+        </Grid>
 
-        <!-- Status bar -->
         <StatusBar DockPanel.Dock="Bottom" Background="#2D2D2D" Height="24">
             <StatusBarItem x:Name="StatusText" Content="Ready" Foreground="#AAA"/>
         </StatusBar>

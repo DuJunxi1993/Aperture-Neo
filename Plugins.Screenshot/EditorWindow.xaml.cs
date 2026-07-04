@@ -31,6 +31,8 @@ public partial class EditorWindow : Window
         using var g = System.Drawing.Graphics.FromImage(_overlayBitmap);
         g.Clear(System.Drawing.Color.Transparent);
 
+        ViewportCanvas.LostMouseCapture += (_, _) => _isDrawing = false;
+
         Loaded += (_, _) => SafeRenderPreview();
         SizeChanged += (_, _) => SafeRenderPreview();
     }
@@ -132,7 +134,7 @@ public partial class EditorWindow : Window
     {
         if (!_isDrawing) return;
         _isDrawing = false;
-        ReleaseMouseCapture();
+        ViewportCanvas.ReleaseMouseCapture();
         _strokeCount++;
         StatusText.Content = $"{_strokeCount} stroke(s)";
         RenderPreview();

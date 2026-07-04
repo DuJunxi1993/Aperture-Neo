@@ -7,7 +7,7 @@
     <DockPanel>
         <ToolBarTray DockPanel.Dock="Top" Background="#2D2D2D">
             <ToolBar Band="1" Background="Transparent">
-                <ToggleButton x:Name="PenToggle" Content="Pen" IsChecked="True"/>
+                <ToggleButton x:Name="PenToggle" Content="Pen" IsChecked="True" Click="PenToggle_Click"/>
                 <Button x:Name="ClearBtn" Content="Clear" Click="Clear_Click"/>
                 <Separator/>
                 <Label Content="Color:" Foreground="#CCC" VerticalAlignment="Center"/>

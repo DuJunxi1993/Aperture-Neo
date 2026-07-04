@@ -1,11 +1,9 @@
 using System;
 using System.Drawing;
-using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Shapes;
-using System.Windows.Threading;
 
 namespace ApertureNeo.Plugins.Screenshot;
 
@@ -16,8 +14,7 @@ public partial class RegionOverlay : Window
     private bool _isDragging;
 
     public System.Drawing.Rectangle? SelectedRegion { get; private set; }
-    public System.Drawing.Bitmap? ConfirmedCapture { get; private set; }
-    public System.Drawing.Bitmap? FullscreenCapture { get; private set; }
+    public bool IsFullscreen { get; private set; }
 
     public RegionOverlay()
     {
@@ -126,36 +123,16 @@ public partial class RegionOverlay : Window
     private void ConfirmBtn_Click(object sender, RoutedEventArgs e)
     {
         if (!SelectedRegion.HasValue) return;
-        HideAndCapture(() =>
-        {
-            try
-            {
-                ConfirmedCapture = CaptureEngine.CaptureRegion(SelectedRegion!.Value);
-            }
-            catch (Exception ex) { LogError("ConfirmBtn_Click capture", ex); }
-            DialogResult = true;
-            Close();
-        });
+        IsFullscreen = false;
+        DialogResult = true;
+        Close();
     }
 
     private void FullscreenBtn_Click(object sender, RoutedEventArgs e)
     {
-        HideAndCapture(() =>
-        {
-            try
-            {
-                FullscreenCapture = CaptureEngine.CaptureFullscreen();
-            }
-            catch (Exception ex) { LogError("FullscreenBtn_Click capture", ex); }
-            DialogResult = true;
-            Close();
-        });
-    }
-
-    private void HideAndCapture(Action action)
-    {
-        Hide();
-        Dispatcher.BeginInvoke(action, DispatcherPriority.ContextIdle);
+        IsFullscreen = true;
+        DialogResult = true;
+        Close();
     }
 
     private void CancelBtn_Click(object sender, RoutedEventArgs e)
@@ -169,17 +146,5 @@ public partial class RegionOverlay : Window
         if (e.Key == Key.Escape) { DialogResult = false; Close(); return; }
         if (e.Key == Key.Enter && SelectedRegion.HasValue) { ConfirmBtn_Click(this, new RoutedEventArgs()); return; }
         if (e.Key == Key.F) { FullscreenBtn_Click(this, new RoutedEventArgs()); return; }
-    }
-
-    private static void LogError(string source, Exception ex)
-    {
-        try
-        {
-            var dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ApertureNeo");
-            Directory.CreateDirectory(dir);
-            var path = System.IO.Path.Combine(dir, "screenshot-error.log");
-            File.AppendAllText(path, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {source}\n{ex}\n\n");
-        }
-        catch { }
     }
 }

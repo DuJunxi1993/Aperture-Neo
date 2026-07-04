@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Shapes;
 
 namespace ApertureNeo.Plugins.Screenshot;
@@ -25,6 +26,11 @@ public partial class RegionOverlay : Window
 
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
+        if (IsOnActionBar(e.OriginalSource as DependencyObject))
+        {
+            base.OnMouseLeftButtonDown(e);
+            return;
+        }
         _start = e.GetPosition(this);
         _end = _start;
         _isDragging = true;
@@ -44,10 +50,20 @@ public partial class RegionOverlay : Window
 
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
-        if (!_isDragging) return;
+        if (!_isDragging)
+        {
+            base.OnMouseLeftButtonUp(e);
+            return;
+        }
+        var savedStart = _start;
         _isDragging = false;
         ReleaseMouseCapture();
         _end = e.GetPosition(this);
+        if (Math.Abs(_end.X - savedStart.X) < 2 && Math.Abs(_end.Y - savedStart.Y) < 2)
+        {
+            base.OnMouseLeftButtonUp(e);
+            return;
+        }
         UpdateSelectionRect();
         CommitSelection();
         base.OnMouseLeftButtonUp(e);
@@ -118,6 +134,16 @@ public partial class RegionOverlay : Window
         SelectedRegion = new System.Drawing.Rectangle(x, y, w, h);
         ConfirmBtn.IsEnabled = true;
         ActionBarText.Text = $"Selected: {w} x {h} px";
+    }
+
+    private static bool IsOnActionBar(DependencyObject? source)
+    {
+        while (source != null)
+        {
+            if (source is FrameworkElement fe && fe.Name == "ActionBar") return true;
+            source = VisualTreeHelper.GetParent(source);
+        }
+        return false;
     }
 
     private void ConfirmBtn_Click(object sender, RoutedEventArgs e)

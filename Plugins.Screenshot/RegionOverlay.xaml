@@ -14,7 +14,7 @@
             <Rectangle x:Name="SelRect" Stroke="White" StrokeThickness="2"
                        StrokeDashArray="4,2" Fill="Transparent" Visibility="Collapsed"/>
         </Canvas>
-        <Border Background="#DD1E1E1E" CornerRadius="6" Padding="8,5"
+        <Border x:Name="ActionBar" Background="#DD1E1E1E" CornerRadius="6" Padding="8,5"
                 HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,12,0,0">
             <StackPanel Orientation="Horizontal">
                 <TextBlock x:Name="ActionBarText" Text="Drag to select area" Foreground="White"

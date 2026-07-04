@@ -6,7 +6,10 @@
         ShowInTaskbar="False" Cursor="Cross"
         KeyDown="Window_KeyDown">
     <Grid>
-        <Canvas x:Name="OverlayCanvas" Background="#01000000" IsHitTestVisible="True">
+        <Canvas x:Name="OverlayCanvas" Background="#01000000" IsHitTestVisible="True"
+                MouseLeftButtonDown="OverlayCanvas_MouseLeftButtonDown"
+                MouseMove="OverlayCanvas_MouseMove"
+                MouseLeftButtonUp="OverlayCanvas_MouseLeftButtonUp">
             <Rectangle x:Name="DimTop" Fill="#80000000"/>
             <Rectangle x:Name="DimBottom" Fill="#80000000"/>
             <Rectangle x:Name="DimLeft" Fill="#80000000"/>
@@ -21,8 +24,8 @@
                            VerticalAlignment="Center" Margin="6,0,8,0" FontSize="12"/>
                 <Button x:Name="ConfirmBtn" Content="Confirm" Padding="12,4" Margin="2,0"
                         IsEnabled="False" Click="ConfirmBtn_Click"/>
-                <Button x:Name="RecaptureBtn" Content="Recapture" Padding="12,4" Margin="2,0"
-                        Click="RecaptureBtn_Click"/>
+                <Button x:Name="FullscreenBtn" Content="Fullscreen (F)" Padding="12,4" Margin="2,0"
+                        Click="FullscreenBtn_Click"/>
                 <Button x:Name="CancelBtn" Content="Cancel" Padding="12,4" Margin="2,0"
                         Click="CancelBtn_Click"/>
             </StackPanel>

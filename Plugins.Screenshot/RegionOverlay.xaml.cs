@@ -1,10 +1,11 @@
 using System;
 using System.Drawing;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace ApertureNeo.Plugins.Screenshot;
 
@@ -15,58 +16,44 @@ public partial class RegionOverlay : Window
     private bool _isDragging;
 
     public System.Drawing.Rectangle? SelectedRegion { get; private set; }
+    public System.Drawing.Bitmap? ConfirmedCapture { get; private set; }
+    public System.Drawing.Bitmap? FullscreenCapture { get; private set; }
 
     public RegionOverlay()
     {
         InitializeComponent();
         ConfirmBtn.IsEnabled = false;
-        ActionBarText.Text = "Drag to select an area";
+        ActionBarText.Text = "Drag to select an area (F = fullscreen, Esc = cancel)";
         Loaded += (_, _) => UpdateDimRects();
     }
 
-    protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
+    private void OverlayCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (IsOnActionBar(e.OriginalSource as DependencyObject))
-        {
-            base.OnMouseLeftButtonDown(e);
-            return;
-        }
         _start = e.GetPosition(this);
         _end = _start;
         _isDragging = true;
         SelRect.Visibility = Visibility.Visible;
-        CaptureMouse();
+        OverlayCanvas.CaptureMouse();
         UpdateSelectionRect();
-        base.OnMouseLeftButtonDown(e);
     }
 
-    protected override void OnMouseMove(MouseEventArgs e)
+    private void OverlayCanvas_MouseMove(object sender, MouseEventArgs e)
     {
         if (!_isDragging) return;
         _end = e.GetPosition(this);
         UpdateSelectionRect();
-        base.OnMouseMove(e);
     }
 
-    protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
+    private void OverlayCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (!_isDragging)
-        {
-            base.OnMouseLeftButtonUp(e);
-            return;
-        }
+        if (!_isDragging) return;
         var savedStart = _start;
         _isDragging = false;
-        ReleaseMouseCapture();
+        OverlayCanvas.ReleaseMouseCapture();
         _end = e.GetPosition(this);
-        if (Math.Abs(_end.X - savedStart.X) < 2 && Math.Abs(_end.Y - savedStart.Y) < 2)
-        {
-            base.OnMouseLeftButtonUp(e);
-            return;
-        }
+        if (Math.Abs(_end.X - savedStart.X) < 2 && Math.Abs(_end.Y - savedStart.Y) < 2) return;
         UpdateSelectionRect();
         CommitSelection();
-        base.OnMouseLeftButtonUp(e);
     }
 
     private void UpdateSelectionRect()
@@ -133,34 +120,42 @@ public partial class RegionOverlay : Window
         }
         SelectedRegion = new System.Drawing.Rectangle(x, y, w, h);
         ConfirmBtn.IsEnabled = true;
-        ActionBarText.Text = $"Selected: {w} x {h} px";
-    }
-
-    private static bool IsOnActionBar(DependencyObject? source)
-    {
-        while (source != null)
-        {
-            if (source is FrameworkElement fe && fe.Name == "ActionBar") return true;
-            source = VisualTreeHelper.GetParent(source);
-        }
-        return false;
+        ActionBarText.Text = $"Selected: {w} x {h} px — Confirm or F for fullscreen";
     }
 
     private void ConfirmBtn_Click(object sender, RoutedEventArgs e)
     {
         if (!SelectedRegion.HasValue) return;
-        DialogResult = true;
-        Close();
+        HideAndCapture(() =>
+        {
+            try
+            {
+                ConfirmedCapture = CaptureEngine.CaptureRegion(SelectedRegion!.Value);
+            }
+            catch (Exception ex) { LogError("ConfirmBtn_Click capture", ex); }
+            DialogResult = true;
+            Close();
+        });
     }
 
-    private void RecaptureBtn_Click(object sender, RoutedEventArgs e)
+    private void FullscreenBtn_Click(object sender, RoutedEventArgs e)
     {
-        _start = _end = new System.Windows.Point();
-        SelectedRegion = null;
-        ConfirmBtn.IsEnabled = false;
-        ActionBarText.Text = "Drag to select a new area";
-        SelRect.Visibility = Visibility.Collapsed;
-        UpdateDimRects();
+        HideAndCapture(() =>
+        {
+            try
+            {
+                FullscreenCapture = CaptureEngine.CaptureFullscreen();
+            }
+            catch (Exception ex) { LogError("FullscreenBtn_Click capture", ex); }
+            DialogResult = true;
+            Close();
+        });
+    }
+
+    private void HideAndCapture(Action action)
+    {
+        Hide();
+        Dispatcher.BeginInvoke(action, DispatcherPriority.ContextIdle);
     }
 
     private void CancelBtn_Click(object sender, RoutedEventArgs e)
@@ -172,7 +167,19 @@ public partial class RegionOverlay : Window
     private void Window_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape) { DialogResult = false; Close(); return; }
-        if (e.Key == Key.Enter && SelectedRegion.HasValue) { DialogResult = true; Close(); return; }
-        if (e.Key == Key.R) { RecaptureBtn_Click(this, null!); }
+        if (e.Key == Key.Enter && SelectedRegion.HasValue) { ConfirmBtn_Click(this, new RoutedEventArgs()); return; }
+        if (e.Key == Key.F) { FullscreenBtn_Click(this, new RoutedEventArgs()); return; }
+    }
+
+    private static void LogError(string source, Exception ex)
+    {
+        try
+        {
+            var dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ApertureNeo");
+            Directory.CreateDirectory(dir);
+            var path = System.IO.Path.Combine(dir, "screenshot-error.log");
+            File.AppendAllText(path, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {source}\n{ex}\n\n");
+        }
+        catch { }
     }
 }

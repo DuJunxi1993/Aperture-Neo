@@ -31,8 +31,26 @@ public partial class EditorWindow : Window
         using var g = System.Drawing.Graphics.FromImage(_overlayBitmap);
         g.Clear(System.Drawing.Color.Transparent);
 
-        Loaded += (_, _) => RenderPreview();
-        SizeChanged += (_, _) => RenderPreview();
+        Loaded += (_, _) => SafeRenderPreview();
+        SizeChanged += (_, _) => SafeRenderPreview();
+    }
+
+    private void SafeRenderPreview()
+    {
+        try { RenderPreview(); }
+        catch (Exception ex) { LogError("EditorWindow.RenderPreview", ex); }
+    }
+
+    private static void LogError(string source, Exception ex)
+    {
+        try
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "ApertureNeo");
+            Directory.CreateDirectory(dir);
+            var path = Path.Combine(dir, "screenshot-error.log");
+            File.AppendAllText(path, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {source}\n{ex}\n\n");
+        }
+        catch { }
     }
 
     private void RenderPreview()

@@ -31,7 +31,7 @@
                             <ControlTemplate>
                                 <Rectangle Margin="-2"
                                            StrokeThickness="2"
-                                           Stroke="{StaticResource BrandPrimary}"
+                                           Stroke="#FF5e6ad2"
                                            SnapsToDevicePixels="True"/>
                             </ControlTemplate>
                         </Setter.Value>
@@ -256,7 +256,7 @@
                                  HorizontalAlignment="Center"
                                  VerticalAlignment="Center"
                                  Fill="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
-                                 Stroke="{StaticResource BorderStandard}"
+                                 Stroke="#1F000000"
                                  StrokeThickness="1"/>
                     </Grid>
                     <ControlTemplate.Triggers>
@@ -288,16 +288,16 @@
                     <Grid VerticalAlignment="Center">
                         <Border x:Name="TrackBackground"
                                 Height="4"
-                                Background="{StaticResource SliderTrack}"
+                                Background="#1F000000"
                                 CornerRadius="2"
                                 VerticalAlignment="Center"/>
                         <Track x:Name="PART_Track" Height="4">
                             <Track.DecreaseRepeatButton>
                                 <RepeatButton Command="Slider.DecreaseLarge">
                                     <RepeatButton.Template>
-                                        <ControlTemplate TargetType="RepeatButton">
-                                            <Border Background="{StaticResource SliderTrackFill}" CornerRadius="2"/>
-                                        </ControlTemplate>
+                                         <ControlTemplate TargetType="RepeatButton">
+                                             <Border Background="#FF5e6ad2" CornerRadius="2"/>
+                                         </ControlTemplate>
                                     </RepeatButton.Template>
                                 </RepeatButton>
                             </Track.DecreaseRepeatButton>
@@ -316,7 +316,7 @@
                                         <ControlTemplate TargetType="Thumb">
                                             <Ellipse Width="14" Height="14"
                                                      Fill="White"
-                                                     Stroke="{StaticResource BorderStandard}"
+                                                     Stroke="#1F000000"
                                                      StrokeThickness="1"/>
                                         </ControlTemplate>
                                     </Thumb.Template>

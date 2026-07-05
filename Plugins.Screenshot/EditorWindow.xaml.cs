@@ -125,6 +125,14 @@ public partial class EditorWindow : Window
     private void ZoomSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (_suspendSliderUpdate) return;
+        // XAML parser can fire ValueChanged during InitializeComponent
+        // when attributes are applied in order (Minimum before Value
+        // coerces the default Value 0 up to the new minimum). At that
+        // point the SkiaViewer x:Name field hasn't been assigned yet,
+        // so any access would NRE. Skip parse-time events; the user's
+        // real slider interaction only happens after the window is
+        // fully loaded.
+        if (SkiaViewer == null) return;
         SkiaViewer.SetZoomImmediate((float)e.NewValue);
     }
 

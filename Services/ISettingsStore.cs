@@ -29,6 +29,17 @@ public interface ISettingsStore
     /// </summary>
     string? LastOpenedImage { get; set; }
 
+    /// <summary>
+    /// User-chosen default directory for the screenshot editor's
+    /// Save button. Read on editor open (initial folder), written
+    /// when the user checks "set as default" in the save dialog.
+    /// Null = no preference; the editor falls back to
+    /// <c>%USERPROFILE%\Pictures\ApertureNeo\Screenshots</c>.
+    /// Shared between the main app and the standalone ScreenshotTool
+    /// via the same <c>settings.json</c> file.
+    /// </summary>
+    string? DefaultScreenshotSaveDirectory { get; set; }
+
     /// <summary>Raised after a successful Add/RemoveFavorite.</summary>
     event Action? FavoritesChanged;
 

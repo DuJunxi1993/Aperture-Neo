@@ -1,0 +1,77 @@
+<Window x:Class="ApertureNeo.Plugins.Screenshot.SaveDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="保存截图" Width="540" Height="230"
+        MinWidth="540" MinHeight="230"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="{DynamicResource SurfaceCanvas}"
+        Foreground="{DynamicResource TextPrimary}"
+        FontFamily="{DynamicResource FontPrimary}"
+        TextOptions.TextFormattingMode="Ideal"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Reuse the editor's Linear styles. The dialog is
+                     short-lived so we don't need a separate cached
+                     style dictionary. -->
+                <ResourceDictionary Source="EditorStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Folder row: editable path + Browse button. -->
+        <TextBlock Grid.Row="0" Text="保存到" Style="{StaticResource LinearSubtleLabel}"
+                   VerticalAlignment="Center"/>
+        <DockPanel Grid.Row="1" Margin="0,4,0,12">
+            <Button DockPanel.Dock="Right" Content="浏览…"
+                    Style="{StaticResource LinearToolButton}"
+                    Width="68" Margin="6,0,0,0" Click="Browse_Click"/>
+            <TextBox x:Name="FolderBox"
+                     Background="Transparent"
+                     BorderBrush="{StaticResource BorderStandard}"
+                     BorderThickness="1"
+                     Padding="8,6"
+                     FontSize="13"
+                     VerticalContentAlignment="Center"/>
+        </DockPanel>
+
+        <!-- Filename row. -->
+        <TextBlock Grid.Row="2" Text="文件名" Style="{StaticResource LinearSubtleLabel}"
+                   VerticalAlignment="Center"/>
+        <TextBox x:Name="FilenameBox" Grid.Row="3" Margin="0,4,0,16"
+                 Background="Transparent"
+                 BorderBrush="{StaticResource BorderStandard}"
+                 BorderThickness="1"
+                 Padding="8,6"
+                 FontSize="13"
+                 VerticalContentAlignment="Center"/>
+
+        <!-- Checkbox + buttons. -->
+        <DockPanel Grid.Row="4" LastChildFill="False">
+            <CheckBox x:Name="SetDefaultCheck" Content="设为默认保存目录"
+                      VerticalAlignment="Center"
+                      FontSize="12"
+                      Foreground="{StaticResource TextSecondary}"/>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="取消" Style="{StaticResource LinearToolButton}"
+                        Width="72" Click="Cancel_Click"/>
+                <Button Content="保存" Style="{StaticResource LinearPrimaryButton}"
+                        Width="72" Margin="6,0,0,0" IsDefault="True" Click="Save_Click"/>
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>

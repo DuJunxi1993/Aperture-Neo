@@ -11,7 +11,8 @@ namespace ApertureNeo.Services;
 
 /// <summary>
 /// Persists user-mutable state (favorites, recent folders,
-/// last-opened image path) to <c>%APPDATA%\ApertureNeo\settings.json</c>.
+/// last-opened image path, default screenshot save directory,
+/// enabled plugins) to <c>%APPDATA%\ApertureNeo\settings.json</c>.
 /// Reads/writes are guarded by a single lock; saves are debounced
 /// (<see cref="ScheduleSave"/>) so a burst of AddRecent/AddFavorite
 /// calls collapses into one disk write. <see cref="FavoritesChanged"/>
@@ -36,6 +37,7 @@ public class SettingsStore : ISettingsStore
     // plugins are auto-enabled — the user has to opt in once and
     // the choice persists across sessions.
     private readonly HashSet<string> _enabledPlugins = new();
+    private string? _defaultSaveDir;
     private CancellationTokenSource? _saveCts;
     private int _saveGeneration;
     // P0 fix: defer file IO until first access. The previous
@@ -70,6 +72,28 @@ public class SettingsStore : ISettingsStore
     public string? LastOpenedImage { get; set; }
 
     /// <summary>
+    /// User-chosen default directory for the screenshot editor's
+    /// Save button. Read on editor open (initial folder), written
+    /// when the user checks "set as default" in the save dialog.
+    /// Shared between the main app and the standalone ScreenshotTool
+    /// because both read/write the same settings.json.
+    /// </summary>
+    public string? DefaultScreenshotSaveDirectory
+    {
+        get { Load(); lock (_lock) return _defaultSaveDir; }
+        set
+        {
+            bool changed;
+            lock (_lock)
+            {
+                changed = _defaultSaveDir != value;
+                _defaultSaveDir = value;
+            }
+            if (changed) ScheduleSave();
+        }
+    }
+
+    /// <summary>
     /// Read <see cref="SettingsPath"/> from disk and replace the
     /// in-memory favorites, recent, and last-opened-image values.
     /// Idempotent and lazy — the first accessor call (Favorites,
@@ -96,6 +120,7 @@ public class SettingsStore : ISettingsStore
                 _enabledPlugins.Clear();
                 foreach (var p in data.EnabledPlugins ?? new List<string>())
                     _enabledPlugins.Add(p);
+                _defaultSaveDir = data.DefaultScreenshotSaveDirectory;
             }
             LastOpenedImage = data.LastOpenedImage;
         }
@@ -126,12 +151,14 @@ public class SettingsStore : ISettingsStore
             List<RecentEntry> recs;
             List<string> enabled;
             string? lastImage;
+            string? defaultSaveDir;
             lock (_lock)
             {
                 favs = _favorites.ToList();
                 recs = _recent.ToList();
                 enabled = _enabledPlugins.ToList();
                 lastImage = LastOpenedImage;
+                defaultSaveDir = _defaultSaveDir;
             }
             Directory.CreateDirectory(AppDataDir);
             var json = JsonSerializer.Serialize(
@@ -140,7 +167,8 @@ public class SettingsStore : ISettingsStore
                     Favorites = favs,
                     Recent = recs,
                     EnabledPlugins = enabled,
-                    LastOpenedImage = lastImage
+                    LastOpenedImage = lastImage,
+                    DefaultScreenshotSaveDirectory = defaultSaveDir
                 },
                 new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(SettingsPath, json);
@@ -237,10 +265,12 @@ public class SettingsStore : ISettingsStore
         if (changed) { ScheduleSave(); RecentChanged?.Invoke(); }
     }
 
-    /// <summary>Move <paramref name="path"/> to the front of the
-    /// recent list and update its <see cref="RecentEntry.LastOpened"/>
+    /// <summary>
+    /// Move <paramref name="path"/> to the front of the recent list and update
+    /// its <see cref="RecentEntry.LastOpened"/>
     /// to UtcNow. Trims the list to <see cref="MaxRecentCount"/> by
-    /// dropping the oldest entries.</summary>
+    /// dropping the oldest entries.
+    /// </summary>
     public void AddRecent(string path)
     {
         bool changed;
@@ -306,5 +336,14 @@ public class SettingsStore : ISettingsStore
         /// without an open image.
         /// </summary>
         public string? LastOpenedImage { get; set; }
+
+        /// <summary>
+        /// User-chosen default save directory for the screenshot
+        /// editor. Null on first run; both the main app and the
+        /// standalone ScreenshotTool share the same settings.json
+        /// so the user's preferred folder persists across both
+        /// entry points.
+        /// </summary>
+        public string? DefaultScreenshotSaveDirectory { get; set; }
     }
 }

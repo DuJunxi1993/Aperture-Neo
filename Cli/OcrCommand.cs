@@ -199,7 +199,15 @@ public sealed class OcrCommand : Command
         for (int i = 0; i < entries.Count; i++)
         {
             var (path, result) = entries[i];
-            sb.Append("==== ").Append(Path.GetFileName(path)).AppendLine(" ====");
+            // The `==== filename ====` header is only useful when
+            // multiple files are concatenated into one clipboard
+            // payload (otherwise the user knows which file they
+            // just OCR'd). Single-file output omits it to keep the
+            // clipboard contents clean.
+            if (entries.Count > 1)
+            {
+                sb.Append("==== ").Append(Path.GetFileName(path)).AppendLine(" ====");
+            }
             if (result.IsSuccess)
             {
                 successCount++;

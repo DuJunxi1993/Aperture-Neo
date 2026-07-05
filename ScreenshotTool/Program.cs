@@ -4,6 +4,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using ApertureNeo.Plugins.Screenshot;
+using ApertureNeo.Services;
 
 namespace ScreenshotTool;
 
@@ -106,7 +107,14 @@ public static class Program
             try
             {
                 Trace("CaptureAndShowEditor: creating EditorWindow");
-                var editor = new EditorWindow(bitmap);
+                // Share settings with the main app: the same
+                // settings.json under %APPDATA% holds the user's
+                // preferred default save folder. Constructing
+                // SettingsStore directly works because it's a
+                // public, no-DI class — the standalone tool isn't
+                // wired into AppHost's service container.
+                var settings = new SettingsStore();
+                var editor = new EditorWindow(bitmap, settings);
                 Trace("CaptureAndShowEditor: editor.ShowDialog");
                 editor.ShowDialog();
                 Trace("CaptureAndShowEditor: editor closed");

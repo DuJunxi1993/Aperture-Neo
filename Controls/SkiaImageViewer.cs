@@ -380,9 +380,10 @@ public class SkiaImageViewer : FrameworkElement
 
     /// <summary>
     /// Set the zoom factor without animation. The image snaps to
-    /// the new scale, keeping its current offset. Used by slider
-    /// drag (where the user expects an instant response) and by
-    /// external code that needs a deterministic zoom value.
+    /// the new scale and recentres so the bitmap stays in the
+    /// middle of the view as the user drags the slider. Used by
+    /// slider drag (where the user expects an instant response)
+    /// and by external code that needs a deterministic zoom value.
     /// </summary>
     public void SetZoomImmediate(float zoom)
     {
@@ -393,11 +394,31 @@ public class SkiaImageViewer : FrameworkElement
             _animating = false;
             CompositionTarget.Rendering -= OnRendering;
         }
-        _targetOffsetX = _offsetX;
-        _targetOffsetY = _offsetY;
+        // Recentre the bitmap: the user dragging the slider isn't
+        // pointing at any specific image point (unlike the wheel
+        // cursor-anchored zoom), so the natural behaviour is to
+        // keep the image centred at the new scale. Without this
+        // the bitmap drifts off-screen as the user zooms in.
+        CenterImage();
+        _offsetX = _targetOffsetX;
+        _offsetY = _targetOffsetY;
         _dirty = true;
         InvalidateVisual();
         ZoomChanged?.Invoke(_zoom);
+    }
+
+    /// <summary>
+    /// Force the viewer to re-render with the latest overlay. The
+    /// overlay <see cref="SKBitmap"/> is mutated in-place (via
+    /// <see cref="SKCanvas"/>); WPF has no way to know it changed,
+    /// so an explicit dirty + invalidate is required. Without
+    /// this, pen strokes only become visible after a zoom
+    /// change forces a re-render.
+    /// </summary>
+    public void InvalidateOverlay()
+    {
+        _dirty = true;
+        InvalidateVisual();
     }
 
     /// <summary>

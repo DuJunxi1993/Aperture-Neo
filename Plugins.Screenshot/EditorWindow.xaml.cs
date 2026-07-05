@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using ApertureNeo.Services;
 using SkiaSharp;
 
 namespace ApertureNeo.Plugins.Screenshot;
@@ -34,6 +36,7 @@ public partial class EditorWindow : Window
     private readonly SKBitmap _originalSkBitmap;
     private readonly SKBitmap _overlaySkBitmap;
     private readonly int _width, _height;
+    private readonly ISettingsStore? _settings;
 
     private bool _isDrawing;
     private List<SKPoint> _currentStroke = new();
@@ -51,7 +54,7 @@ public partial class EditorWindow : Window
 
     private record StrokeData(List<SKPoint> Points, SKColor Color, float Size);
 
-    public EditorWindow(Bitmap capturedBitmap)
+    public EditorWindow(Bitmap capturedBitmap, ISettingsStore? settings = null)
     {
         InitializeComponent();
 
@@ -67,6 +70,7 @@ public partial class EditorWindow : Window
         Foreground = (System.Windows.Media.Brush)FindResource("TextPrimary");
         FontFamily = (System.Windows.Media.FontFamily)FindResource("FontPrimary");
 
+        _settings = settings;
         _originalBitmap = capturedBitmap;
         _width = capturedBitmap.Width;
         _height = capturedBitmap.Height;
@@ -246,8 +250,36 @@ public partial class EditorWindow : Window
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         using var final = BuildFinalImage();
-        CaptureEngine.SaveToTempPng(final, out var path);
-        StatusText.Text = $"Saved: {path}";
+
+        // Pre-fill the dialog with the user's chosen default
+        // (if any) so the next save is one click faster.
+        var defaultFolder = _settings?.DefaultScreenshotSaveDirectory;
+        var defaultName = $"screenshot-{DateTime.Now:yyyyMMdd-HHmmss}.png";
+
+        var dlg = new SaveDialog(defaultFolder, defaultName) { Owner = this };
+        if (dlg.ShowDialog() != true) return;
+
+        try
+        {
+            // Write the PNG. Using ImageFormat.Png directly (not
+            // SaveToTempPng) because the user picked the path.
+            final.Save(dlg.SelectedPath!, ImageFormat.Png);
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Save failed: {ex.Message}";
+            return;
+        }
+
+        // Persist the chosen folder as the new default. The
+        // SettingsStore schedules a debounced save, so rapid
+        // successive saves don't hammer the disk.
+        if (dlg.DefaultDirectoryToSet != null && _settings != null)
+        {
+            _settings.DefaultScreenshotSaveDirectory = dlg.DefaultDirectoryToSet;
+        }
+
+        StatusText.Text = $"Saved: {dlg.SelectedPath}";
     }
 
     private void Copy_Click(object sender, RoutedEventArgs e)
@@ -361,7 +393,12 @@ public partial class EditorWindow : Window
                 DrawStroke(canvas, new StrokeData(_currentStroke, _currentColor, _currentSize));
             }
         }
-        SkiaViewer.InvalidateVisual();
+        // InvalidateOverlay sets _dirty=true and invalidates; the
+        // regular InvalidateVisual would schedule a redraw but
+        // OnRender's _dirty check would skip the bitmap rebuild,
+        // leaving the overlay change invisible until the next
+        // zoom change.
+        SkiaViewer.InvalidateOverlay();
     }
 
     private static void DrawStroke(SKCanvas canvas, StrokeData stroke)

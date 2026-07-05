@@ -54,6 +54,19 @@ public partial class EditorWindow : Window
     public EditorWindow(Bitmap capturedBitmap)
     {
         InitializeComponent();
+
+        // Set the three resource-backed visual properties in code
+        // rather than as Window XAML attributes. The {StaticResource}
+        // lookups on the <Window> opening tag are evaluated by the
+        // XAML parser *before* <Window.Resources> is processed, so
+        // they fail at parse time even though the resources exist
+        // a few lines below. Resolving them via FindResource after
+        // InitializeComponent runs the lookup at a time when
+        // Window.Resources is fully loaded.
+        Background = (System.Windows.Media.Brush)FindResource("SurfaceCanvas");
+        Foreground = (System.Windows.Media.Brush)FindResource("TextPrimary");
+        FontFamily = (System.Windows.Media.FontFamily)FindResource("FontPrimary");
+
         _originalBitmap = capturedBitmap;
         _width = capturedBitmap.Width;
         _height = capturedBitmap.Height;

@@ -282,6 +282,22 @@ public class SkiaImageViewer : FrameworkElement
     public bool FitToScreenSkipAnimation { get; set; }
 
     /// <summary>
+    /// Tell the viewer the underlying <c>SKBitmap</c>'s pixel data
+    /// changed (e.g. after the editor applied a mosaic stroke
+    /// directly to the source bitmap). Forces the cached
+    /// <c>WriteableBitmap</c> to be re-uploaded on the next render
+    /// pass. <see cref="InvalidateVisual"/> on its own is not enough
+    /// because the <c>_dirty</c> flag short-circuits the re-upload
+    /// when false. The editor calls this after each mosaic stroke so
+    /// the next OnRender actually re-copies the modified source.
+    /// </summary>
+    public void NotifyContentChanged()
+    {
+        _dirty = true;
+        InvalidateVisual();
+    }
+
+    /// <summary>
     /// True when the current zoom is within 1% of the auto-fit scale
     /// (i.e. the image is at "Fit to screen" size). Used by the host
     /// window's double-click handler to toggle Fit ↔ 100%.

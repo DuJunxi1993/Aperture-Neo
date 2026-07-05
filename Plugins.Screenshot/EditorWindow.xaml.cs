@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -6,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using ApertureNeo.Controls.Annotation;
@@ -55,6 +57,21 @@ public partial class EditorWindow : Window
     // that fires ValueChanged which would otherwise call back
     // into SetZoomImmediate. The flag breaks the cycle.
     private bool _suspendSliderUpdate;
+
+    // Pen mode: Color (default) draws strokes into
+    // AnnotationState.OverlayBitmap; Mosaic applies a
+    // pixelation effect directly to the source SKBitmap (and
+    // tracks the original pixel data per stroke for undo).
+    private enum PenMode { Color, Mosaic }
+    private PenMode _penMode = PenMode.Color;
+
+    // Mosaic-mode state: points accumulated during a single
+    // stroke, the per-stroke saved data for undo, and the
+    // bounding box of the most recent in-flight stroke (so
+    // MouseUp can target just that rect, not the full image).
+    private readonly List<SKPoint> _mosaicStrokePoints = new();
+    private readonly List<(SKRectI Rect, byte[] OriginalData)> _mosaicHistory = new();
+    private SKRectI _mosaicCurrentRect;
 
     public EditorWindow(Bitmap capturedBitmap, ISettingsStore? settings = null)
     {
@@ -118,31 +135,35 @@ public partial class EditorWindow : Window
         SkiaViewer.ZoomChanged += OnSkiaZoomChanged;
         OnSkiaZoomChanged(SkiaViewer.Zoom);
 
+        // Initial pen mode is Color (matches the RadioButton's
+        // IsChecked="True" in the segmented control). Make sure
+        // the color picker is enabled accordingly.
+        SetColorPickerEnabled(true);
+
         UpdateStatus();
     }
 
     /// <summary>
     /// Self-managed window drag (matches the main app's title bar
-    /// drag-move). P5: with WindowStyle=None + WindowChrome, the
-    /// window has no system caption to drag, so the top bar
-    /// handles MouseLeftButtonDown → DragMove. Double-click
-    /// toggles maximize (matches the main app's title bar
-    /// behavior). If the click originated on a button (so
-    /// clicking the button still works), let the button handle
-    /// the click instead of starting a drag.
+    /// drag-move). The handler is on the TOP BAR Border (not the
+    /// whole window) so viewer clicks don't trigger drag-move at
+    /// all. If the click originated on a button (or button's
+    /// content — the visual tree walk doesn't reach the button
+    /// for templated controls, so also check TemplatedParent),
+    /// let the button handle the click instead of starting a drag.
+    /// Double-click toggles maximize.
     /// </summary>
-    private void Window_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    private void TopBar_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
-        // Let interactive children handle their own clicks first.
-        if (e.OriginalSource is DependencyObject src)
-        {
-            DependencyObject? walker = src;
-            while (walker != null && walker != this)
-            {
-                if (walker is System.Windows.Controls.Primitives.ButtonBase) return;
-                walker = System.Windows.Media.VisualTreeHelper.GetParent(walker);
-            }
-        }
+        // Skip drag if the click originated on a button (directly
+        // or via its template's content). OriginalSource can be the
+        // Button itself, or a child of the Button's template
+        // (ContentPresenter / TextBlock for text buttons, or
+        // Ellipse / Grid for the color circle style). The visual
+        // tree walk finds the Button for direct hits; the
+        // TemplatedParent check catches the rest.
+        if (e.OriginalSource is ButtonBase) return;
+        if (e.OriginalSource is FrameworkElement fe && fe.TemplatedParent is ButtonBase) return;
 
         if (e.ClickCount == 2)
         {
@@ -151,6 +172,38 @@ public partial class EditorWindow : Window
         }
 
         try { DragMove(); } catch { /* released outside the window — safe to ignore */ }
+    }
+
+    /// <summary>Toggle PenType between Color and Mosaic. In
+    /// Mosaic mode the color picker is grayed out (IsEnabled=false
+    /// — the default RadioButton disabled visual applies opacity);
+    /// the size selector stays enabled because its value means
+    /// "mosaic block size" in mosaic mode.</summary>
+    private void PenModeColor_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_penMode == PenMode.Color) return;
+        _penMode = PenMode.Color;
+        SetColorPickerEnabled(true);
+        UpdateStatus();
+    }
+
+    private void PenModeMosaic_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_penMode == PenMode.Mosaic) return;
+        _penMode = PenMode.Mosaic;
+        SetColorPickerEnabled(false);
+        UpdateStatus();
+    }
+
+    private void SetColorPickerEnabled(bool enabled)
+    {
+        ColorRedBtn.IsEnabled = enabled;
+        ColorOrangeBtn.IsEnabled = enabled;
+        ColorYellowBtn.IsEnabled = enabled;
+        ColorGreenBtn.IsEnabled = enabled;
+        ColorBlueBtn.IsEnabled = enabled;
+        ColorBlackBtn.IsEnabled = enabled;
+        ColorWhiteBtn.IsEnabled = enabled;
     }
 
     private void ToggleMaximize()
@@ -211,6 +264,12 @@ public partial class EditorWindow : Window
 
     private void ColorBtn_Click(object sender, RoutedEventArgs e)
     {
+        // In mosaic mode the color picker is disabled (ColorBtn
+        // is grayed out, so the user can't even reach this
+        // handler), but we still gate here for safety — e.g. if
+        // the user toggles Color → Mosaic mid-stroke.
+        if (_penMode == PenMode.Mosaic) return;
+
         // XAML uses RadioButton (which has GroupName for the
         // mutually-exclusive color group), but RadioButton is
         // a ToggleButton subclass, so the cast still works.
@@ -230,16 +289,43 @@ public partial class EditorWindow : Window
 
     private void Clear_Click(object sender, RoutedEventArgs e)
     {
-        _annotationState.Clear();
-        _strokeCount = 0;
+        if (_penMode == PenMode.Mosaic)
+        {
+            // Undo all mosaic strokes in reverse order. Order
+            // matters: later strokes are on top of earlier ones,
+            // so reverting them first preserves the earlier stroke
+            // for the next revert.
+            for (int i = _mosaicHistory.Count - 1; i >= 0; i--)
+            {
+                RestoreMosaicData(_mosaicHistory[i].Rect, _mosaicHistory[i].OriginalData);
+            }
+            _mosaicHistory.Clear();
+            SkiaViewer.NotifyContentChanged();
+        }
+        else
+        {
+            _annotationState.Clear();
+            _strokeCount = 0;
+        }
         UpdateStatus();
     }
 
     private void Undo_Click(object sender, RoutedEventArgs e)
     {
-        if (_annotationState.CommittedStrokes.Count == 0) return;
-        _annotationState.Undo();
-        _strokeCount = _annotationState.CommittedStrokes.Count;
+        if (_penMode == PenMode.Mosaic)
+        {
+            if (_mosaicHistory.Count == 0) return;
+            var (rect, data) = _mosaicHistory[^1];
+            _mosaicHistory.RemoveAt(_mosaicHistory.Count - 1);
+            RestoreMosaicData(rect, data);
+            SkiaViewer.NotifyContentChanged();
+        }
+        else
+        {
+            if (_annotationState.CommittedStrokes.Count == 0) return;
+            _annotationState.Undo();
+            _strokeCount = _annotationState.CommittedStrokes.Count;
+        }
         UpdateStatus();
     }
 
@@ -251,9 +337,26 @@ public partial class EditorWindow : Window
     {
         var pt = ToImageCoords(e.GetPosition(PenCanvas));
         if (pt == null) return;
-        _isDrawing = true;
-        _annotationState.BeginStroke();
-        _annotationState.ExtendStroke(pt.Value);
+
+        if (_penMode == PenMode.Mosaic)
+        {
+            // Start tracking the stroke path; MouseUp applies the
+            // mosaic to the bounding box. We don't capture the
+            // original data yet — that's done on MouseUp against
+            // the post-mosaic-pre-state of the rect (which may have
+            // been touched by earlier strokes; undo captures
+            // whatever was there before this stroke, then we
+            // apply on top).
+            _mosaicStrokePoints.Clear();
+            _mosaicStrokePoints.Add(pt.Value);
+            _isDrawing = true;
+        }
+        else
+        {
+            _isDrawing = true;
+            _annotationState.BeginStroke();
+            _annotationState.ExtendStroke(pt.Value);
+        }
         PenCanvas.CaptureMouse();
     }
 
@@ -263,7 +366,15 @@ public partial class EditorWindow : Window
         if (e.LeftButton != MouseButtonState.Pressed) return;
         var pt = ToImageCoords(e.GetPosition(PenCanvas));
         if (pt == null) return;
-        _annotationState.ExtendStroke(pt.Value);
+
+        if (_penMode == PenMode.Mosaic)
+        {
+            _mosaicStrokePoints.Add(pt.Value);
+        }
+        else
+        {
+            _annotationState.ExtendStroke(pt.Value);
+        }
     }
 
     private void PenCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -271,9 +382,143 @@ public partial class EditorWindow : Window
         if (!_isDrawing) return;
         _isDrawing = false;
         PenCanvas.ReleaseMouseCapture();
-        _annotationState.CommitStroke();
-        _strokeCount = _annotationState.CommittedStrokes.Count;
+
+        if (_penMode == PenMode.Mosaic)
+        {
+            ApplyMosaicStroke();
+        }
+        else
+        {
+            _annotationState.CommitStroke();
+            _strokeCount = _annotationState.CommittedStrokes.Count;
+        }
         UpdateStatus();
+    }
+
+    /// <summary>
+    /// Apply a mosaic to the bounding box of the most recent
+    /// stroke. Block size = current size value (which the size
+    /// radio buttons expose; the same value that drives pen
+    /// stroke width in color mode). Captures the rect's original
+    /// pixel data so Undo can restore it; applies the pixelation
+    /// to <c>_originalSkBitmap</c> directly; and notifies the
+    /// viewer to re-render the new pixels.
+    /// </summary>
+    private void ApplyMosaicStroke()
+    {
+        if (_mosaicStrokePoints.Count == 0) return;
+
+        // Compute bounding box of all stroke points (in image
+        // coordinates, integer pixels).
+        int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+        foreach (var p in _mosaicStrokePoints)
+        {
+            int x = (int)Math.Round(p.X);
+            int y = (int)Math.Round(p.Y);
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+        }
+        if (maxX < minX || maxY < minY) return;
+
+        int blockSize = Math.Max(2, (int)Math.Round(_annotationState.CurrentSize));
+
+        // Block-align the rect so the mosaic grid is consistent
+        // across overlapping strokes.
+        int x0 = (minX / blockSize) * blockSize;
+        int y0 = (minY / blockSize) * blockSize;
+        int x1 = ((maxX + blockSize) / blockSize) * blockSize;
+        int y1 = ((maxY + blockSize) / blockSize) * blockSize;
+        x0 = Math.Max(0, x0);
+        y0 = Math.Max(0, y0);
+        x1 = Math.Min(_width, x1);
+        y1 = Math.Min(_height, y1);
+        if (x1 <= x0 || y1 <= y0) return;
+
+        var rect = new SKRectI(x0, y0, x1, y1);
+        int w = rect.Width;
+        int h = rect.Height;
+        int stride = w * 4;
+        var original = new byte[stride * h];
+
+        // Capture the rect's pre-mosaic pixel data (BGRA8888).
+        // _originalSkBitmap.GetPixel reads each pixel — slower
+        // than pointer access, but fine for typical screenshot
+        // rect sizes.
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                var c = _originalSkBitmap.GetPixel(rect.Left + x, rect.Top + y);
+                int idx = y * stride + x * 4;
+                original[idx + 0] = c.Blue;
+                original[idx + 1] = c.Green;
+                original[idx + 2] = c.Red;
+                original[idx + 3] = c.Alpha;
+            }
+        }
+
+        // Apply the mosaic: for each block, average the pixels
+        // (as captured — i.e. the current state, not the
+        // original), then write that average to every pixel in
+        // the block. The result is a pixelated region that
+        // overlays the current image content.
+        for (int by = 0; by < h; by += blockSize)
+        {
+            int bh = Math.Min(blockSize, h - by);
+            for (int bx = 0; bx < w; bx += blockSize)
+            {
+                int bw = Math.Min(blockSize, w - bx);
+                long sumB = 0, sumG = 0, sumR = 0, sumA = 0;
+                int count = 0;
+                for (int py = 0; py < bh; py++)
+                {
+                    for (int px = 0; px < bw; px++)
+                    {
+                        int idx = (by + py) * stride + (bx + px) * 4;
+                        sumB += original[idx + 0];
+                        sumG += original[idx + 1];
+                        sumR += original[idx + 2];
+                        sumA += original[idx + 3];
+                        count++;
+                    }
+                }
+                var avg = new SKColor(
+                    (byte)(sumR / count), (byte)(sumG / count),
+                    (byte)(sumB / count), (byte)(sumA / count));
+                for (int py = 0; py < bh; py++)
+                {
+                    for (int px = 0; px < bw; px++)
+                    {
+                        int imgX = rect.Left + bx + px;
+                        int imgY = rect.Top + by + py;
+                        _originalSkBitmap.SetPixel(imgX, imgY, avg);
+                    }
+                }
+            }
+        }
+
+        _mosaicHistory.Add((rect, original));
+        SkiaViewer.NotifyContentChanged();
+    }
+
+    private void RestoreMosaicData(SKRectI rect, byte[] data)
+    {
+        int w = rect.Width;
+        int h = rect.Height;
+        int stride = w * 4;
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int idx = y * stride + x * 4;
+                var c = new SKColor(
+                    (byte)data[idx + 2], (byte)data[idx + 1],
+                    (byte)data[idx + 0], (byte)data[idx + 3]);
+                _originalSkBitmap.SetPixel(rect.Left + x, rect.Top + y, c);
+            }
+        }
     }
 
     private void PenCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
@@ -399,6 +644,18 @@ public partial class EditorWindow : Window
         Close();
     }
 
+    /// <summary>Close (X) button. Same effect as Cancel — discards
+    /// the current edit without saving. Kept as a separate handler
+    /// for visual-semantic clarity (X = close-window affordance,
+    /// Cancel = discard action); both end up closing the dialog
+    /// with DialogResult=false so the host knows nothing was
+    /// committed.</summary>
+    private void Close_Click(object sender, RoutedEventArgs e)
+    {
+        DialogResult = false;
+        Close();
+    }
+
     private void Ok_Click(object sender, RoutedEventArgs e)
     {
         // Done = copy to clipboard + close. Saving to disk is
@@ -507,7 +764,11 @@ public partial class EditorWindow : Window
     private void UpdateStatus()
     {
         var mode = (PenToggle.IsChecked == true) ? "Pen" : "View";
-        StatusText.Text = $"{mode} · {_strokeCount} stroke(s) · {_width}×{_height} · {FormatZoom(SkiaViewer.Zoom)}";
+        var type = _penMode == PenMode.Mosaic ? "Mosaic" : "Color";
+        var strokeInfo = _penMode == PenMode.Mosaic
+            ? $"{_mosaicHistory.Count} mosaic"
+            : $"{_strokeCount} stroke(s)";
+        StatusText.Text = $"{mode} · {type} · {strokeInfo} · {_width}×{_height} · {FormatZoom(SkiaViewer.Zoom)}";
     }
 
     private static string FormatZoom(float zoom) => $"{Math.Round(zoom * 100)}%";

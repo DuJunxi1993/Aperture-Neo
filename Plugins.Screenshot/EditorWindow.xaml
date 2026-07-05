@@ -12,15 +12,8 @@
         TextOptions.TextFormattingMode="Ideal"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
-        Loaded="Window_Loaded"
-        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+        Loaded="Window_Loaded">
 
-    <!-- P5: chrome-less window matching the main app's title
-         bar. CaptionHeight=44 keeps a non-zero drag region (a
-         zero caption would disable WindowChrome drag), and
-         UseAeroCaptionButtons=False hides the system min/max/
-         close glyphs (we don't render our own in the editor —
-         Cancel in the top bar is the only close-style action). -->
     <WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="44"
                             CornerRadius="0"
@@ -38,33 +31,36 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <Border BorderBrush="#FFBBBBBB" BorderThickness="1">
+    <!-- Outer rounded container. Background = SurfaceCanvas
+         (so the rounded shape is opaque, not transparent),
+         CornerRadius = 8 = RadiusCard (matches the OCR window
+         and the main app's RadiusCard token), BorderBrush =
+         BorderStrong (#FFBBBBBB, the same 1px hairline the OCR
+         window uses, sampled to match the OS-chrome border on
+         MainWindow). ClipToBounds clips the inner content to the
+         rounded shape so the inner controls' rectangular
+         backgrounds don't poke out past the corners. -->
+    <Border Background="#FFfafafa" BorderBrush="#FFBBBBBB" BorderThickness="1"
+            CornerRadius="8" ClipToBounds="True">
         <Grid>
             <Grid.RowDefinitions>
-                <!-- Top bar (formerly the title bar / pen
-                     column). Pen toggle, color picker, size picker,
-                     Clear / Undo, then Save / Cancel on the right.
-                     Same Linear tokens as the rest of the app. -->
                 <RowDefinition Height="Auto"/>
-                <!-- Viewer + pen-canvas overlay area. -->
                 <RowDefinition Height="*"/>
-                <!-- Bottom bar: status text on the left, zoom
-                     controls centered, Copy / OCR / Done anchored
-                     to the right. As the window shrinks, the
-                     status text compresses first (TextTrimming),
-                     the zoom slider narrows, and the Copy / OCR /
-                     Done cluster stays at content width. -->
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Row 0: top bar (Linear style, replaces the title
-                 bar). Background = SurfacePanel (same as the main
-                 app's title bar); 1px hairline at the bottom. -->
+            <!-- Row 0: top bar (formerly the title bar). Linear
+                 style. Pen toggle + Pen-type segmented control +
+                 color + size + Clear / Undo (center, fill) + Copy /
+                 Save / Cancel / Close (right). MouseLeftButtonDown
+                 is on the top-bar Border (NOT the Window) so
+                 viewer clicks don't trigger drag-move. -->
             <Border Grid.Row="0"
                     Background="#FFf4f4f5"
                     BorderBrush="#12000000"
                     BorderThickness="0,0,0,1"
-                    Padding="16,8">
+                    Padding="16,8"
+                    MouseLeftButtonDown="TopBar_MouseLeftButtonDown">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -72,15 +68,52 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Pen mode toggle (left). -->
-                    <ToggleButton Grid.Column="0" x:Name="PenToggle" Content="Pen"
-                                  Style="{StaticResource LinearToolToggle}"
-                                  IsChecked="True"
-                                  Click="PenToggle_Click"/>
+                    <!-- Left: pen mode toggle + pen type
+                         (Color / Mosaic) segmented control.
+                         MouseLeftButtonDown is on the parent
+                         Border, so these buttons' own clicks are
+                         consumed by the parent's handler and don't
+                         trigger a drag. The parent handler checks
+                         for ButtonBase / TemplatedParent is
+                         ButtonBase to skip drag in that case. -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal"
+                                VerticalAlignment="Center">
+                        <ToggleButton x:Name="PenToggle" Content="Pen"
+                                      Style="{StaticResource LinearToolToggle}"
+                                      IsChecked="True"
+                                      Click="PenToggle_Click"/>
+                        <!-- Segmented control: Color (default) or
+                             Mosaic. In mosaic mode the color picker
+                             below is grayed out via ColorBtn IsEnabled;
+                             the size selector stays active (it
+                             controls the mosaic block size). OCR-style
+                             container: 1px outline + 6px corners + 2px
+                             inner padding around the two items. -->
+                        <Border Margin="6,0,0,0"
+                                BorderBrush="#1F000000" BorderThickness="1"
+                                CornerRadius="6"
+                                Background="#FFf4f4f5"
+                                Padding="2">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton x:Name="PenModeColor" GroupName="PenMode"
+                                             Content="Color"
+                                             Style="{StaticResource LinearSegmentedItem}"
+                                             IsChecked="True"
+                                             Checked="PenModeColor_Checked"/>
+                                <RadioButton x:Name="PenModeMosaic" GroupName="PenMode"
+                                             Content="Mosaic"
+                                             Style="{StaticResource LinearSegmentedItem}"
+                                             Checked="PenModeMosaic_Checked"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
 
-                    <!-- Drawing tools: color picker + size picker
-                         + Clear / Undo (center, fill the space
-                         between Pen and Save/Cancel). -->
+                    <!-- Center: color picker + size + Clear / Undo.
+                         When PenMode = Mosaic, the color buttons
+                         are IsEnabled=false (grayed out by the
+                         default RadioButton disabled visual). Size
+                         stays enabled because the size value means
+                         "mosaic block size" in mosaic mode. -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal"
                                 Margin="16,0,16,0">
                         <TextBlock Text="颜色" Style="{StaticResource LinearSubtleLabel}" Margin="0,0,8,0"
@@ -89,22 +122,22 @@
                                       GroupName="PenColor" IsChecked="True"
                                       Tag="#FFE11D48"
                                       Click="ColorBtn_Click"
-                                      Style="{StaticResource LinearColorCircle}"/>
+                                      Style="{DynamicResource LinearColorCircle}"/>
                         <RadioButton x:Name="ColorOrangeBtn" Width="22" Height="22" Margin="0,0,4,0"
                                       GroupName="PenColor"
                                       Tag="#FFEA580C"
                                       Click="ColorBtn_Click"
-                                      Style="{StaticResource LinearColorCircle}"/>
+                                      Style="{DynamicResource LinearColorCircle}"/>
                         <RadioButton x:Name="ColorYellowBtn" Width="22" Height="22" Margin="0,0,4,0"
                                       GroupName="PenColor"
                                       Tag="#FFEAB308"
                                       Click="ColorBtn_Click"
-                                      Style="{StaticResource LinearColorCircle}"/>
+                                      Style="{DynamicResource LinearColorCircle}"/>
                         <RadioButton x:Name="ColorGreenBtn" Width="22" Height="22" Margin="0,0,4,0"
                                       GroupName="PenColor"
                                       Tag="#FF16A34A"
                                       Click="ColorBtn_Click"
-                                      Style="{StaticResource LinearColorCircle}"/>
+                                      Style="{DynamicResource LinearColorCircle}"/>
                         <RadioButton x:Name="ColorBlueBtn" Width="22" Height="22" Margin="0,0,4,0"
                                       GroupName="PenColor"
                                       Tag="#FF2563EB"
@@ -149,12 +182,26 @@
                                 Margin="6,0,0,0" Click="Undo_Click"/>
                     </StackPanel>
 
-                    <!-- Save + Cancel (right). -->
+                    <!-- Right: Copy / Save / Cancel / Close.
+                         Close uses LinearCloseIconButton (red wash
+                         on hover) matching the main app / OCR
+                         window's close-button visual. -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal">
-                        <Button Content="保存" Style="{DynamicResource LinearPrimaryButton}"
-                                Click="Save_Click"/>
-                        <Button Content="取消" Style="{DynamicResource LinearDestructiveButton}"
+                        <Button x:Name="CopyBtn" Content="Copy"
+                                Style="{DynamicResource LinearToolButton}"
+                                Click="Copy_Click"/>
+                        <Button x:Name="SaveBtn" Content="保存"
+                                Style="{DynamicResource LinearPrimaryButton}"
+                                Margin="6,0,0,0" Click="Save_Click"/>
+                        <Button x:Name="CancelBtn" Content="取消"
+                                Style="{DynamicResource LinearDestructiveButton}"
                                 Margin="6,0,0,0" Click="Cancel_Click"/>
+                        <Button x:Name="CloseBtn" Width="28" Height="28" Margin="6,0,0,0"
+                                Style="{StaticResource LinearCloseIconButton}"
+                                Click="Close_Click">
+                            <TextBlock Text="×" FontSize="16" FontWeight="400"
+                                       VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -170,11 +217,11 @@
                         MouseWheel="PenCanvas_MouseWheel"/>
             </Grid>
 
-            <!-- Row 2: bottom bar. Status text (left, auto-sized by
-                 content, clips to ellipsis when window shrinks) |
-                 zoom controls (Fill, centered) | Copy / OCR / Done
-                 (right, fixed at content width). Copy / OCR / Done
-                 always visible — that's the priority. -->
+            <!-- Row 2: bottom bar. Status (left, Width=0.3*,
+                 MinWidth=60) | zoom (center, Width=*) | OCR
+                 (right, Width=Auto). Done removed (Copy moved to
+                 top bar; user clicks Save or Cancel at the top
+                 when done). -->
             <Border Grid.Row="2"
                     Background="#FFf4f4f5"
                     BorderBrush="#12000000"
@@ -182,11 +229,6 @@
                     Padding="16,6">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <!-- Status: 0.3* so it gets less space than
-                             zoom, compressing first when the parent
-                             shrinks. MinWidth=0 + TextTrimming means
-                             the text collapses to ellipsis before
-                             anything else is forced smaller. -->
                         <ColumnDefinition Width="0.3*" MinWidth="60"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
@@ -226,19 +268,9 @@
                                 Click="ZoomInBtn_Click"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="2" Orientation="Horizontal">
-                        <Button x:Name="CopyBtn" Content="Copy"
-                                Style="{DynamicResource LinearToolButton}"
-                                Click="Copy_Click"/>
-                        <Button x:Name="OcrBtn" Content="OCR"
-                                Style="{DynamicResource LinearToolButton}"
-                                Margin="6,0,0,0"
-                                Click="Ocr_Click"/>
-                        <Button x:Name="OkBtn" Content="Done"
-                                Style="{DynamicResource LinearPrimaryButton}"
-                                Margin="6,0,0,0"
-                                Click="Ok_Click"/>
-                    </StackPanel>
+                    <Button Grid.Column="2" x:Name="OcrBtn" Content="OCR"
+                            Style="{DynamicResource LinearToolButton}"
+                            Click="Ocr_Click"/>
                 </Grid>
             </Border>
         </Grid>

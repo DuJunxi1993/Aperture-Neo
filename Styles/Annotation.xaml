@@ -359,4 +359,91 @@
         <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
     </Style>
 
+    <!-- Linear Close Icon Button (28×28, subtle red wash on hover/press).
+         Mirrors Plugins.Ocr.Ui/DesignTokens.xaml's LinearCloseIconButton
+         — replicated here as a literal-color variant because the OCR
+         tokens live in a different assembly and the editor can't
+         reliably load them via MergedDictionary (cross-assembly
+         StaticResource fallback is unreliable, as the previous
+         StaticResource-not-found errors taught us). The red wash +
+         red glyph on hover is the only "danger" affordance in the
+         editor, so it's recognisable enough on its own. -->
+    <Style x:Key="LinearCloseIconButton" TargetType="Button" BasedOn="{StaticResource LinearToolButton}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#1AE81123"/>
+                            <Setter Property="Foreground" Value="#FFef4444"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#3CE81123"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Linear Segmented Item: a single RadioButton inside a
+         pill-shaped container. Selection gives the brand-tinted
+         indigo background. Mirrors the OCR window's 换行/不换行
+         and 有空格/清除空格 segmented controls (Plugins.Ocr.Ui
+         /DesignTokens.xaml's LinearSegmentedItem). Replicated
+         locally for the same cross-assembly reason as
+         LinearCloseIconButton above. The container Border
+         (1px hairline + 6px corner + 2px inner padding) is built
+         in the consumer XAML, not here, so the segmented
+         control can be reused with different option sets. -->
+    <Style x:Key="LinearSegmentedItem" TargetType="RadioButton">
+        <Setter Property="FontFamily" Value="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="600"/>
+        <Setter Property="Foreground" Value="#FF4a4a52"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="12,4"/>
+        <Setter Property="MinHeight" Value="24"/>
+        <Setter Property="MinWidth" Value="56"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="#FF1a1a1a"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#FFe0e1ff"/>
+                            <Setter Property="Foreground" Value="#FF3a4099"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

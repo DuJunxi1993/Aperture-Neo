@@ -149,8 +149,13 @@
     </Style>
 
     <!-- Linear Pen Size Toggle: small (26x26) toggle button. Used
-         for the 2/4/8/12/20 pen size selector in the toolbar. -->
-    <Style x:Key="LinearPenSizeToggle" TargetType="ToggleButton" BasedOn="{StaticResource LinearToolButton}">
+         for the 2/4/8/12/20 pen size selector in the toolbar.
+         BasedOn LinearToolToggle (not LinearToolButton) because
+         the style is applied to RadioButton (which is a
+         ToggleButton subclass, not a Button). WPF rejects a
+         based-on chain whose TargetType is not a base of the
+         consumer's type. -->
+    <Style x:Key="LinearPenSizeToggle" TargetType="ToggleButton" BasedOn="{StaticResource LinearToolToggle}">
         <Setter Property="Width" Value="26"/>
         <Setter Property="Height" Value="26"/>
         <Setter Property="MinHeight" Value="26"/>

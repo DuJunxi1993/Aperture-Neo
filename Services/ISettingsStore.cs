@@ -40,6 +40,17 @@ public interface ISettingsStore
     /// </summary>
     string? DefaultScreenshotSaveDirectory { get; set; }
 
+    /// <summary>
+    /// P5: when true, the screenshot editor's OCR button opens
+    /// <c>OcrResultWindow</c> in addition to copying to clipboard
+    /// and showing a toast. When false (default), only clipboard
+    /// + toast (the "fast" path — the user can always re-OCR via
+    /// the OCR plugin menu if they want the full window).
+    /// Controlled by the "OCR 显示结果窗口" CheckBox in the
+    /// 插件 submenu. Persisted across sessions.
+    /// </summary>
+    bool EditorOcrShowWindow { get; set; }
+
     /// <summary>Raised after a successful Add/RemoveFavorite.</summary>
     event Action? FavoritesChanged;
 

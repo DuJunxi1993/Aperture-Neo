@@ -1,8 +1,8 @@
-<Window x:Class="ApertureNeo.Plugins.Screenshot.SaveDialog"
+<Window x:Class="ApertureNeo.Controls.Annotation.SaveDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="保存截图" Width="540" Height="230"
-        MinWidth="540" MinHeight="230"
+        Title="保存图片" Width="560" Height="240"
+        MinWidth="560" MinHeight="240"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
@@ -16,10 +16,11 @@
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <!-- Reuse the editor's Linear styles. The dialog is
-                     short-lived so we don't need a separate cached
-                     style dictionary. -->
-                <ResourceDictionary Source="EditorStyles.xaml"/>
+                <!-- Reuse the editor Linear styles. Loaded by pack
+                     URI so the standalone ScreenshotTool.exe
+                     resolves them from the main app assembly. -->
+                <ResourceDictionary Source="/ApertureNeo;component/DesignTokens.xaml"/>
+                <ResourceDictionary Source="/ApertureNeo;component/Styles/Annotation.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Window.Resources>
@@ -34,15 +35,15 @@
         </Grid.RowDefinitions>
 
         <!-- Folder row: editable path + Browse button. -->
-        <TextBlock Grid.Row="0" Text="保存到" Style="{StaticResource LinearSubtleLabel}"
+        <TextBlock Grid.Row="0" Text="保存到" Style="{DynamicResource LinearSubtleLabel}"
                    VerticalAlignment="Center"/>
         <DockPanel Grid.Row="1" Margin="0,4,0,12">
             <Button DockPanel.Dock="Right" Content="浏览…"
-                    Style="{StaticResource LinearToolButton}"
+                    Style="{DynamicResource LinearToolButton}"
                     Width="68" Margin="6,0,0,0" Click="Browse_Click"/>
             <TextBox x:Name="FolderBox"
                      Background="Transparent"
-                     BorderBrush="{StaticResource BorderStandard}"
+                     BorderBrush="{DynamicResource BorderStandard}"
                      BorderThickness="1"
                      Padding="8,6"
                      FontSize="13"
@@ -50,27 +51,35 @@
         </DockPanel>
 
         <!-- Filename row. -->
-        <TextBlock Grid.Row="2" Text="文件名" Style="{StaticResource LinearSubtleLabel}"
+        <TextBlock Grid.Row="2" Text="文件名" Style="{DynamicResource LinearSubtleLabel}"
                    VerticalAlignment="Center"/>
         <TextBox x:Name="FilenameBox" Grid.Row="3" Margin="0,4,0,16"
                  Background="Transparent"
-                 BorderBrush="{StaticResource BorderStandard}"
+                 BorderBrush="{DynamicResource BorderStandard}"
                  BorderThickness="1"
                  Padding="8,6"
                  FontSize="13"
                  VerticalContentAlignment="Center"/>
 
-        <!-- Checkbox + buttons. -->
+        <!-- Checkbox + buttons row. Two save actions:
+                - 另存为...  (default, always available)
+                - 覆盖原图   (only when currentFilePath is set,
+                                which means we're invoked from the
+                                main viewer on an existing image) -->
         <DockPanel Grid.Row="4" LastChildFill="False">
             <CheckBox x:Name="SetDefaultCheck" Content="设为默认保存目录"
                       VerticalAlignment="Center"
                       FontSize="12"
-                      Foreground="{StaticResource TextSecondary}"/>
+                      Foreground="{DynamicResource TextSecondary}"/>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                <Button Content="取消" Style="{StaticResource LinearToolButton}"
-                        Width="72" Click="Cancel_Click"/>
-                <Button Content="保存" Style="{StaticResource LinearPrimaryButton}"
-                        Width="72" Margin="6,0,0,0" IsDefault="True" Click="Save_Click"/>
+                <Button x:Name="OverwriteBtn" Content="覆盖原图"
+                        Style="{DynamicResource LinearDestructiveButton}"
+                        Click="Overwrite_Click"
+                        Width="84"/>
+                <Button Content="另存为…" Style="{DynamicResource LinearPrimaryButton}"
+                        Width="84" Margin="6,0,0,0" IsDefault="True" Click="SaveAs_Click"/>
+                <Button Content="取消" Style="{DynamicResource LinearToolButton}"
+                        Width="64" Margin="6,0,0,0" Click="Cancel_Click"/>
             </StackPanel>
         </DockPanel>
     </Grid>

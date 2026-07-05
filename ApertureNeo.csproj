@@ -159,6 +159,31 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+
+    <!-- P5: shared annotation library (used by the screenshot
+         editor and the main app's annotation mode in the image
+         viewer). The styles/Annotation.xaml dictionary is loaded
+         by both the editor (via pack URI in EditorWindow.xaml) and
+         the host controls in the main app. -->
+    <Page Include="Controls\Annotation\AnnotationOverlay.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\Annotation\SaveDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+
+  <!-- P5: shared resource dictionary for the annotation UI.
+       Loaded by EditorWindow.xaml (via pack URI) and by the
+       AnnotationOverlay/SaveDialog via MergedDictionaries on
+       their own Window.Resources. -->
+  <ItemGroup>
+    <Page Include="Styles\Annotation.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
   </ItemGroup>
 
   <!-- Resource dictionaries (loaded as MergedDictionaries from App.xaml) -->

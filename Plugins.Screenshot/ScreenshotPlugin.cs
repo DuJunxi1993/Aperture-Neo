@@ -37,6 +37,27 @@ public sealed class ScreenshotPlugin : IPluginModule
         };
         fullItem.Click += (_, _) => LaunchStandalone("--fullscreen");
         context.ViewSlot(ShellRegions.ViewerContextMenu, fullItem);
+
+        // P5: 插件子菜单 toggle,控制 editor OCR 按钮的行为。
+        // 勾选时 editor 点 OCR 会弹 OcrResultWindow;不勾选
+        // 只复制到剪贴板 + StatusText 提示。状态持久化到
+        // settings.json(主程序和 standalone 共享)。
+        var settings = context.GetService<ISettingsStore>();
+        if (settings != null)
+        {
+            var ocrWindowItem = new MenuItem
+            {
+                Header = "OCR 显示结果窗口",
+                Tag = this,
+                IsCheckable = true,
+                IsChecked = settings.EditorOcrShowWindow,
+            };
+            ocrWindowItem.Click += (_, _) =>
+            {
+                settings.EditorOcrShowWindow = ocrWindowItem.IsChecked;
+            };
+            context.ViewSlot(ShellRegions.TitleBarMenu, ocrWindowItem);
+        }
     }
 
     public void Deactivate()

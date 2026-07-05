@@ -44,8 +44,23 @@ public partial class FloatingBarViewModel : ObservableObject
         {
             if (e.PropertyName == nameof(IUiState.CurrentZoom))
                 ZoomText = $"{_uiState.CurrentZoom * 100:F0}%";
+            // P5: hide the floating bar while the user is in
+            // annotation mode (the AnnotationOverlay at the top
+            // takes over the toolbar role and the bar would
+            // fight the pen for the bottom edge).
+            else if (e.PropertyName == nameof(IUiState.IsAnnotating))
+                OnPropertyChanged(nameof(IsVisible));
         };
     }
+
+    /// <summary>
+    /// P5: drives the bar's Visibility. False when the user is
+    /// annotating (the AnnotationOverlay at the top of the
+    /// viewer takes over). The View binds Visibility to this
+    /// property (with a BoolToVisibility converter already in
+    /// App.xaml).
+    /// </summary>
+    public bool IsVisible => !_uiState.IsAnnotating;
 
     /// <summary>Called by MainWindow after ViewerPanel.ImageViewerRef
     /// is available. The same instance is also handed to

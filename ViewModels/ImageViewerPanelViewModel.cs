@@ -5,8 +5,10 @@ using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ApertureNeo.Controls;
+using ApertureNeo.Controls.Annotation;
 using ApertureNeo.Models;
 using ApertureNeo.Services;
+using SkiaSharp;
 
 namespace ApertureNeo.ViewModels;
 
@@ -28,6 +30,7 @@ public partial class ImageViewerPanelViewModel : ObservableObject
 {
     private readonly INavigationService _navigation;
     private readonly IUiState _uiState;
+    private readonly ISettingsStore? _settings;
     private SkiaImageViewer? _viewer;
     // P1 fix: timestamp of the last double-click action. Used to
     // debounce rapid additional clicks that WPF reports as part
@@ -44,10 +47,21 @@ public partial class ImageViewerPanelViewModel : ObservableObject
     // call ever returns 0 (which shouldn't happen on Windows).
     private static readonly int _doubleClickTimeMs = GetCachedDoubleClickTime();
 
-    public ImageViewerPanelViewModel(INavigationService navigation, IUiState uiState)
+    // P5: annotation mode. Local source of truth; mirrored to
+    // IUiState.IsAnnotating so the FloatingBar can hide and the
+    // annotation toolbar's Visibility binding reacts.
+    [ObservableProperty] private bool _isAnnotating;
+
+    // P5: the shared annotation state. Recreated on image
+    // change (the OverlayBitmap is dimension-bound). Bound to
+    // the AnnotationOverlay's State DP via XAML.
+    [ObservableProperty] private AnnotationState? _annotationState;
+
+    public ImageViewerPanelViewModel(INavigationService navigation, IUiState uiState, ISettingsStore? settings = null)
     {
         _navigation = navigation;
         _uiState = uiState;
+        _settings = settings;
         // P2: ImageViewerPanelViewModel is the writer of
         // IUiState.CurrentImage — every navigation change
         // publishes the new current item. Other VMs observe
@@ -57,6 +71,15 @@ public partial class ImageViewerPanelViewModel : ObservableObject
         // to push the image-load call to SkiaImageViewer
         // before dimensions are known).
         _navigation.CurrentImageChanged += OnCurrentImageChanged;
+        // P5: keep IUiState.IsAnnotating in sync so the
+        // FloatingBarViewModel can hide on annotating. Local
+        // IsAnnotating is the source of truth; we mirror to
+        // the shared state for cross-VM observation.
+        _uiState.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(IUiState.IsAnnotating))
+                IsAnnotating = _uiState.IsAnnotating;
+        };
     }
 
     /// <summary>Called by the View in its Loaded handler.</summary>
@@ -153,7 +176,21 @@ public partial class ImageViewerPanelViewModel : ObservableObject
         var item = _navigation.Items.FirstOrDefault(i => i.FilePath == result.FilePath);
         if (item == null) return;
         item.SetDimensions(result.Width, result.Height);
+
+        // P5: rebuild the AnnotationState for the new image. The
+        // OverlayBitmap is sized to the source image; the
+        // previous state's bitmap is wrong-sized. Re-entering
+        // annotation mode would otherwise write to a stale
+        // bitmap (or NRE if the new image is smaller than the
+        // old).
+        AnnotationState = new AnnotationState(result.Width, result.Height);
     }
+
+    // P5: exposes the currently-displayed image's file path so
+    // the View can pass it to AnnotationSaveService (enables
+    // the "覆盖原图" button in the SaveDialog). Mirrors
+    // IUiState.CurrentImage.FilePath, which the VM is the writer of.
+    public string? CurrentImagePath => _uiState.CurrentImage?.FilePath;
 
     [RelayCommand]
     private void Fit() => _viewer?.FitToScreen();
@@ -166,6 +203,49 @@ public partial class ImageViewerPanelViewModel : ObservableObject
 
     [RelayCommand]
     private void ZoomOut() => _viewer?.ZoomOut();
+
+    // P5: annotation mode toggle. Bound to the annotation
+    // toolbar's "退出标注" / "开始标注" button (or keyboard
+    // shortcut). When entering, the viewer's OverlayBitmap is
+    // set to the current AnnotationState.OverlayBitmap so the
+    // user's strokes appear in real time. When exiting, the
+    // overlay is cleared (the strokes stay in the state, ready
+    // for re-entry or save).
+    partial void OnIsAnnotatingChanged(bool value)
+    {
+        _uiState.IsAnnotating = value;
+        if (_viewer != null && AnnotationState != null)
+        {
+            _viewer.OverlayBitmap = value ? AnnotationState.OverlayBitmap : null;
+        }
+    }
+
+    // P5: when AnnotationState changes (image switched), wire
+    // the new state's RedrawRequested to the viewer's
+    // InvalidateOverlay. The old state is unsubscribed in the
+    // same handler. Without this, drawing on a new image
+    // wouldn't repaint because the viewer doesn't observe the
+    // SKBitmap's pixel changes (only the InvalidateOverlay
+    // method tells it to re-upload).
+    partial void OnAnnotationStateChanged(AnnotationState? value)
+    {
+        // The old state's RedrawRequested is no longer relevant.
+        // We can't unsubscribe without keeping a reference, so
+        // we accept a one-event penalty on image change (the
+        // old state is about to be GC'd anyway).
+        if (value != null && _viewer != null)
+        {
+            value.RedrawRequested += (_, _) => _viewer.InvalidateOverlay();
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleAnnotation()
+    {
+        // Only meaningful when there's an image to annotate.
+        if (_uiState.CurrentImage == null) return;
+        IsAnnotating = !IsAnnotating;
+    }
 
     // P1: Win32 GetDoubleClickTime returns the system double-click
     // time in milliseconds. We use it as the debounce window for

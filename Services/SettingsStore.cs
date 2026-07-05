@@ -94,6 +94,28 @@ public class SettingsStore : ISettingsStore
     }
 
     /// <summary>
+    /// P5: gates whether the editor's OCR button opens the full
+    /// result window. Persisted in settings.json. Default false
+    /// (clipboard-only) — the user opts in via the "OCR 显示结果
+    /// 窗口" CheckBox in the 插件 submenu.
+    /// </summary>
+    public bool EditorOcrShowWindow
+    {
+        get { Load(); lock (_lock) return _editorOcrShowWindow; }
+        set
+        {
+            bool changed;
+            lock (_lock)
+            {
+                changed = _editorOcrShowWindow != value;
+                _editorOcrShowWindow = value;
+            }
+            if (changed) ScheduleSave();
+        }
+    }
+    private bool _editorOcrShowWindow;
+
+    /// <summary>
     /// Read <see cref="SettingsPath"/> from disk and replace the
     /// in-memory favorites, recent, and last-opened-image values.
     /// Idempotent and lazy — the first accessor call (Favorites,
@@ -121,6 +143,7 @@ public class SettingsStore : ISettingsStore
                 foreach (var p in data.EnabledPlugins ?? new List<string>())
                     _enabledPlugins.Add(p);
                 _defaultSaveDir = data.DefaultScreenshotSaveDirectory;
+                _editorOcrShowWindow = data.EditorOcrShowWindow;
             }
             LastOpenedImage = data.LastOpenedImage;
         }
@@ -152,6 +175,7 @@ public class SettingsStore : ISettingsStore
             List<string> enabled;
             string? lastImage;
             string? defaultSaveDir;
+            bool editorOcrShowWindow;
             lock (_lock)
             {
                 favs = _favorites.ToList();
@@ -159,6 +183,7 @@ public class SettingsStore : ISettingsStore
                 enabled = _enabledPlugins.ToList();
                 lastImage = LastOpenedImage;
                 defaultSaveDir = _defaultSaveDir;
+                editorOcrShowWindow = _editorOcrShowWindow;
             }
             Directory.CreateDirectory(AppDataDir);
             var json = JsonSerializer.Serialize(
@@ -168,7 +193,8 @@ public class SettingsStore : ISettingsStore
                     Recent = recs,
                     EnabledPlugins = enabled,
                     LastOpenedImage = lastImage,
-                    DefaultScreenshotSaveDirectory = defaultSaveDir
+                    DefaultScreenshotSaveDirectory = defaultSaveDir,
+                    EditorOcrShowWindow = editorOcrShowWindow
                 },
                 new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(SettingsPath, json);
@@ -345,5 +371,13 @@ public class SettingsStore : ISettingsStore
         /// entry points.
         /// </summary>
         public string? DefaultScreenshotSaveDirectory { get; set; }
+
+        /// <summary>
+        /// P5: persisted in settings.json. Gates whether the
+        /// screenshot editor's OCR button opens the result
+        /// window (true) or just copies to clipboard (false).
+        /// Default false.
+        /// </summary>
+        public bool EditorOcrShowWindow { get; set; }
     }
 }

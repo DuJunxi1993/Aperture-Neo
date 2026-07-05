@@ -78,6 +78,13 @@ public sealed class UiState : IUiState
         set => Set(ref _isUpdateAvailable, value);
     }
 
+    private bool _isAnnotating;
+    public bool IsAnnotating
+    {
+        get => _isAnnotating;
+        set => Set(ref _isAnnotating, value);
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private void Set<T>(ref T field, T value, [CallerMemberName] string? name = null)

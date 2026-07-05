@@ -36,4 +36,15 @@ public interface IUiState : INotifyPropertyChanged
     int ImageCount { get; set; }
     double CurrentZoom { get; set; }
     bool IsUpdateAvailable { get; set; }
+
+    /// <summary>
+    /// True when the user is in annotation mode (drawing on the
+    /// image). Viewers and overlays observe this to hide the
+    /// navigation FloatingBar (so the toolbar isn't fighting
+    /// the pen for screen real estate) and show the annotation
+    /// toolbar instead. Persisted state is not appropriate here
+    /// — annotation mode is a transient UI mode that should
+    /// reset to false on app restart.
+    /// </summary>
+    bool IsAnnotating { get; set; }
 }

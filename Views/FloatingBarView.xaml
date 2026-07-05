@@ -9,7 +9,8 @@
     <Border x:Name="FloatingBarContent"
             Background="{StaticResource SurfaceFloating}" BorderBrush="{StaticResource BorderStandard}" BorderThickness="1"
             CornerRadius="{StaticResource RadiusPanel}" Padding="6,4"
-            IsHitTestVisible="True">
+            IsHitTestVisible="True"
+            Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}, FallbackValue=Visible}">
         <Border.Effect>
             <StaticResource ResourceKey="ShadowDialog"/>
         </Border.Effect>

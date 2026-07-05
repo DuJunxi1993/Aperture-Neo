@@ -1,46 +1,28 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- Self-contained color tokens. Mirrors the subset of
-         DesignTokens.xaml that the editor uses. The editor lives
-         in Plugins.Screenshot.dll which is loaded standalone by
-         ScreenshotTool.exe (no App.xaml resource chain), so the
-         tokens must be declared locally. Values match the main
-         app's light-mode Linear palette for visual consistency. -->
-    <SolidColorBrush x:Key="SurfaceCanvas"   Color="#FFfafafa"/>
-    <SolidColorBrush x:Key="SurfacePanel"    Color="#FFf4f4f5"/>
-    <SolidColorBrush x:Key="SurfaceElevated" Color="#FFFFFFFF"/>
-    <SolidColorBrush x:Key="SurfaceCardHover" Color="#FFF6F6F8"/>
-    <SolidColorBrush x:Key="SurfaceHover"    Color="#FFE8E8EB"/>
+    <!-- Linear styles for the annotation toolbar (used by both the
+         screenshot editor and the main app's annotation mode).
 
-    <SolidColorBrush x:Key="TextPrimary"   Color="#FF1a1a1a"/>
-    <SolidColorBrush x:Key="TextSecondary" Color="#FF4a4a52"/>
-    <SolidColorBrush x:Key="TextTertiary"  Color="#FF8a8f98"/>
+         Colour tokens come from ApertureNeo's DesignTokens.xaml
+         (loaded as a sibling MergedDictionary by the host). All
+         references here are {StaticResource Xxx} so the host
+         resolves them at parse time. The dictionary is self-
+         contained otherwise — adding it to a MergedDictionaries
+         list brings in every annotation control style below.
 
-    <SolidColorBrush x:Key="BrandPrimary"  Color="#FF5e6ad2"/>
+         This file is the source of truth for the annotation UI's
+         look; the previous Plugins.Screenshot/EditorStyles.xaml
+         is gone (deleted when the editor migrated to ApertureNeo
+         controls). The editor now loads these styles via
+         <ResourceDictionary Source="/ApertureNeo;component/Styles/Annotation.xaml"/>
+         so the standalone ScreenshotTool.exe and the main app
+         use the same style definitions. -->
 
-    <SolidColorBrush x:Key="BorderSubtle"   Color="#12000000"/>
-    <SolidColorBrush x:Key="BorderStandard" Color="#1F000000"/>
-    <SolidColorBrush x:Key="BorderSolid"    Color="#FFE5E5E8"/>
-
-    <SolidColorBrush x:Key="DestructiveFg"      Color="#FFb91c1c"/>
-    <SolidColorBrush x:Key="DestructiveBgHover" Color="#2Efee2e2"/>
-
-    <SolidColorBrush x:Key="SliderTrack"     Color="#1F000000"/>
-    <SolidColorBrush x:Key="SliderTrackFill" Color="#FF5e6ad2"/>
-
-    <!-- Border radius scale (Linear 4-8px rhythm) -->
-    <CornerRadius x:Key="RadiusStd">4</CornerRadius>
-    <CornerRadius x:Key="RadiusComfy">6</CornerRadius>
-    <CornerRadius x:Key="RadiusCard">8</CornerRadius>
-
-    <!-- Font family. Falls back through the platform chain
-         (Segoe UI on Windows is the system default sans-serif). -->
-    <FontFamily x:Key="FontPrimary">Segoe UI, Microsoft YaHei UI, Arial</FontFamily>
-
-    <!-- Focus visual: 2px solid brand ring with 2px offset, drawn
-         only on keyboard focus (system IsKeyboardFocused state). -->
-    <Style x:Key="LinearFocusVisual" TargetType="Control">
+    <!-- Focus visual: 2px solid brand ring, drawn just outside
+         the control's bounds. Drawn only on keyboard focus
+         (IsKeyboardFocused). -->
+    <Style x:Key="LinearAnnotationFocusVisual" TargetType="Control">
         <Setter Property="FocusVisualStyle">
             <Setter.Value>
                 <Style>
@@ -59,10 +41,10 @@
         </Setter>
     </Style>
 
-    <!-- Linear Tool Button: small (28px) flat button with subtle
-         background and brand-foreground text. Used for toolbar
-         actions like Clear, Fit, 100%, -, +, Save, Copy, OCR.
-         Hover steps the background up one tier; press another. -->
+    <!-- Linear Tool Button: 28px flat button with subtle
+         background, used in the annotation toolbar for Clear,
+         Undo, Save. Hover/press step the background up one tier
+         on the surface ladder. -->
     <Style x:Key="LinearToolButton" TargetType="Button">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
@@ -74,13 +56,13 @@
         <Setter Property="Padding" Value="10,0"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FocusVisualStyle" Value="{StaticResource LinearFocusVisual}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource LinearAnnotationFocusVisual}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="border"
                             Background="{TemplateBinding Background}"
-                            CornerRadius="{StaticResource RadiusStd}">
+                            CornerRadius="4">
                         <ContentPresenter HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
                                           Margin="{TemplateBinding Padding}"
@@ -102,7 +84,8 @@
         </Setter>
     </Style>
 
-    <!-- Linear Primary Button: filled indigo. Used for Done. -->
+    <!-- Linear Primary Button: filled indigo. Used for the
+         annotation toolbar's Save action. -->
     <Style x:Key="LinearPrimaryButton" TargetType="Button" BasedOn="{StaticResource LinearToolButton}">
         <Setter Property="Background" Value="{StaticResource BrandPrimary}"/>
         <Setter Property="Foreground" Value="White"/>
@@ -112,7 +95,7 @@
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="border"
                             Background="{TemplateBinding Background}"
-                            CornerRadius="{StaticResource RadiusStd}">
+                            CornerRadius="4">
                         <ContentPresenter HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
                                           Margin="{TemplateBinding Padding}"
@@ -134,10 +117,8 @@
         </Setter>
     </Style>
 
-    <!-- Linear Destructive Button: subtle red text, red-tinted hover.
-         Used for Cancel. The button stays text-only at rest (matching
-         Linear's destructive-button pattern) and reveals intent on
-         hover with a pale red wash. -->
+    <!-- Linear Destructive Button: subtle red text, red-tinted
+         hover. Used for the SaveDialog's "覆盖原图" action. -->
     <Style x:Key="LinearDestructiveButton" TargetType="Button" BasedOn="{StaticResource LinearToolButton}">
         <Setter Property="Foreground" Value="{StaticResource DestructiveFg}"/>
         <Setter Property="Template">
@@ -145,7 +126,7 @@
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="border"
                             Background="{TemplateBinding Background}"
-                            CornerRadius="{StaticResource RadiusStd}">
+                            CornerRadius="4">
                         <ContentPresenter HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
                                           Margin="{TemplateBinding Padding}"
@@ -167,58 +148,9 @@
         </Setter>
     </Style>
 
-    <!-- Linear Tool Toggle: same as LinearToolButton but with an
-         additional Checked state that fills the background with
-         the brand-tinted selection color and bolds the foreground.
-         Used for the Pen mode toggle. -->
-    <Style x:Key="LinearToolToggle" TargetType="ToggleButton">
-        <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
-        <Setter Property="FontSize" Value="12"/>
-        <Setter Property="FontWeight" Value="500"/>
-        <Setter Property="Height" Value="28"/>
-        <Setter Property="MinHeight" Value="28"/>
-        <Setter Property="Padding" Value="10,0"/>
-        <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FocusVisualStyle" Value="{StaticResource LinearFocusVisual}"/>
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="ToggleButton">
-                    <Border x:Name="border"
-                            Background="{TemplateBinding Background}"
-                            CornerRadius="{StaticResource RadiusStd}">
-                        <ContentPresenter HorizontalAlignment="Center"
-                                          VerticalAlignment="Center"
-                                          Margin="{TemplateBinding Padding}"
-                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="#14000000"/>
-                        </Trigger>
-                        <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="#1F000000"/>
-                        </Trigger>
-                        <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="#FFe0e1ff"/>
-                            <Setter Property="Foreground" Value="#FF3a4099"/>
-                            <Setter Property="FontWeight" Value="600"/>
-                        </Trigger>
-                        <Trigger Property="IsEnabled" Value="False">
-                            <Setter Property="Opacity" Value="0.4"/>
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
-
-    <!-- Linear Pen Size Toggle: same shape as LinearToolToggle but
-         smaller (22x22 square) and content-positioned for a number
-         label. Used for the inline 2/4/8/12/20 pen-size selector. -->
-    <Style x:Key="LinearPenSizeToggle" TargetType="ToggleButton" BasedOn="{StaticResource LinearToolToggle}">
+    <!-- Linear Pen Size Toggle: small (26x26) toggle button. Used
+         for the 2/4/8/12/20 pen size selector in the toolbar. -->
+    <Style x:Key="LinearPenSizeToggle" TargetType="ToggleButton" BasedOn="{StaticResource LinearToolButton}">
         <Setter Property="Width" Value="26"/>
         <Setter Property="Height" Value="26"/>
         <Setter Property="MinHeight" Value="26"/>
@@ -226,20 +158,20 @@
         <Setter Property="FontSize" Value="11"/>
     </Style>
 
-    <!-- Linear Color Circle: 22×22 circle that fills with the
-         ToggleButton's Tag color (a hex string). Used for the
-         pen color picker. When checked, the circle gets a 2px
-         brand-indigo ring to indicate the selected color. The
-         "Tag" binding pattern is the standard WPF way to carry
-         per-instance data through a shared style. -->
-    <Style x:Key="LinearColorCircle" TargetType="ToggleButton">
+    <!-- Linear Color Circle: 22x22 circle filled with the
+         ToggleButton's Tag color. Used for the pen color
+         picker. When checked, the circle gets a 2px brand ring.
+         Tag must be a hex string like "#FFE11D48"; the Binding
+         (not TemplateBinding) runs the BrushConverter that turns
+         the string into a SolidColorBrush. -->
+    <Style x:Key="LinearColorCircle" TargetType="RadioButton">
         <Setter Property="Width" Value="22"/>
         <Setter Property="Height" Value="22"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FocusVisualStyle" Value="{StaticResource LinearFocusVisual}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource LinearAnnotationFocusVisual}"/>
         <Setter Property="Template">
             <Setter.Value>
-                <ControlTemplate TargetType="ToggleButton">
+                <ControlTemplate TargetType="RadioButton">
                     <Grid>
                         <Ellipse x:Name="ring"
                                  Width="22" Height="22"
@@ -268,17 +200,15 @@
         </Setter>
     </Style>
 
-    <!-- Linear Slider: 4px track (semi-transparent black on light),
-         14px circular thumb with brand color when active. No tick
-         marks (clean Linear look). Increase/Decrease buttons are
-         hidden — use the +/- buttons next to the slider for that. -->
+    <!-- Linear Slider: 4px track, 14px circular thumb, no ticks.
+         Used for the zoom slider in the annotation toolbar. -->
     <Style x:Key="LinearSlider" TargetType="Slider">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{StaticResource BrandPrimary}"/>
         <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="Height" Value="24"/>
         <Setter Property="IsMoveToPointEnabled" Value="True"/>
-        <Setter Property="FocusVisualStyle" Value="{StaticResource LinearFocusVisual}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource LinearAnnotationFocusVisual}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Slider">
@@ -326,37 +256,8 @@
         </Setter>
     </Style>
 
-    <!-- Linear Color Swatch: a 22x22 square used inside the
-         ComboBox popup. The ComboBox itself just shows a single
-         swatch + a small chevron. -->
-    <Style x:Key="LinearColorSwatch" TargetType="Border">
-        <Setter Property="Width" Value="20"/>
-        <Setter Property="Height" Value="20"/>
-        <Setter Property="CornerRadius" Value="4"/>
-        <Setter Property="BorderBrush" Value="{StaticResource BorderStandard}"/>
-        <Setter Property="BorderThickness" Value="1"/>
-    </Style>
-
-    <!-- Linear ComboBox: minimal — flat background, subtle hover,
-         a single 8x4 chevron rendered manually. The full template
-         is large; the styles below cover the visible parts. -->
-    <Style x:Key="LinearComboBox" TargetType="ComboBox">
-        <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
-        <Setter Property="FontSize" Value="12"/>
-        <Setter Property="Height" Value="28"/>
-        <Setter Property="MinHeight" Value="28"/>
-        <Setter Property="Padding" Value="6,0"/>
-        <Setter Property="BorderBrush" Value="{StaticResource BorderStandard}"/>
-        <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FocusVisualStyle" Value="{StaticResource LinearFocusVisual}"/>
-    </Style>
-
-    <!-- Linear ToolBar Separator: 1px vertical line in BorderStandard.
-         Used between toolbar groups instead of the WPF default
-         (which is a dark gradient that doesn't match the theme). -->
+    <!-- Linear Annotation Toolbar Separator: 1px vertical line
+         in BorderStandard. Used between toolbar groups. -->
     <Style x:Key="LinearToolbarSeparator" TargetType="Rectangle">
         <Setter Property="Width" Value="1"/>
         <Setter Property="Height" Value="20"/>
@@ -364,14 +265,25 @@
         <Setter Property="Fill" Value="{StaticResource BorderStandard}"/>
     </Style>
 
-    <!-- Linear Subtle Label: 12px, weight 510, tertiary text color.
-         Used for "Color:", "Size:" labels next to controls. -->
+    <!-- Linear Subtle Label: 12px weight 500 secondary text. -->
     <Style x:Key="LinearSubtleLabel" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="500"/>
         <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Implicit text settings for the annotation toolbar. The
+         comment on the App.xaml TextBlock style explains why
+         FontFamily is set imperatively instead of via Window
+         (the Window-level Foreground would beat the per-button
+         Foreground set by LinearPrimaryButton). We replicate
+         just the font and TextOptions on the toolbar so child
+         controls inherit consistent defaults. -->
+    <Style TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+        <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
     </Style>
 
 </ResourceDictionary>

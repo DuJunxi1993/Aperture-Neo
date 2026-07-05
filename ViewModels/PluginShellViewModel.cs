@@ -115,6 +115,14 @@ public partial class PluginShellViewModel : ObservableObject, IPluginContext
             RemoveTaggedFrom(_viewerContextMenu.Items, pluginTag);
     }
 
+    public T? GetService<T>() where T : class
+    {
+        // Forward to the AppHost's DI container. We don't take
+        // a hard dependency on the container type so plugins
+        // can be unit-tested with a mock context.
+        return AppHost.Services?.GetService(typeof(T)) as T;
+    }
+
     // ---- SetAvailablePlugins / RestoreEnabledPlugins ----
 
     /// <summary>Called by App.RunViewerAsync after

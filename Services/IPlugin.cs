@@ -145,6 +145,17 @@ public interface IPluginContext
     /// Deactivate so it can clean up after itself.
     /// </summary>
     void ClearSlots(object pluginTag);
+
+    /// <summary>
+    /// Resolve a registered DI service (e.g. <see cref="ISettingsStore"/>,
+    /// <see cref="IUiState"/>) from the host's service container.
+    /// Returns null if the service is not registered. Plugins use
+    /// this to read app-wide settings (e.g. the screenshot plugin
+    /// reads the user's "OCR 显示结果窗口" preference here) without
+    /// having to take a hard dependency on the host's container
+    /// type.
+    /// </summary>
+    T? GetService<T>() where T : class;
 }
 
 /// <summary>

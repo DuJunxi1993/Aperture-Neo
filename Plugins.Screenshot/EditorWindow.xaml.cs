@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -9,6 +8,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using ApertureNeo.Controls.Annotation;
+using ApertureNeo.Plugins.Ocr.Core.Models;
+using ApertureNeo.Plugins.Ocr.Core.Services;
+using ApertureNeo.Plugins.Ocr.Ui;
 using ApertureNeo.Services;
 using SkiaSharp;
 
@@ -17,42 +20,41 @@ namespace ApertureNeo.Plugins.Screenshot;
 /// <summary>
 /// Annotation editor for a captured screenshot. Uses
 /// <see cref="SkiaImageViewer"/> for image display and zoom/pan,
-/// and a transparent <see cref="PenCanvas"/> overlaid on top for
-/// pen strokes. Strokes are accumulated into a single
-/// <see cref="SKBitmap"/> overlay that the viewer composites on
-/// top of the source image at render time.
+/// and the shared <see cref="AnnotationState"/> from
+/// ApertureNeo.Controls.Annotation for stroke management. The
+/// state's <c>OverlayBitmap</c> is what the viewer composites on
+/// top of the source image.
 ///
-/// Performance notes: every pen stroke point triggers an overlay
-/// redraw (clear + replay all committed strokes + current
-/// in-progress stroke). The redraw is a single SkiaSharp canvas
-/// operation, so it stays smooth for typical stroke counts. The
-/// SkiaImageViewer then renders the composite at the viewer's
-/// own rate (driven by WPF's render path), so the per-mouse-move
-/// redraw is decoupled from the on-screen frame rate.
+/// The state-management code (pen canvas mouse events, color /
+/// size pickers, clear/undo) was previously inlined here; it
+/// has been refactored into <see cref="AnnotationState"/> so the
+/// same code path runs in the editor and the main app's
+/// annotation mode (P5 architectural cleanup).
 /// </summary>
 public partial class EditorWindow : Window
 {
     private readonly Bitmap _originalBitmap;
     private readonly SKBitmap _originalSkBitmap;
-    private readonly SKBitmap _overlaySkBitmap;
+    private readonly AnnotationState _annotationState;
     private readonly int _width, _height;
     private readonly ISettingsStore? _settings;
 
+    // Local mirror of the in-progress flag. AnnotationState holds
+    // its own _inProgress field but doesn't expose a public
+    // IsDrawing flag, so we keep a local one for the Enter-key
+    // safety check in Window_KeyDown.
     private bool _isDrawing;
-    private List<SKPoint> _currentStroke = new();
-    private readonly List<StrokeData> _committedStrokes = new();
-    private int _strokeCount;
 
-    private SKColor _currentColor = SKColors.Red;
-    private float _currentSize = 4f;
+    // Count of committed strokes for the status bar. The state
+    // exposes CommittedStrokes.Count but a local cache avoids
+    // hitting the list on every status update.
+    private int _strokeCount;
 
     // Guard against re-entrant slider/zoom updates. When the
     // SkiaViewer's ZoomChanged handler writes ZoomSlider.Value,
     // that fires ValueChanged which would otherwise call back
     // into SetZoomImmediate. The flag breaks the cycle.
     private bool _suspendSliderUpdate;
-
-    private record StrokeData(List<SKPoint> Points, SKColor Color, float Size);
 
     public EditorWindow(Bitmap capturedBitmap, ISettingsStore? settings = null)
     {
@@ -81,14 +83,15 @@ public partial class EditorWindow : Window
         // all need a GDI+ Bitmap for the existing helpers).
         _originalSkBitmap = ToSkBitmap(capturedBitmap);
 
-        // Overlay SKBitmap: same size as the source, fully
-        // transparent. Strokes are drawn onto this canvas and
-        // the viewer composites it on top of the source.
-        _overlaySkBitmap = new SKBitmap(_width, _height, SKColorType.Bgra8888, SKAlphaType.Premul);
-        using (var canvas = new SKCanvas(_overlaySkBitmap))
-        {
-            canvas.Clear(SKColors.Transparent);
-        }
+        // Shared annotation state. Owns the overlay SKBitmap and
+        // the stroke list. The viewer reads the OverlayBitmap
+        // property; mouse events on PenCanvas route through
+        // BeginStroke/ExtendStroke/CommitStroke below.
+        _annotationState = new AnnotationState(_width, _height);
+
+        // State redraws its overlay internally; we just need to
+        // tell the viewer to re-upload the bitmap. Subscribe once.
+        _annotationState.RedrawRequested += (_, _) => SkiaViewer.InvalidateOverlay();
 
         // Defensive: if capture is lost (Alt+Tab, etc.) the
         // drawing state machine must reset. Without this, a
@@ -98,11 +101,17 @@ public partial class EditorWindow : Window
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
+        // P5: hand the shared annotation state to the toolbar.
+        // The toolbar's Clear/Undo/Color/Size/Save buttons all
+        // route through it; the editor owns the state, the
+        // toolbar just mutates it.
+        AnnotationBar.State = _annotationState;
+
         // Hand the bitmaps to the SkiaImageViewer. The viewer
         // calls FitToScreen inside LoadBitmap (no animation), so
         // the editor opens already framed correctly.
         SkiaViewer.LoadBitmap(_originalSkBitmap);
-        SkiaViewer.OverlayBitmap = _overlaySkBitmap;
+        SkiaViewer.OverlayBitmap = _annotationState.OverlayBitmap;
 
         // Sync UI to the viewer's state. ZoomChanged fires on
         // any zoom change; we route it back to the slider + label
@@ -165,7 +174,7 @@ public partial class EditorWindow : Window
         // a ToggleButton subclass, so the cast still works.
         if (sender is RadioButton btn && btn.Tag is string hex && !string.IsNullOrEmpty(hex))
         {
-            _currentColor = SKColor.Parse(hex);
+            _annotationState.CurrentColor = SKColor.Parse(hex);
         }
     }
 
@@ -173,24 +182,22 @@ public partial class EditorWindow : Window
     {
         if (sender is RadioButton btn && int.TryParse(btn.Content?.ToString(), out int size))
         {
-            _currentSize = size;
+            _annotationState.CurrentSize = size;
         }
     }
 
     private void Clear_Click(object sender, RoutedEventArgs e)
     {
-        _committedStrokes.Clear();
+        _annotationState.Clear();
         _strokeCount = 0;
-        RenderOverlay();
         UpdateStatus();
     }
 
     private void Undo_Click(object sender, RoutedEventArgs e)
     {
-        if (_committedStrokes.Count == 0) return;
-        _committedStrokes.RemoveAt(_committedStrokes.Count - 1);
-        _strokeCount = _committedStrokes.Count;
-        RenderOverlay();
+        if (_annotationState.CommittedStrokes.Count == 0) return;
+        _annotationState.Undo();
+        _strokeCount = _annotationState.CommittedStrokes.Count;
         UpdateStatus();
     }
 
@@ -203,7 +210,8 @@ public partial class EditorWindow : Window
         var pt = ToImageCoords(e.GetPosition(PenCanvas));
         if (pt == null) return;
         _isDrawing = true;
-        _currentStroke = new List<SKPoint> { pt.Value };
+        _annotationState.BeginStroke();
+        _annotationState.ExtendStroke(pt.Value);
         PenCanvas.CaptureMouse();
     }
 
@@ -213,8 +221,7 @@ public partial class EditorWindow : Window
         if (e.LeftButton != MouseButtonState.Pressed) return;
         var pt = ToImageCoords(e.GetPosition(PenCanvas));
         if (pt == null) return;
-        _currentStroke.Add(pt.Value);
-        RenderOverlay();
+        _annotationState.ExtendStroke(pt.Value);
     }
 
     private void PenCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -222,13 +229,8 @@ public partial class EditorWindow : Window
         if (!_isDrawing) return;
         _isDrawing = false;
         PenCanvas.ReleaseMouseCapture();
-        if (_currentStroke.Count >= 2)
-        {
-            _committedStrokes.Add(new StrokeData(new List<SKPoint>(_currentStroke), _currentColor, _currentSize));
-            _strokeCount++;
-        }
-        _currentStroke = null;
-        RenderOverlay();
+        _annotationState.CommitStroke();
+        _strokeCount = _annotationState.CommittedStrokes.Count;
         UpdateStatus();
     }
 
@@ -247,39 +249,39 @@ public partial class EditorWindow : Window
     //  Output actions: Save / Copy / OCR / Cancel / Done
     // ------------------------------------------------------------------
 
-    private void Save_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// P5: Save clicked in the shared AnnotationOverlay. Routes
+    /// to the same save service as the editor's own Save button
+    /// (the editor's standalone Save button was removed from the
+    /// XAML when the drawing toolbar migrated to the shared
+    /// overlay; the overlay's Save button is now the primary).
+    /// </summary>
+    private void AnnotationBar_SaveRequested(object? sender, EventArgs e) => DoSave();
+
+    private void Save_Click(object sender, RoutedEventArgs e) => DoSave();
+
+    private void DoSave()
     {
-        using var final = BuildFinalImage();
-
-        // Pre-fill the dialog with the user's chosen default
-        // (if any) so the next save is one click faster.
-        var defaultFolder = _settings?.DefaultScreenshotSaveDirectory;
-        var defaultName = $"screenshot-{DateTime.Now:yyyyMMdd-HHmmss}.png";
-
-        var dlg = new SaveDialog(defaultFolder, defaultName) { Owner = this };
-        if (dlg.ShowDialog() != true) return;
-
-        try
+        // P5: SaveService composes original + overlay state and
+        // shows the shared SaveDialog. The editor has no
+        // currentFilePath (its output is always a new file, never
+        // an overwrite), so the dialog's "覆盖原图" button is
+        // disabled.
+        var saveService = new AnnotationSaveService(_settings);
+        var outcome = saveService.Save(_originalBitmap, _annotationState, this, currentFilePath: null);
+        switch (outcome)
         {
-            // Write the PNG. Using ImageFormat.Png directly (not
-            // SaveToTempPng) because the user picked the path.
-            final.Save(dlg.SelectedPath!, ImageFormat.Png);
+            case AnnotationSaveService.SaveOutcome.Saved:
+                StatusText.Text = $"Saved: {saveService.LastSavedPath}";
+                _annotationState.HasUnsavedChanges = false;
+                break;
+            case AnnotationSaveService.SaveOutcome.Cancelled:
+                // user pressed cancel; leave status as-is
+                break;
+            case AnnotationSaveService.SaveOutcome.Failed:
+                StatusText.Text = "Save failed";
+                break;
         }
-        catch (Exception ex)
-        {
-            StatusText.Text = $"Save failed: {ex.Message}";
-            return;
-        }
-
-        // Persist the chosen folder as the new default. The
-        // SettingsStore schedules a debounced save, so rapid
-        // successive saves don't hammer the disk.
-        if (dlg.DefaultDirectoryToSet != null && _settings != null)
-        {
-            _settings.DefaultScreenshotSaveDirectory = dlg.DefaultDirectoryToSet;
-        }
-
-        StatusText.Text = $"Saved: {dlg.SelectedPath}";
     }
 
     private void Copy_Click(object sender, RoutedEventArgs e)
@@ -302,12 +304,41 @@ public partial class EditorWindow : Window
     {
         OcrBtn.IsEnabled = false;
         StatusText.Text = "OCR running...";
+        var tempPath = Path.Combine(
+            Path.GetTempPath(), "ApertureNeo", "screenshots",
+            $"screenshot-{Guid.NewGuid():N}.png");
         try
         {
             using var final = BuildFinalImage();
-            CaptureEngine.SaveToTempPng(final, out var path);
-            await OcrIntegration.RunOcrAsync(path);
-            StatusText.Text = "OCR done — result in clipboard + toast";
+            Directory.CreateDirectory(Path.GetDirectoryName(tempPath)!);
+            final.Save(tempPath, ImageFormat.Png);
+
+            // In-process OCR: no ApertureNeo.exe subprocess spawn
+            // (was ~500ms), no PowerShell toast (was another spawn).
+            var ocr = new OcrService();
+            OcrResult result = await ocr.ExtractAsync(tempPath);
+
+            if (!result.IsSuccess)
+            {
+                StatusText.Text = $"OCR failed: {result.ErrorMessage}";
+                return;
+            }
+
+            // Always: copy to clipboard.
+            try { Clipboard.SetText(result.FullText); } catch { }
+            StatusText.Text = $"OCR done — {result.Lines.Count} lines copied to clipboard";
+
+            // P5: open OcrResultWindow only when the user opted
+            // in via the 插件 submenu's "OCR 显示结果窗口"
+            // CheckBox. The default is false (clipboard only,
+            // matches the "fast path" expectation).
+            if (_settings?.EditorOcrShowWindow == true)
+            {
+                var win = new OcrResultWindow();
+                win.SetResult(result, Path.GetFileName(tempPath));
+                win.Owner = this;
+                win.ShowDialog();
+            }
         }
         catch (Exception ex)
         {
@@ -316,6 +347,7 @@ public partial class EditorWindow : Window
         finally
         {
             OcrBtn.IsEnabled = true;
+            try { File.Delete(tempPath); } catch { }
         }
     }
 
@@ -372,61 +404,11 @@ public partial class EditorWindow : Window
     }
 
     /// <summary>
-    /// Re-render the entire overlay (clear + replay all
-    /// committed strokes + the in-progress stroke if any).
-    /// Triggered by any change to the stroke list or current
-    /// stroke. Single SkiaSharp canvas operation, so it stays
-    /// fast for typical stroke counts.
-    /// </summary>
-    private void RenderOverlay()
-    {
-        if (_overlaySkBitmap == null) return;
-        using (var canvas = new SKCanvas(_overlaySkBitmap))
-        {
-            canvas.Clear(SKColors.Transparent);
-            foreach (var stroke in _committedStrokes)
-            {
-                DrawStroke(canvas, stroke);
-            }
-            if (_isDrawing && _currentStroke.Count >= 2)
-            {
-                DrawStroke(canvas, new StrokeData(_currentStroke, _currentColor, _currentSize));
-            }
-        }
-        // InvalidateOverlay sets _dirty=true and invalidates; the
-        // regular InvalidateVisual would schedule a redraw but
-        // OnRender's _dirty check would skip the bitmap rebuild,
-        // leaving the overlay change invisible until the next
-        // zoom change.
-        SkiaViewer.InvalidateOverlay();
-    }
-
-    private static void DrawStroke(SKCanvas canvas, StrokeData stroke)
-    {
-        if (stroke.Points.Count < 2) return;
-        using var paint = new SKPaint
-        {
-            Color = stroke.Color,
-            StrokeWidth = stroke.Size,
-            Style = SKPaintStyle.Stroke,
-            StrokeCap = SKStrokeCap.Round,
-            StrokeJoin = SKStrokeJoin.Round,
-            IsAntialias = true,
-        };
-        using var path = new SKPath();
-        path.MoveTo(stroke.Points[0]);
-        for (int i = 1; i < stroke.Points.Count; i++)
-        {
-            path.LineTo(stroke.Points[i]);
-        }
-        canvas.DrawPath(path, paint);
-    }
-
-    /// <summary>
     /// Build the final composed GDI+ Bitmap (source + overlay)
-    /// for Save/Copy/OCR. The overlay is converted from SKBitmap
-    /// to GDI+ via a single byte copy. The returned bitmap is
-    /// owned by the caller (use with `using`).
+    /// for Copy/OCR. Save goes through
+    /// <see cref="AnnotationSaveService"/> which does the same
+    /// composition + dialog flow. The returned bitmap is owned
+    /// by the caller (use with `using`).
     /// </summary>
     private Bitmap BuildFinalImage()
     {
@@ -434,7 +416,7 @@ public partial class EditorWindow : Window
         using (var g = Graphics.FromImage(result))
         {
             g.DrawImage(_originalBitmap, 0, 0);
-            using var overlayGdi = SkBitmapToGdi(_overlaySkBitmap);
+            using var overlayGdi = SkBitmapToGdi(_annotationState.OverlayBitmap);
             g.DrawImage(overlayGdi, 0, 0);
         }
         return result;

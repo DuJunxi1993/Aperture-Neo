@@ -172,10 +172,28 @@
                     <Border x:Name="border"
                             Background="{TemplateBinding Background}"
                             CornerRadius="4">
-                        <ContentPresenter HorizontalAlignment="Center"
+                        <!-- Hardcoded text color instead of
+                             {TemplateBinding Foreground} / {Binding ...}:
+                             at template-load time on a RadioButton
+                             (LinearPenSizeToggle), the Foreground value
+                             on the templated parent is UnsetValue
+                             (RadioButton's default theme style doesn't
+                             set it; only Button's does). The standard
+                             TemplateBinding then resolves to
+                             UnsetValue, the Binding-with-FallbackValue
+                             can't get a usable FallbackValue, and WPF
+                             rejects the assignment with
+                             "{DependencyProperty.UnsetValue}" is
+                             not a valid value for Foreground. Hardcoding
+                             avoids the dependency on the (missing)
+                             parent Foreground. The IsChecked trigger
+                             below uses TargetName="text" to override
+                             the color when the toggle is on. -->
+                        <ContentPresenter x:Name="text"
+                                          HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
                                           Margin="{TemplateBinding Padding}"
-                                          TextElement.Foreground="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}, FallbackValue=#FF1a1a1a}"/>
+                                          TextElement.Foreground="#FF1a1a1a"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -186,7 +204,7 @@
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="border" Property="Background" Value="#FFe0e1ff"/>
-                            <Setter Property="Foreground" Value="#FF3a4099"/>
+                            <Setter TargetName="text" Property="TextElement.Foreground" Value="#FF3a4099"/>
                             <Setter Property="FontWeight" Value="600"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">

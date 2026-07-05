@@ -88,11 +88,22 @@
                           Margin="3,0,0,0" Click="SizeBtn_Click"/>
 
             <!-- Right-side spacer pushes the Save action to the
-                 far edge. -->
-            <Grid Width="*" />
-
-            <Button Content="保存" Style="{DynamicResource LinearPrimaryButton}"
-                    Click="Save_Click" Margin="0"/>
+                 far edge. We use a 2-column Grid (column 0 = *,
+                 column 1 = Auto) instead of a Width="*" on a
+                 regular Grid — Width="*" only parses as
+                 GridLength inside ColumnDefinition/RowDefinition,
+                 not on Grid itself, so using it directly throws
+                 "无法将"*"字符串转换为 Length" at runtime. -->
+            <Grid Margin="0,0,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid Grid.Column="0" />
+                <Button Grid.Column="1" Content="保存"
+                        Style="{DynamicResource LinearPrimaryButton}"
+                        Click="Save_Click" Margin="0"/>
+            </Grid>
         </StackPanel>
     </Border>
 </UserControl>

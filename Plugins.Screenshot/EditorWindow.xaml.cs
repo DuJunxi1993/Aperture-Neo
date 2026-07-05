@@ -101,11 +101,9 @@ public partial class EditorWindow : Window
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        // P5: hand the shared annotation state to the toolbar.
-        // The toolbar's Clear/Undo/Color/Size/Save buttons all
-        // route through it; the editor owns the state, the
-        // toolbar just mutates it.
-        AnnotationBar.State = _annotationState;
+        // The annotation toolbar is now inlined in the XAML top
+        // bar; it reads/writes _annotationState directly. No
+        // separate AnnotationBar hookup needed.
 
         // Hand the bitmaps to the SkiaImageViewer. The viewer
         // calls FitToScreen inside LoadBitmap (no animation), so
@@ -121,6 +119,50 @@ public partial class EditorWindow : Window
         OnSkiaZoomChanged(SkiaViewer.Zoom);
 
         UpdateStatus();
+    }
+
+    /// <summary>
+    /// Self-managed window drag (matches the main app's title bar
+    /// drag-move). P5: with WindowStyle=None + WindowChrome, the
+    /// window has no system caption to drag, so the top bar
+    /// handles MouseLeftButtonDown → DragMove. Double-click
+    /// toggles maximize (matches the main app's title bar
+    /// behavior). If the click originated on a button (so
+    /// clicking the button still works), let the button handle
+    /// the click instead of starting a drag.
+    /// </summary>
+    private void Window_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        // Let interactive children handle their own clicks first.
+        if (e.OriginalSource is DependencyObject src)
+        {
+            DependencyObject? walker = src;
+            while (walker != null && walker != this)
+            {
+                if (walker is System.Windows.Controls.Primitives.ButtonBase) return;
+                walker = System.Windows.Media.VisualTreeHelper.GetParent(walker);
+            }
+        }
+
+        if (e.ClickCount == 2)
+        {
+            ToggleMaximize();
+            return;
+        }
+
+        try { DragMove(); } catch { /* released outside the window — safe to ignore */ }
+    }
+
+    private void ToggleMaximize()
+    {
+        if (WindowState == WindowState.Maximized)
+        {
+            WindowState = WindowState.Normal;
+        }
+        else
+        {
+            WindowState = WindowState.Maximized;
+        }
     }
 
     // ------------------------------------------------------------------

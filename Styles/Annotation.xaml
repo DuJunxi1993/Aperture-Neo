@@ -47,8 +47,8 @@
          on the surface ladder. -->
     <Style x:Key="LinearToolButton" TargetType="Button">
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+        <Setter Property="Foreground" Value="#FF1a1a1a"/>
+        <Setter Property="FontFamily" Value="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="500"/>
         <Setter Property="Height" Value="28"/>
@@ -87,7 +87,7 @@
     <!-- Linear Primary Button: filled indigo. Used for the
          annotation toolbar's Save action. -->
     <Style x:Key="LinearPrimaryButton" TargetType="Button" BasedOn="{StaticResource LinearToolButton}">
-        <Setter Property="Background" Value="{StaticResource BrandPrimary}"/>
+        <Setter Property="Background" Value="#FF5e6ad2"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="FontWeight" Value="600"/>
         <Setter Property="Template">
@@ -120,7 +120,7 @@
     <!-- Linear Destructive Button: subtle red text, red-tinted
          hover. Used for the SaveDialog's "覆盖原图" action. -->
     <Style x:Key="LinearDestructiveButton" TargetType="Button" BasedOn="{StaticResource LinearToolButton}">
-        <Setter Property="Foreground" Value="{StaticResource DestructiveFg}"/>
+        <Setter Property="Foreground" Value="#FFb91c1c"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
@@ -134,7 +134,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{StaticResource DestructiveBgHover}"/>
+                            <Setter TargetName="border" Property="Background" Value="#2Efee2e2"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="border" Property="Background" Value="#60fee2e2"/>
@@ -156,8 +156,8 @@
          this TargetType for a valid BasedOn chain). -->
     <Style x:Key="LinearToolToggle" TargetType="ToggleButton">
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+        <Setter Property="Foreground" Value="#FF1a1a1a"/>
+        <Setter Property="FontFamily" Value="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="500"/>
         <Setter Property="Height" Value="28"/>
@@ -264,7 +264,7 @@
                             <Setter TargetName="ring" Property="Stroke" Value="#40000000"/>
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="ring" Property="Stroke" Value="{StaticResource BrandPrimary}"/>
+                            <Setter TargetName="ring" Property="Stroke" Value="#FF5e6ad2"/>
                             <Setter TargetName="ring" Property="StrokeThickness" Value="2"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -277,8 +277,8 @@
          Used for the zoom slider in the annotation toolbar. -->
     <Style x:Key="LinearSlider" TargetType="Slider">
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{StaticResource BrandPrimary}"/>
-        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+        <Setter Property="Foreground" Value="#FF5e6ad2"/>
+        <Setter Property="FontFamily" Value="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial"/>
         <Setter Property="Height" Value="24"/>
         <Setter Property="IsMoveToPointEnabled" Value="True"/>
         <Setter Property="FocusVisualStyle" Value="{StaticResource LinearAnnotationFocusVisual}"/>
@@ -335,15 +335,15 @@
         <Setter Property="Width" Value="1"/>
         <Setter Property="Height" Value="20"/>
         <Setter Property="Margin" Value="12,0"/>
-        <Setter Property="Fill" Value="{StaticResource BorderStandard}"/>
+        <Setter Property="Fill" Value="#1F000000"/>
     </Style>
 
     <!-- Linear Subtle Label: 12px weight 500 secondary text. -->
     <Style x:Key="LinearSubtleLabel" TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+        <Setter Property="FontFamily" Value="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="500"/>
-        <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+        <Setter Property="Foreground" Value="#FF4a4a52"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
@@ -355,7 +355,7 @@
          just the font and TextOptions on the toolbar so child
          controls inherit consistent defaults. -->
     <Style TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+        <Setter Property="FontFamily" Value="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial"/>
         <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
     </Style>
 

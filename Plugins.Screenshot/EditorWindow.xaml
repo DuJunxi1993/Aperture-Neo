@@ -1,51 +1,207 @@
 <Window x:Class="ApertureNeo.Plugins.Screenshot.EditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:ApertureNeo.Controls;assembly=ApertureNeo"
         Title="Screenshot Editor" Width="960" Height="700"
+        MinWidth="720" MinHeight="480"
         WindowStartupLocation="CenterScreen"
-        Background="#1E1E1E" Foreground="White">
-    <DockPanel>
-        <ToolBarTray DockPanel.Dock="Top" Background="#2D2D2D">
-            <ToolBar Band="1" Background="Transparent">
-                <ToggleButton x:Name="PenToggle" Content="Pen" IsChecked="True" Click="PenToggle_Click"/>
-                <Button x:Name="ClearBtn" Content="Clear" Click="Clear_Click"/>
-                <Separator/>
-                <Label Content="Color:" Foreground="#CCC" VerticalAlignment="Center"/>
-                <ComboBox x:Name="ColorPicker" SelectedIndex="0" Width="80" VerticalAlignment="Center">
-                    <ComboBoxItem Foreground="Red">Red</ComboBoxItem>
-                    <ComboBoxItem Foreground="#00FF00">Green</ComboBoxItem>
-                    <ComboBoxItem Foreground="Blue">Blue</ComboBoxItem>
-                    <ComboBoxItem Foreground="Yellow">Yellow</ComboBoxItem>
-                    <ComboBoxItem Foreground="White">White</ComboBoxItem>
-                    <ComboBoxItem Foreground="Black">Black</ComboBoxItem>
-                </ComboBox>
-                <Label Content="Size:" Foreground="#CCC" VerticalAlignment="Center"/>
-                <Slider x:Name="SizeSlider" Minimum="2" Maximum="20" Value="4" Width="80"
-                        VerticalAlignment="Center" TickFrequency="1" IsSnapToTickEnabled="True"/>
-            </ToolBar>
-            <ToolBar Band="2" Background="Transparent" HorizontalAlignment="Right">
-                <Button x:Name="SaveBtn" Content="Save" Click="Save_Click"/>
-                <Button x:Name="CopyBtn" Content="Copy" Click="Copy_Click"/>
-                <Button x:Name="OcrBtn" Content="OCR" Click="Ocr_Click"/>
-                <Separator/>
-                <Button x:Name="CancelBtn" Content="Cancel" Click="Cancel_Click"/>
-                <Button x:Name="OkBtn" Content="Done" Click="Ok_Click" FontWeight="Bold"/>
-            </ToolBar>
-        </ToolBarTray>
+        Background="{StaticResource SurfaceCanvas}"
+        Foreground="{StaticResource TextPrimary}"
+        FontFamily="{StaticResource FontPrimary}"
+        TextOptions.TextFormattingMode="Ideal"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        Loaded="Window_Loaded">
 
-        <Grid Background="#1E1E1E" ClipToBounds="True">
-            <Image x:Name="ViewportImage" Stretch="Uniform"
-                   IsHitTestVisible="False"
-                   RenderOptions.BitmapScalingMode="HighQuality"
-                   SnapsToDevicePixels="True"/>
-            <Canvas x:Name="ViewportCanvas" Background="Transparent"
-                    MouseLeftButtonDown="Canvas_MouseDown"
-                    MouseMove="Canvas_MouseMove"
-                    MouseLeftButtonUp="Canvas_MouseUp"/>
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Self-contained Linear styles (color tokens,
+                     button styles, slider style, etc.). The
+                     Plugins.Screenshot plugin is loaded standalone
+                     by ScreenshotTool.exe without the main app's
+                     App.xaml resource chain, so all styles must be
+                     declared here. -->
+                <ResourceDictionary Source="EditorStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Top toolbar: three logical groups (drawing, zoom,
+             output) separated by 1px vertical lines. The toolbar
+             sits on SurfacePanel (slightly darker than the canvas)
+             with a 1px bottom border for visual separation. -->
+        <Border Grid.Row="0"
+                Background="{StaticResource SurfacePanel}"
+                BorderBrush="{StaticResource BorderSubtle}"
+                BorderThickness="0,0,0,1"
+                Padding="16,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Group 1: drawing tools (Pen, Clear) -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <ToggleButton x:Name="PenToggle" Content="Pen"
+                                  Style="{StaticResource LinearToolToggle}"
+                                  IsChecked="True"
+                                  Click="PenToggle_Click"/>
+                    <Button x:Name="ClearBtn" Content="Clear"
+                            Style="{StaticResource LinearToolButton}"
+                            Margin="6,0,0,0"
+                            Click="Clear_Click"/>
+                    <Button x:Name="UndoBtn" Content="Undo"
+                            Style="{StaticResource LinearToolButton}"
+                            Margin="6,0,0,0"
+                            Click="Undo_Click"/>
+                </StackPanel>
+
+                <!-- Group 2: color + pen size -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="16,0,0,0">
+                    <TextBlock Text="Color" Style="{StaticResource LinearSubtleLabel}" Margin="0,0,8,0"/>
+                    <RadioButton x:Name="ColorRedBtn" Width="22" Height="22" Margin="0,0,4,0"
+                                  GroupName="PenColor" IsChecked="True"
+                                  Tag="#FFE11D48"
+                                  Click="ColorBtn_Click"
+                                  Style="{StaticResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorOrangeBtn" Width="22" Height="22" Margin="0,0,4,0"
+                                  GroupName="PenColor"
+                                  Tag="#FFEA580C"
+                                  Click="ColorBtn_Click"
+                                  Style="{StaticResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorYellowBtn" Width="22" Height="22" Margin="0,0,4,0"
+                                  GroupName="PenColor"
+                                  Tag="#FFEAB308"
+                                  Click="ColorBtn_Click"
+                                  Style="{StaticResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorGreenBtn" Width="22" Height="22" Margin="0,0,4,0"
+                                  GroupName="PenColor"
+                                  Tag="#FF16A34A"
+                                  Click="ColorBtn_Click"
+                                  Style="{StaticResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorBlueBtn" Width="22" Height="22" Margin="0,0,4,0"
+                                  GroupName="PenColor"
+                                  Tag="#FF2563EB"
+                                  Click="ColorBtn_Click"
+                                  Style="{StaticResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorBlackBtn" Width="22" Height="22"
+                                  GroupName="PenColor"
+                                  Tag="#FF1a1a1a"
+                                  Click="ColorBtn_Click"
+                                  Style="{StaticResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorWhiteBtn" Width="22" Height="22" Margin="4,0,0,0"
+                                  GroupName="PenColor"
+                                  Tag="#FFFFFFFF"
+                                  Click="ColorBtn_Click"
+                                  Style="{StaticResource LinearColorCircle}"/>
+
+                    <Rectangle Style="{StaticResource LinearToolbarSeparator}"/>
+
+                    <TextBlock Text="Size" Style="{StaticResource LinearSubtleLabel}" Margin="0,0,6,0"/>
+                    <RadioButton x:Name="Size2Btn" Content="2" GroupName="PenSize"
+                                  Style="{StaticResource LinearPenSizeToggle}"
+                                  Click="SizeBtn_Click"/>
+                    <RadioButton x:Name="Size4Btn" Content="4" GroupName="PenSize" IsChecked="True"
+                                  Style="{StaticResource LinearPenSizeToggle}"
+                                  Margin="3,0,0,0" Click="SizeBtn_Click"/>
+                    <RadioButton x:Name="Size8Btn" Content="8" GroupName="PenSize"
+                                  Style="{StaticResource LinearPenSizeToggle}"
+                                  Margin="3,0,0,0" Click="SizeBtn_Click"/>
+                    <RadioButton x:Name="Size12Btn" Content="12" GroupName="PenSize"
+                                  Style="{StaticResource LinearPenSizeToggle}"
+                                  Margin="3,0,0,0" Click="SizeBtn_Click"/>
+                    <RadioButton x:Name="Size20Btn" Content="20" GroupName="PenSize"
+                                  Style="{StaticResource LinearPenSizeToggle}"
+                                  Margin="3,0,0,0" Click="SizeBtn_Click"/>
+                </StackPanel>
+
+                <!-- Group 3: zoom controls (center, expands) -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal"
+                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Button x:Name="FitBtn" Content="Fit"
+                            Style="{StaticResource LinearToolButton}"
+                            Click="FitBtn_Click"/>
+                    <Slider x:Name="ZoomSlider" Width="180"
+                            Style="{StaticResource LinearSlider}"
+                            Minimum="0.1" Maximum="10" Value="1.0"
+                            Margin="12,0,8,0"
+                            ValueChanged="ZoomSlider_ValueChanged"/>
+                    <TextBlock x:Name="ZoomLabel" Text="100%"
+                               Style="{StaticResource LinearSubtleLabel}"
+                               Width="44" TextAlignment="Right"
+                               Foreground="{StaticResource TextPrimary}"/>
+                    <Button x:Name="ZoomOutBtn" Content="−"
+                            Style="{StaticResource LinearToolButton}"
+                            Width="28" Margin="8,0,0,0" FontSize="14"
+                            Click="ZoomOutBtn_Click"/>
+                    <Button x:Name="ZoomInBtn" Content="+"
+                            Style="{StaticResource LinearToolButton}"
+                            Width="28" Margin="4,0,0,0" FontSize="14"
+                            Click="ZoomInBtn_Click"/>
+                </StackPanel>
+
+                <!-- Group 4: output actions (right-aligned) -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal">
+                    <Button x:Name="SaveBtn" Content="Save"
+                            Style="{StaticResource LinearToolButton}"
+                            Click="Save_Click"/>
+                    <Button x:Name="CopyBtn" Content="Copy"
+                            Style="{StaticResource LinearToolButton}"
+                            Margin="6,0,0,0"
+                            Click="Copy_Click"/>
+                    <Button x:Name="OcrBtn" Content="OCR"
+                            Style="{StaticResource LinearToolButton}"
+                            Margin="6,0,0,0"
+                            Click="Ocr_Click"/>
+                    <Rectangle Style="{StaticResource LinearToolbarSeparator}"/>
+                    <Button x:Name="CancelBtn" Content="Cancel"
+                            Style="{StaticResource LinearDestructiveButton}"
+                            Click="Cancel_Click"/>
+                    <Button x:Name="OkBtn" Content="Done"
+                            Style="{StaticResource LinearPrimaryButton}"
+                            Margin="6,0,0,0"
+                            Click="Ok_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main canvas area: SkiaImageViewer for the source
+             image + a transparent Canvas overlay for pen strokes.
+             The overlay's IsHitTestVisible is bound to PenToggle
+             so it only catches mouse events in pen mode (so the
+             underlying viewer can pan/zoom when pen is off). -->
+        <Grid Grid.Row="1" Background="{StaticResource SurfaceCanvas}" ClipToBounds="True">
+            <controls:SkiaImageViewer x:Name="SkiaViewer"/>
+            <Canvas x:Name="PenCanvas" Background="Transparent"
+                    IsHitTestVisible="{Binding IsChecked, ElementName=PenToggle}"
+                    MouseLeftButtonDown="PenCanvas_MouseLeftButtonDown"
+                    MouseMove="PenCanvas_MouseMove"
+                    MouseLeftButtonUp="PenCanvas_MouseLeftButtonUp"
+                    MouseWheel="PenCanvas_MouseWheel"/>
         </Grid>
 
-        <StatusBar DockPanel.Dock="Bottom" Background="#2D2D2D" Height="24">
-            <StatusBarItem x:Name="StatusText" Content="Ready" Foreground="#AAA"/>
-        </StatusBar>
-    </DockPanel>
+        <!-- Status bar: 1px top border, tertiary text. Shows the
+             current editor state plus image dimensions. -->
+        <Border Grid.Row="2"
+                Background="{StaticResource SurfacePanel}"
+                BorderBrush="{StaticResource BorderSubtle}"
+                BorderThickness="0,1,0,0"
+                Padding="16,5">
+            <TextBlock x:Name="StatusText" Text="Ready"
+                       FontFamily="{StaticResource FontPrimary}"
+                       FontSize="12"
+                       Foreground="{StaticResource TextTertiary}"/>
+        </Border>
+    </Grid>
 </Window>

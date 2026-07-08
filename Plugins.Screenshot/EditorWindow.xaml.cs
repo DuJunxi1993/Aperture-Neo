@@ -65,13 +65,14 @@ public partial class EditorWindow : Window
     private enum PenMode { Color, Mosaic }
     private PenMode _penMode = PenMode.Color;
 
-    // Mosaic-mode state: points accumulated during a single
-    // stroke, the per-stroke saved data for undo, and the
-    // bounding box of the most recent in-flight stroke (so
-    // MouseUp can target just that rect, not the full image).
-    private readonly List<SKPoint> _mosaicStrokePoints = new();
+    // Mosaic-mode state: just two points (start + current drag
+    // tip). The dragged rectangle itself is the mosaic target —
+    // much simpler than collecting all stroke points and using
+    // the bounding box. The per-stroke saved data is for undo.
+    private SKPoint _mosaicStart;
+    private SKPoint _mosaicCurrent;
+    private bool _isDraggingMosaic;
     private readonly List<(SKRectI Rect, byte[] OriginalData)> _mosaicHistory = new();
-    private SKRectI _mosaicCurrentRect;
 
     public EditorWindow(Bitmap capturedBitmap, ISettingsStore? settings = null)
     {
@@ -211,11 +212,53 @@ public partial class EditorWindow : Window
         if (WindowState == WindowState.Maximized)
         {
             WindowState = WindowState.Normal;
+            if (MaximizeIcon != null) MaximizeIcon.Text = "□";
         }
         else
         {
             WindowState = WindowState.Maximized;
+            if (MaximizeIcon != null) MaximizeIcon.Text = "▢";
         }
+    }
+
+    // ------------------------------------------------------------------
+    //  Title bar drag-move (Phase 4: replaces the old TopBar handler
+    //  because the new layout has a separate 44px title bar that
+    //  hosts the file-name label and the min/max/close buttons).
+    //  The toolbar's MouseLeftButtonDown also points at this
+    //  handler so the user can drag from the toolbar row too.
+    //  ButtonBase / TemplatedParent-is-ButtonBase guard ensures
+    //  button clicks still work (otherwise MouseLeftButtonDown would
+    //  drag-move the window on every toolbar click).
+    // ------------------------------------------------------------------
+    private void TitleBar_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource is ButtonBase) return;
+        if (e.OriginalSource is FrameworkElement fe && fe.TemplatedParent is ButtonBase) return;
+
+        if (e.ClickCount == 2)
+        {
+            ToggleMaximize();
+            return;
+        }
+
+        try { DragMove(); } catch { /* released outside the window — safe to ignore */ }
+    }
+
+    private void MinimizeBtn_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void MaximizeBtn_Click(object sender, RoutedEventArgs e)
+    {
+        ToggleMaximize();
+    }
+
+    private void CloseBtn_Click(object sender, RoutedEventArgs e)
+    {
+        DialogResult = false;
+        Close();
     }
 
     // ------------------------------------------------------------------
@@ -289,42 +332,49 @@ public partial class EditorWindow : Window
 
     private void Clear_Click(object sender, RoutedEventArgs e)
     {
-        if (_penMode == PenMode.Mosaic)
+        // Always clear BOTH color strokes and mosaic edits, regardless
+        // of the current pen mode. Earlier the handler only cleared
+        // one side (whichever matched the active mode), which left
+        // mosaic edits invisible to the user if they happened to be
+        // in Color mode — confusing. Now: color strokes are cleared
+        // first, then the underlying SKBitmap is restored to its
+        // pre-mosaic state by replaying all saved rectangles in
+        // reverse order (so later strokes don't overwrite earlier
+        // ones' restored data).
+        _annotationState.Clear();
+        _strokeCount = 0;
+        for (int i = _mosaicHistory.Count - 1; i >= 0; i--)
         {
-            // Undo all mosaic strokes in reverse order. Order
-            // matters: later strokes are on top of earlier ones,
-            // so reverting them first preserves the earlier stroke
-            // for the next revert.
-            for (int i = _mosaicHistory.Count - 1; i >= 0; i--)
-            {
-                RestoreMosaicData(_mosaicHistory[i].Rect, _mosaicHistory[i].OriginalData);
-            }
-            _mosaicHistory.Clear();
-            SkiaViewer.NotifyContentChanged();
+            RestoreMosaicData(_mosaicHistory[i].Rect, _mosaicHistory[i].OriginalData);
         }
-        else
-        {
-            _annotationState.Clear();
-            _strokeCount = 0;
-        }
+        _mosaicHistory.Clear();
+        SkiaViewer.NotifyContentChanged();
         UpdateStatus();
     }
 
     private void Undo_Click(object sender, RoutedEventArgs e)
     {
-        if (_penMode == PenMode.Mosaic)
+        // Undo the most recent action regardless of pen mode. We pick
+        // the source with the most recent entry — that gives the
+        // right answer as long as the user has been alternating (or
+        // even just sticking to one mode). Color and mosaic share a
+        // single timeline from the user's perspective, so we just
+        // pop whichever side has the bigger count.
+        int colorCount = _annotationState.CommittedStrokes.Count;
+        int mosaicCount = _mosaicHistory.Count;
+        if (colorCount == 0 && mosaicCount == 0) return;
+
+        if (colorCount > mosaicCount)
         {
-            if (_mosaicHistory.Count == 0) return;
+            _annotationState.Undo();
+            _strokeCount = _annotationState.CommittedStrokes.Count;
+        }
+        else
+        {
             var (rect, data) = _mosaicHistory[^1];
             _mosaicHistory.RemoveAt(_mosaicHistory.Count - 1);
             RestoreMosaicData(rect, data);
             SkiaViewer.NotifyContentChanged();
-        }
-        else
-        {
-            if (_annotationState.CommittedStrokes.Count == 0) return;
-            _annotationState.Undo();
-            _strokeCount = _annotationState.CommittedStrokes.Count;
         }
         UpdateStatus();
     }
@@ -340,16 +390,13 @@ public partial class EditorWindow : Window
 
         if (_penMode == PenMode.Mosaic)
         {
-            // Start tracking the stroke path; MouseUp applies the
-            // mosaic to the bounding box. We don't capture the
-            // original data yet — that's done on MouseUp against
-            // the post-mosaic-pre-state of the rect (which may have
-            // been touched by earlier strokes; undo captures
-            // whatever was there before this stroke, then we
-            // apply on top).
-            _mosaicStrokePoints.Clear();
-            _mosaicStrokePoints.Add(pt.Value);
+            // Start a drag-rectangle. MouseMove updates the second corner; MouseUp applies the mosaic to the rectangle. Show the live preview rectangle immediately (at zero size) so the user gets instant feedback before any drag movement.
+            _mosaicStart = pt.Value;
+            _mosaicCurrent = pt.Value;
+            _isDraggingMosaic = true;
             _isDrawing = true;
+            MosaicPreviewRect.Visibility = Visibility.Visible;
+            UpdateMosaicPreview();
         }
         else
         {
@@ -369,7 +416,8 @@ public partial class EditorWindow : Window
 
         if (_penMode == PenMode.Mosaic)
         {
-            _mosaicStrokePoints.Add(pt.Value);
+            _mosaicCurrent = pt.Value;
+            UpdateMosaicPreview();
         }
         else
         {
@@ -385,7 +433,7 @@ public partial class EditorWindow : Window
 
         if (_penMode == PenMode.Mosaic)
         {
-            ApplyMosaicStroke();
+            if (_isDraggingMosaic) { _isDraggingMosaic = false; ApplyMosaicRect(_mosaicStart, _mosaicCurrent); MosaicPreviewRect.Visibility = Visibility.Collapsed; }
         }
         else
         {
@@ -396,31 +444,23 @@ public partial class EditorWindow : Window
     }
 
     /// <summary>
-    /// Apply a mosaic to the bounding box of the most recent
-    /// stroke. Block size = current size value (which the size
-    /// radio buttons expose; the same value that drives pen
-    /// stroke width in color mode). Captures the rect's original
-    /// pixel data so Undo can restore it; applies the pixelation
-    /// to <c>_originalSkBitmap</c> directly; and notifies the
-    /// viewer to re-render the new pixels.
+    /// Apply a mosaic to the rectangle the user just dragged out in
+    /// mosaic mode. Takes the two image-space corner points
+    /// (start + current drag tip), expands the rect to the block
+    /// grid so consecutive strokes are aligned, captures the rect's
+    /// pre-mosaic pixels (BGRA8888) for Undo, applies per-block
+    /// averaging to <c>_originalSkBitmap</c>, and notifies the
+    /// viewer to re-render. Block size = the current size value
+    /// (same selector that drives pen stroke width in color mode).
     /// </summary>
-    private void ApplyMosaicStroke()
+    private void ApplyMosaicRect(SKPoint start, SKPoint end)
     {
-        if (_mosaicStrokePoints.Count == 0) return;
-
-        // Compute bounding box of all stroke points (in image
-        // coordinates, integer pixels).
-        int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
-        foreach (var p in _mosaicStrokePoints)
-        {
-            int x = (int)Math.Round(p.X);
-            int y = (int)Math.Round(p.Y);
-            if (x < minX) minX = x;
-            if (y < minY) minY = y;
-            if (x > maxX) maxX = x;
-            if (y > maxY) maxY = y;
-        }
-        if (maxX < minX || maxY < minY) return;
+        // Compute the user-defined rect (in image coordinates).
+        int minX = (int)Math.Round(Math.Min(start.X, end.X));
+        int minY = (int)Math.Round(Math.Min(start.Y, end.Y));
+        int maxX = (int)Math.Round(Math.Max(start.X, end.X));
+        int maxY = (int)Math.Round(Math.Max(start.Y, end.Y));
+        if (maxX <= minX || maxY <= minY) return;
 
         int blockSize = Math.Max(2, (int)Math.Round(_annotationState.CurrentSize));
 
@@ -501,6 +541,41 @@ public partial class EditorWindow : Window
 
         _mosaicHistory.Add((rect, original));
         SkiaViewer.NotifyContentChanged();
+    }
+
+    /// <summary>
+    /// Update the live-preview Rectangle to reflect the current
+    /// drag rectangle. Converts image-space coordinates to
+    /// PenCanvas coordinates using the viewer's current zoom
+    /// and offset (so the preview stays aligned with the
+    /// actual mosaic target the user is drawing). IsHitTestVisible
+    /// on the Rectangle is False so this redraw doesn't steal
+    /// mouse events from the PenCanvas. Safe to call before
+    /// Loaded (the XAML element lookup is null-safe) — the
+    /// preview just stays Collapsed until MouseDown shows it.
+    /// </summary>
+    private void UpdateMosaicPreview()
+    {
+        if (MosaicPreviewRect == null || SkiaViewer == null) return;
+        var zoom = SkiaViewer.Zoom;
+        if (zoom < 0.001f) return;
+        var offX = SkiaViewer.OffsetX;
+        var offY = SkiaViewer.OffsetY;
+
+        double x1 = _mosaicStart.X * zoom + offX;
+        double y1 = _mosaicStart.Y * zoom + offY;
+        double x2 = _mosaicCurrent.X * zoom + offX;
+        double y2 = _mosaicCurrent.Y * zoom + offY;
+
+        var left = Math.Min(x1, x2);
+        var top = Math.Min(y1, y2);
+        var width = Math.Abs(x2 - x1);
+        var height = Math.Abs(y2 - y1);
+
+        Canvas.SetLeft(MosaicPreviewRect, left);
+        Canvas.SetTop(MosaicPreviewRect, top);
+        MosaicPreviewRect.Width = width;
+        MosaicPreviewRect.Height = height;
     }
 
     private void RestoreMosaicData(SKRectI rect, byte[] data)

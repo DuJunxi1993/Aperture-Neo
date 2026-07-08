@@ -13,17 +13,6 @@
         SnapsToDevicePixels="True"
         Loaded="Window_Loaded">
 
-    <!--
-    WindowChrome removed entirely. The earlier CaptionHeight=44 setup
-    intercepted MouseLeftButtonDown in the top 44 pixels for
-    auto-drag, which made the top-bar buttons unclickable. Now
-    the top bar's own MouseLeftButtonDown handler does drag-move
-    (with ButtonBase / TemplatedParent-is-ButtonBase guard so
-    button clicks still work). ResizeBorderThickness is dropped too
-    so the outer Border's CornerRadius=8 is the only visible
-    shape — no more square OS resize border.
-    -->
-
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -33,248 +22,300 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <!-- Outer rounded container. Background = SurfaceCanvas
-         (so the rounded shape is opaque, not transparent),
-         CornerRadius = 8 = RadiusCard (matches the OCR window
-         and the main app's RadiusCard token), BorderBrush =
-         BorderStrong (#FFBBBBBB, the same 1px hairline the OCR
-         window uses, sampled to match the OS-chrome border on
-         MainWindow). ClipToBounds clips the inner content to the
-         rounded shape so the inner controls' rectangular
-         backgrounds don't poke out past the corners. -->
-    <Border Background="#FFfafafa" BorderBrush="#FFBBBBBB" BorderThickness="1"
-            CornerRadius="8" ClipToBounds="True">
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-
-            <!-- Row 0: top bar (formerly the title bar). Linear
-                 style. Pen toggle + Pen-type segmented control +
-                 color + size + Clear / Undo (center, fill) + Copy /
-                 Save / Cancel / Close (right). MouseLeftButtonDown
-                 is on the top-bar Border (NOT the Window) so
-                 viewer clicks don't trigger drag-move. -->
-            <Border Grid.Row="0"
-                    Background="#FFf4f4f5"
-                    BorderBrush="#12000000"
-                    BorderThickness="0,0,0,1"
-                    Padding="16,8"
-                    MouseLeftButtonDown="TopBar_MouseLeftButtonDown">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Left: pen mode toggle + pen type
-                         (Color / Mosaic) segmented control.
-                         MouseLeftButtonDown is on the parent
-                         Border, so these buttons' own clicks are
-                         consumed by the parent's handler and don't
-                         trigger a drag. The parent handler checks
-                         for ButtonBase / TemplatedParent is
-                         ButtonBase to skip drag in that case. -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal"
-                                VerticalAlignment="Center">
-                        <ToggleButton x:Name="PenToggle" Content="Pen"
-                                      Style="{StaticResource LinearToolToggle}"
-                                      IsChecked="True"
-                                      Click="PenToggle_Click"/>
-                        <!-- Segmented control: Color (default) or
-                             Mosaic. In mosaic mode the color picker
-                             below is grayed out via ColorBtn IsEnabled;
-                             the size selector stays active (it
-                             controls the mosaic block size). OCR-style
-                             container: 1px outline + 6px corners + 2px
-                             inner padding around the two items. -->
-                        <Border Margin="6,0,0,0"
-                                BorderBrush="#1F000000" BorderThickness="1"
-                                CornerRadius="6"
-                                Background="#FFf4f4f5"
-                                Padding="2">
-                            <StackPanel Orientation="Horizontal">
-                                <RadioButton x:Name="PenModeColor" GroupName="PenMode"
-                                             Content="Color"
-                                             Style="{StaticResource LinearSegmentedItem}"
-                                             IsChecked="True"
-                                             Checked="PenModeColor_Checked"/>
-                                <RadioButton x:Name="PenModeMosaic" GroupName="PenMode"
-                                             Content="Mosaic"
-                                             Style="{StaticResource LinearSegmentedItem}"
-                                             Checked="PenModeMosaic_Checked"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- Center: color picker + size + Clear / Undo.
-                         When PenMode = Mosaic, the color buttons
-                         are IsEnabled=false (grayed out by the
-                         default RadioButton disabled visual). Size
-                         stays enabled because the size value means
-                         "mosaic block size" in mosaic mode. -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal"
-                                Margin="16,0,16,0">
-                        <TextBlock Text="颜色" Style="{StaticResource LinearSubtleLabel}" Margin="0,0,8,0"
-                                   VerticalAlignment="Center"/>
-                        <RadioButton x:Name="ColorRedBtn" Width="22" Height="22" Margin="0,0,4,0"
-                                      GroupName="PenColor" IsChecked="True"
-                                      Tag="#FFE11D48"
-                                      Click="ColorBtn_Click"
-                                      Style="{DynamicResource LinearColorCircle}"/>
-                        <RadioButton x:Name="ColorOrangeBtn" Width="22" Height="22" Margin="0,0,4,0"
-                                      GroupName="PenColor"
-                                      Tag="#FFEA580C"
-                                      Click="ColorBtn_Click"
-                                      Style="{DynamicResource LinearColorCircle}"/>
-                        <RadioButton x:Name="ColorYellowBtn" Width="22" Height="22" Margin="0,0,4,0"
-                                      GroupName="PenColor"
-                                      Tag="#FFEAB308"
-                                      Click="ColorBtn_Click"
-                                      Style="{DynamicResource LinearColorCircle}"/>
-                        <RadioButton x:Name="ColorGreenBtn" Width="22" Height="22" Margin="0,0,4,0"
-                                      GroupName="PenColor"
-                                      Tag="#FF16A34A"
-                                      Click="ColorBtn_Click"
-                                      Style="{DynamicResource LinearColorCircle}"/>
-                        <RadioButton x:Name="ColorBlueBtn" Width="22" Height="22" Margin="0,0,4,0"
-                                      GroupName="PenColor"
-                                      Tag="#FF2563EB"
-                                      Click="ColorBtn_Click"
-                                      Style="{DynamicResource LinearColorCircle}"/>
-                        <RadioButton x:Name="ColorBlackBtn" Width="22" Height="22"
-                                      GroupName="PenColor"
-                                      Tag="#FF1a1a1a"
-                                      Click="ColorBtn_Click"
-                                      Style="{DynamicResource LinearColorCircle}"/>
-                        <RadioButton x:Name="ColorWhiteBtn" Width="22" Height="22" Margin="4,0,0,0"
-                                      GroupName="PenColor"
-                                      Tag="#FFFFFFFF"
-                                      Click="ColorBtn_Click"
-                                      Style="{DynamicResource LinearColorCircle}"/>
-
-                        <Rectangle Style="{DynamicResource LinearToolbarSeparator}"/>
-
-                        <TextBlock Text="粗细" Style="{StaticResource LinearSubtleLabel}" Margin="0,0,6,0"
-                                   VerticalAlignment="Center"/>
-                        <RadioButton x:Name="Size2Btn" Content="2" GroupName="PenSize"
-                                      Style="{DynamicResource LinearPenSizeToggle}"
-                                      Click="SizeBtn_Click"/>
-                        <RadioButton x:Name="Size4Btn" Content="4" GroupName="PenSize" IsChecked="True"
-                                      Style="{DynamicResource LinearPenSizeToggle}"
-                                      Margin="3,0,0,0" Click="SizeBtn_Click"/>
-                        <RadioButton x:Name="Size8Btn" Content="8" GroupName="PenSize"
-                                      Style="{DynamicResource LinearPenSizeToggle}"
-                                      Margin="3,0,0,0" Click="SizeBtn_Click"/>
-                        <RadioButton x:Name="Size12Btn" Content="12" GroupName="PenSize"
-                                      Style="{DynamicResource LinearPenSizeToggle}"
-                                      Margin="3,0,0,0" Click="SizeBtn_Click"/>
-                        <RadioButton x:Name="Size20Btn" Content="20" GroupName="PenSize"
-                                      Style="{DynamicResource LinearPenSizeToggle}"
-                                      Margin="3,0,0,0" Click="SizeBtn_Click"/>
-
-                        <Rectangle Style="{DynamicResource LinearToolbarSeparator}"/>
-
-                        <Button Content="清空" Style="{DynamicResource LinearToolButton}"
-                                Click="Clear_Click"/>
-                        <Button Content="撤销" Style="{DynamicResource LinearToolButton}"
-                                Margin="6,0,0,0" Click="Undo_Click"/>
-                    </StackPanel>
-
-                    <!-- Right: Copy / Save / Cancel / Close.
-                         Close uses LinearCloseIconButton (red wash
-                         on hover) matching the main app / OCR
-                         window's close-button visual. -->
-                    <StackPanel Grid.Column="2" Orientation="Horizontal">
-                        <Button x:Name="CopyBtn" Content="Copy"
-                                Style="{DynamicResource LinearToolButton}"
-                                Click="Copy_Click"/>
-                        <Button x:Name="SaveBtn" Content="保存"
-                                Style="{DynamicResource LinearPrimaryButton}"
-                                Margin="6,0,0,0" Click="Save_Click"/>
-                        <Button x:Name="CancelBtn" Content="取消"
-                                Style="{DynamicResource LinearDestructiveButton}"
-                                Margin="6,0,0,0" Click="Cancel_Click"/>
-                        <Button x:Name="CloseBtn" Width="28" Height="28" Margin="6,0,0,0"
-                                Style="{StaticResource LinearCloseIconButton}"
-                                Click="Close_Click">
-                            <TextBlock Text="×" FontSize="16" FontWeight="400"
-                                       VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                        </Button>
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <!-- Row 1: viewer + pen-canvas overlay. -->
-            <Grid Grid.Row="1" Background="#FFfafafa" ClipToBounds="True">
-                <controls:SkiaImageViewer x:Name="SkiaViewer"/>
-                <Canvas x:Name="PenCanvas" Background="Transparent"
-                        IsHitTestVisible="{Binding IsChecked, ElementName=PenToggle}"
-                        MouseLeftButtonDown="PenCanvas_MouseLeftButtonDown"
-                        MouseMove="PenCanvas_MouseMove"
-                        MouseLeftButtonUp="PenCanvas_MouseLeftButtonUp"
-                        MouseWheel="PenCanvas_MouseWheel"/>
+    <!--
+    Custom Window.Template (Phase 0): the OCR window's approach
+    (Plugins.Ocr.Ui/OcrResultWindow.xaml) is reused here. A
+    WindowChrome would also work, but using a ControlTemplate
+    gives us full control over the visual tree (the rounded
+    Border + DropShadowEffect) and avoids the chrome-event
+    interception that made toolbar buttons unclickable.
+    WindowStyle=None + AllowsTransparency=True + Background=
+    Transparent make WPF render the entire visual tree as a
+    single layered bitmap; the Border's CornerRadius=8 then
+    determines the visible window shape. The 16/16/16/32 margin
+    leaves room for the 24px-blur + 8px-depth shadow to render
+    without being clipped at the window edge; the asymmetric
+    bottom accounts for ShadowDepth=8 (8px down). -->
+    <Window.Template>
+        <ControlTemplate TargetType="{x:Type Window}">
+            <Grid Margin="16,16,16,32">
+                <Border CornerRadius="8"
+                        Background="{StaticResource SurfaceCanvas}"
+                        BorderBrush="{StaticResource BorderStrong}"
+                        BorderThickness="1"
+                        SnapsToDevicePixels="True">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="24" ShadowDepth="8" Opacity="0.18" Color="Black"/>
+                    </Border.Effect>
+                    <ContentPresenter/>
+                </Border>
             </Grid>
+        </ControlTemplate>
+    </Window.Template>
 
-            <!-- Row 2: bottom bar. Status (left, Width=0.3*,
-                 MinWidth=60) | zoom (center, Width=*) | OCR
-                 (right, Width=Auto). Done removed (Copy moved to
-                 top bar; user clicks Save or Cancel at the top
-                 when done). -->
-            <Border Grid.Row="2"
-                    Background="#FFf4f4f5"
-                    BorderBrush="#12000000"
-                    BorderThickness="0,1,0,0"
-                    Padding="16,6">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="0.3*" MinWidth="60"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- Title bar (44px, matches main app's TitleBarView
+                 and the OCR window's title bar). Top-left:
+                 "截图编辑-{filename}". Top-right: minimize /
+                 maximize / close. CornerRadius rounds only the
+                 TOP corners (8,8,0,0) so the opaque title-bar
+                 background doesn't cover the outer Window.Template
+                 Border's rounded top corners. The bottom corners
+                 stay sharp so the title bar's bottom hairline meets
+                 the toolbar cleanly. -->
+            <RowDefinition Height="44"/>
+            <!-- Existing toolbar (Phase 4: this used to be Row 0).
+                 Cancel removed — the close button in the title bar
+                 replaces it. Copy stays here, just left of Save. -->
+            <RowDefinition Height="Auto"/>
+            <!-- Viewer + pen-canvas overlay area. -->
+            <RowDefinition Height="*"/>
+            <!-- Bottom bar: status text (left) + zoom controls
+                 (center) + OCR (right). -->
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Column="0" x:Name="StatusText"
-                               Text="Ready"
-                               FontSize="12"
-                               TextTrimming="CharacterEllipsis"
-                               VerticalAlignment="Center"
-                               HorizontalAlignment="Left"
-                               Margin="0,0,8,0"/>
+        <!-- Row 0: title bar. -->
+        <Border Grid.Row="0"
+                Background="{StaticResource SurfaceCanvas}"
+                BorderBrush="{StaticResource BorderSubtle}"
+                BorderThickness="0,0,0,1"
+                CornerRadius="8,8,0,0"
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           x:Name="HeaderFileName"
+                           Text="截图编辑 - 未命名截图"
+                           FontFamily="{StaticResource FontPrimary}"
+                           FontSize="12" FontWeight="600"
+                           Foreground="{StaticResource TextSecondary}"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Left"
+                           Margin="20,0,0,0"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,8,0"
+                            VerticalAlignment="Center">
+                    <Button Width="28" Height="28" Margin="2,0,0,0"
+                            Style="{StaticResource LinearToolButton}"
+                            Click="MinimizeBtn_Click">
+                        <TextBlock Text="—" FontSize="14" FontWeight="600"
+                                   Foreground="{StaticResource TextSecondary}"/>
+                    </Button>
+                    <Button Width="28" Height="28" Margin="2,0,0,0"
+                            Style="{StaticResource LinearToolButton}"
+                            Click="MaximizeBtn_Click">
+                        <TextBlock x:Name="MaximizeIcon" Text="□" FontSize="13"
+                                   FontWeight="600"
+                                   Foreground="{StaticResource TextSecondary}"/>
+                    </Button>
+                    <Button Width="28" Height="28" Margin="2,0,0,0"
+                            Style="{StaticResource LinearCloseIconButton}"
+                            Click="CloseBtn_Click">
+                        <TextBlock Text="×" FontSize="16" FontWeight="400"
+                                   Foreground="{StaticResource TextSecondary}"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal"
-                                HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Button x:Name="FitBtn" Content="Fit"
-                                Style="{DynamicResource LinearToolButton}"
-                                Click="FitBtn_Click"/>
-                        <Slider x:Name="ZoomSlider" Width="180"
-                                Style="{DynamicResource LinearSlider}"
-                                Minimum="0.5" Maximum="2" Value="1.0"
-                                Margin="12,0,8,0"
-                                ValueChanged="ZoomSlider_ValueChanged"/>
-                        <TextBlock x:Name="ZoomLabel" Text="100%"
-                                   Style="{StaticResource LinearSubtleLabel}"
-                                   Width="44" TextAlignment="Right"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,8,0"
-                                   Foreground="#FF1a1a1a"/>
-                        <Button x:Name="ZoomOutBtn" Content="−"
-                                Style="{DynamicResource LinearToolButton}"
-                                Width="28" Margin="0,0,0,0" FontSize="14"
-                                Click="ZoomOutBtn_Click"/>
-                        <Button x:Name="ZoomInBtn" Content="+"
-                                Style="{DynamicResource LinearToolButton}"
-                                Width="28" Margin="4,0,0,0" FontSize="14"
-                                Click="ZoomInBtn_Click"/>
-                    </StackPanel>
+        <!-- Row 1: toolbar (was Row 0; Cancel removed). -->
+        <Border Grid.Row="1"
+                Background="{StaticResource SurfaceCanvas}"
+                BorderBrush="{StaticResource BorderSubtle}"
+                BorderThickness="0,0,0,1"
+                Padding="16,8"
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-                    <Button Grid.Column="2" x:Name="OcrBtn" Content="OCR"
+                <StackPanel Grid.Column="0" Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <ToggleButton x:Name="PenToggle" Content="Pen"
+                                  Style="{StaticResource LinearToolToggle}"
+                                  IsChecked="True"
+                                  Click="PenToggle_Click"/>
+                    <Border Margin="6,0,0,0"
+                            BorderBrush="#1F000000" BorderThickness="1"
+                            CornerRadius="6"
+                            Background="#FFf4f4f5"
+                            Padding="2">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="PenModeColor" GroupName="PenMode"
+                                         Content="Color"
+                                         Style="{StaticResource LinearSegmentedItem}"
+                                         IsChecked="True"
+                                         Checked="PenModeColor_Checked"/>
+                            <RadioButton x:Name="PenModeMosaic" GroupName="PenMode"
+                                         Content="Mosaic"
+                                         Style="{StaticResource LinearSegmentedItem}"
+                                         Checked="PenModeMosaic_Checked"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                            Margin="16,0,16,0">
+                    <TextBlock Text="颜色" Style="{StaticResource LinearSubtleLabel}" Margin="0,0,8,0"
+                               VerticalAlignment="Center"/>
+                    <RadioButton x:Name="ColorRedBtn" Width="22" Height="22" Margin="0,0,4,0"
+                                  GroupName="PenColor" IsChecked="True"
+                                  Tag="#FFE11D48"
+                                  Click="ColorBtn_Click"
+                                  Style="{DynamicResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorOrangeBtn" Width="22" Height="22" Margin="0,0,4,0"
+                                  GroupName="PenColor"
+                                  Tag="#FFEA580C"
+                                  Click="ColorBtn_Click"
+                                  Style="{DynamicResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorYellowBtn" Width="22" Height="22" Margin="0,0,4,0"
+                                  GroupName="PenColor"
+                                  Tag="#FFEAB308"
+                                  Click="ColorBtn_Click"
+                                  Style="{DynamicResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorGreenBtn" Width="22" Height="22" Margin="0,0,4,0"
+                                  GroupName="PenColor"
+                                  Tag="#FF16A34A"
+                                  Click="ColorBtn_Click"
+                                  Style="{DynamicResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorBlueBtn" Width="22" Height="22" Margin="0,0,4,0"
+                                  GroupName="PenColor"
+                                  Tag="#FF2563EB"
+                                  Click="ColorBtn_Click"
+                                  Style="{DynamicResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorBlackBtn" Width="22" Height="22"
+                                  GroupName="PenColor"
+                                  Tag="#FF1a1a1a"
+                                  Click="ColorBtn_Click"
+                                  Style="{DynamicResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorWhiteBtn" Width="22" Height="22" Margin="4,0,0,0"
+                                  GroupName="PenColor"
+                                  Tag="#FFFFFFFF"
+                                  Click="ColorBtn_Click"
+                                  Style="{DynamicResource LinearColorCircle}"/>
+
+                    <Rectangle Style="{DynamicResource LinearToolbarSeparator}"/>
+
+                    <TextBlock Text="粗细" Style="{StaticResource LinearSubtleLabel}" Margin="0,0,6,0"
+                               VerticalAlignment="Center"/>
+                    <RadioButton x:Name="Size2Btn" Content="2" GroupName="PenSize"
+                                  Style="{DynamicResource LinearPenSizeToggle}"
+                                  Click="SizeBtn_Click"/>
+                    <RadioButton x:Name="Size4Btn" Content="4" GroupName="PenSize" IsChecked="True"
+                                  Style="{DynamicResource LinearPenSizeToggle}"
+                                  Margin="3,0,0,0" Click="SizeBtn_Click"/>
+                    <RadioButton x:Name="Size8Btn" Content="8" GroupName="PenSize"
+                                  Style="{DynamicResource LinearPenSizeToggle}"
+                                  Margin="3,0,0,0" Click="SizeBtn_Click"/>
+                    <RadioButton x:Name="Size12Btn" Content="12" GroupName="PenSize"
+                                  Style="{DynamicResource LinearPenSizeToggle}"
+                                  Margin="3,0,0,0" Click="SizeBtn_Click"/>
+                    <RadioButton x:Name="Size20Btn" Content="20" GroupName="PenSize"
+                                  Style="{DynamicResource LinearPenSizeToggle}"
+                                  Margin="3,0,0,0" Click="SizeBtn_Click"/>
+
+                    <Rectangle Style="{DynamicResource LinearToolbarSeparator}"/>
+
+                    <Button Content="清空" Style="{DynamicResource LinearToolButton}"
+                            Click="Clear_Click"/>
+                    <Button Content="撤销" Style="{DynamicResource LinearToolButton}"
+                            Margin="6,0,0,0" Click="Undo_Click"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button x:Name="CopyBtn" Content="Copy"
                             Style="{DynamicResource LinearToolButton}"
-                            Click="Ocr_Click"/>
-                </Grid>
-            </Border>
+                            Click="Copy_Click"/>
+                    <Button x:Name="SaveBtn" Content="保存"
+                            Style="{DynamicResource LinearPrimaryButton}"
+                            Margin="6,0,0,0" Click="Save_Click"/>
+                    <!-- Cancel removed: the X button in the title bar
+                         is the close affordance now. Saves a slot
+                         and keeps the right cluster focused on
+                         the primary action. -->
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Row 2: viewer + pen-canvas overlay + mosaic preview
+             rectangle. The Rectangle is the live preview while
+             the user drags out a mosaic region; IsHitTestVisible=
+             False so the underlying PenCanvas keeps receiving
+             mouse events. -->
+        <Grid Grid.Row="2" Background="#FFfafafa" ClipToBounds="True">
+            <controls:SkiaImageViewer x:Name="SkiaViewer"/>
+            <Rectangle x:Name="MosaicPreviewRect"
+                       Stroke="#FF3a4099" StrokeThickness="1"
+                       StrokeDashArray="4 2"
+                       Fill="Transparent"
+                       IsHitTestVisible="False"
+                       Visibility="Collapsed"/>
+            <Canvas x:Name="PenCanvas" Background="Transparent"
+                    IsHitTestVisible="{Binding IsChecked, ElementName=PenToggle}"
+                    MouseLeftButtonDown="PenCanvas_MouseLeftButtonDown"
+                    MouseMove="PenCanvas_MouseMove"
+                    MouseLeftButtonUp="PenCanvas_MouseLeftButtonUp"
+                    MouseWheel="PenCanvas_MouseWheel"/>
         </Grid>
-    </Border>
+
+        <!-- Row 3: bottom bar. -->
+        <Border Grid.Row="3"
+                Background="#FFf4f4f5"
+                BorderBrush="{StaticResource BorderSubtle}"
+                BorderThickness="0,1,0,0"
+                Padding="16,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="0.3*" MinWidth="60"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" x:Name="StatusText"
+                           Text="Ready"
+                           FontSize="12"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Left"
+                           Margin="0,0,8,0"/>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Button x:Name="FitBtn" Content="Fit"
+                            Style="{DynamicResource LinearToolButton}"
+                            Click="FitBtn_Click"/>
+                    <Slider x:Name="ZoomSlider" Width="180"
+                            Style="{DynamicResource LinearSlider}"
+                            Minimum="0.5" Maximum="2" Value="1.0"
+                            Margin="12,0,8,0"
+                            ValueChanged="ZoomSlider_ValueChanged"/>
+                    <TextBlock x:Name="ZoomLabel" Text="100%"
+                               Style="{StaticResource LinearSubtleLabel}"
+                               Width="44" TextAlignment="Right"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"
+                               Foreground="#FF1a1a1a"/>
+                    <Button x:Name="ZoomOutBtn" Content="−"
+                            Style="{DynamicResource LinearToolButton}"
+                            Width="28" Margin="0,0,0,0" FontSize="14"
+                            Click="ZoomOutBtn_Click"/>
+                    <Button x:Name="ZoomInBtn" Content="+"
+                            Style="{DynamicResource LinearToolButton}"
+                            Width="28" Margin="4,0,0,0" FontSize="14"
+                            Click="ZoomInBtn_Click"/>
+                </StackPanel>
+
+                <Button Grid.Column="2" x:Name="OcrBtn" Content="OCR"
+                        Style="{DynamicResource LinearToolButton}"
+                        Click="Ocr_Click"/>
+            </Grid>
+        </Border>
+    </Grid>
 </Window>

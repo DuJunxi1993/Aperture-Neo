@@ -37,9 +37,26 @@ public class SettingsStore : ISettingsStore
     // plugins are auto-enabled — the user has to opt in once and
     // the choice persists across sessions.
     private readonly HashSet<string> _enabledPlugins = new();
+    // Set the first time SetPluginEnabled is called (during a
+    // run, not on first read). Lets the app's startup code
+    // distinguish "fresh user — opt them into defaults" from
+    // "advanced user — respect their empty list". Persisted
+    // across runs via the SettingsData class below.
+    private bool _pluginChoicesTouched;
     private string? _defaultSaveDir;
+    // P5 (tray-resident lifecycle): the user-configurable
+    // keyboard-shortcut bindings. Keyed by stable id
+    // ("ScreenshotPlugin.CaptureArea"), values are WPF
+    // KeyGesture strings ("Ctrl+Alt+A"). Default values
+    // are baked into GetShortcuts() so the user always
+    // has working bindings even on a brand-new install.
+    private Dictionary<string, string> _shortcuts = new();
+    private bool _autoStart;
+    private bool _firstRunShown;
+    private bool _closeToTray = true;
     private CancellationTokenSource? _saveCts;
     private int _saveGeneration;
+    private readonly object _saveLock = new();
     // P0 fix: defer file IO until first access. The previous
     // behaviour called Load() in the DI factory, which ran BEFORE
     // App.OnStartup's MigrateLegacyData() had a chance to move the
@@ -116,6 +133,152 @@ public class SettingsStore : ISettingsStore
     private bool _editorOcrShowWindow;
 
     /// <summary>
+    /// Default keyboard-shortcut bindings. Read on every
+    /// shortcut lookup; the user can override any of them
+    /// in the settings panel. New shortcuts added in
+    /// future versions should appear here too so the
+    /// "reset to default" path in the UI has a source
+    /// of truth.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> DefaultShortcuts { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ScreenshotPlugin.CaptureArea"] = "Ctrl+Alt+A",
+        ["ScreenshotPlugin.CaptureOcr"] = "Ctrl+Alt+T",
+        // Fullscreen capture: PrintScreen is a near-universal
+        // "screenshot" key and rarely conflicts. The
+        // standalone ScreenshotTool also defaults to
+        // PrintScreen for the fullscreen flow.
+        ["ScreenshotPlugin.CaptureFullscreen"] = "PrintScreen",
+    };
+
+    /// <summary>
+    /// Snapshot of the current shortcut bindings. Returns a
+    /// new dictionary on each call (the caller is allowed to
+    /// mutate it without affecting the store). Falls back to
+    /// <see cref="DefaultShortcuts"/> on a fresh install or
+    /// after settings.json has been wiped, so the user
+    /// always sees a populated shortcut table.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> GetShortcuts()
+    {
+        Load();
+        lock (_lock)
+        {
+            // Merge defaults with overrides so adding a new
+            // default shortcut in code doesn't require the
+            // user to reset — they get the new default on
+            // first read after upgrade.
+            var merged = new Dictionary<string, string>(DefaultShortcuts, StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in _shortcuts)
+                merged[kv.Key] = kv.Value;
+            return merged;
+        }
+    }
+
+    /// <summary>
+    /// Replace or remove a single shortcut binding. Pass
+    /// <c>null</c> for <paramref name="gesture"/> to remove
+    /// the user's override and fall back to the default.
+    /// </summary>
+    public void SetShortcut(string id, string? gesture)
+    {
+        bool changed;
+        lock (_lock)
+        {
+            if (gesture == null)
+            {
+                changed = _shortcuts.Remove(id);
+            }
+            else
+            {
+                _shortcuts.TryGetValue(id, out var prev);
+                changed = prev != gesture;
+                _shortcuts[id] = gesture;
+            }
+        }
+        if (changed) ScheduleSave();
+    }
+
+    /// <summary>
+    /// Reset all shortcut overrides to defaults. Called from
+    /// the settings panel's "重置全部" button.
+    /// </summary>
+    public void ResetShortcuts()
+    {
+        lock (_lock)
+        {
+            if (_shortcuts.Count == 0) return;
+            _shortcuts.Clear();
+        }
+        ScheduleSave();
+    }
+
+    /// <summary>
+    /// Whether the app should auto-start with Windows.
+    /// Written via the settings panel toggle; mirrored into
+    /// HKCU\...\Run\ApertureNeo by <see cref="AutoStartService"/>
+    /// (the registry write is decoupled from the settings
+    /// store so the same toggle works for a future portable
+    /// install where registry isn't available).
+    /// </summary>
+    public bool AutoStart
+    {
+        get { Load(); lock (_lock) return _autoStart; }
+        set
+        {
+            bool changed;
+            lock (_lock)
+            {
+                changed = _autoStart != value;
+                _autoStart = value;
+            }
+            if (changed) ScheduleSave();
+        }
+    }
+
+    /// <summary>
+    /// Set true once the first-run onboarding dialog has
+    /// been shown at least once. The dialog is shown only
+    /// when this is false, so subsequent launches skip it.
+    /// </summary>
+    public bool FirstRunShown
+    {
+        get { Load(); lock (_lock) return _firstRunShown; }
+        set
+        {
+            bool changed;
+            lock (_lock)
+            {
+                changed = _firstRunShown != value;
+                _firstRunShown = value;
+            }
+            if (changed) ScheduleSave();
+        }
+    }
+
+    /// <summary>
+    /// When true (the default), closing the main window via
+    /// its title-bar X button only hides the window to the
+    /// tray; the app keeps running so global hotkeys
+    /// continue to work. Set false in settings to make the
+    /// close button exit the process immediately.
+    /// </summary>
+    public bool CloseToTray
+    {
+        get { Load(); lock (_lock) return _closeToTray; }
+        set
+        {
+            bool changed;
+            lock (_lock)
+            {
+                changed = _closeToTray != value;
+                _closeToTray = value;
+            }
+            if (changed) ScheduleSave();
+        }
+    }
+
+    /// <summary>
     /// Read <see cref="SettingsPath"/> from disk and replace the
     /// in-memory favorites, recent, and last-opened-image values.
     /// Idempotent and lazy — the first accessor call (Favorites,
@@ -126,7 +289,11 @@ public class SettingsStore : ISettingsStore
     public void Load()
     {
         if (_loaded) return;
-        _loaded = true;
+        lock (_lock)
+        {
+            if (_loaded) return;
+            _loaded = true;
+        }
         try
         {
             if (!File.Exists(SettingsPath)) return;
@@ -144,6 +311,19 @@ public class SettingsStore : ISettingsStore
                     _enabledPlugins.Add(p);
                 _defaultSaveDir = data.DefaultScreenshotSaveDirectory;
                 _editorOcrShowWindow = data.EditorOcrShowWindow;
+                _shortcuts = data.Shortcuts != null
+                    ? new Dictionary<string, string>(data.Shortcuts, StringComparer.OrdinalIgnoreCase)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                _autoStart = data.AutoStart;
+                _firstRunShown = data.FirstRunShown;
+                _closeToTray = data.CloseToTray;
+                // Restore the "user has touched the plugin
+                // list" flag from disk. Defaults to false on
+                // a brand-new install or a settings.json that
+                // predates this feature, in which case the
+                // first-run bootstrap (App.xaml.cs) will opt
+                // the user into all discovered plugins.
+                _pluginChoicesTouched = data.PluginChoicesTouched;
             }
             LastOpenedImage = data.LastOpenedImage;
         }
@@ -176,6 +356,11 @@ public class SettingsStore : ISettingsStore
             string? lastImage;
             string? defaultSaveDir;
             bool editorOcrShowWindow;
+            Dictionary<string, string> shortcuts;
+            bool autoStart;
+            bool firstRunShown;
+            bool closeToTray;
+            bool pluginChoicesTouched;
             lock (_lock)
             {
                 favs = _favorites.ToList();
@@ -184,9 +369,16 @@ public class SettingsStore : ISettingsStore
                 lastImage = LastOpenedImage;
                 defaultSaveDir = _defaultSaveDir;
                 editorOcrShowWindow = _editorOcrShowWindow;
+                shortcuts = new Dictionary<string, string>(_shortcuts);
+                autoStart = _autoStart;
+                firstRunShown = _firstRunShown;
+                closeToTray = _closeToTray;
+                pluginChoicesTouched = _pluginChoicesTouched;
             }
-            Directory.CreateDirectory(AppDataDir);
-            var json = JsonSerializer.Serialize(
+            string json;
+            lock (_saveLock)
+            {
+                json = JsonSerializer.Serialize(
                 new SettingsData
                 {
                     Favorites = favs,
@@ -194,10 +386,16 @@ public class SettingsStore : ISettingsStore
                     EnabledPlugins = enabled,
                     LastOpenedImage = lastImage,
                     DefaultScreenshotSaveDirectory = defaultSaveDir,
-                    EditorOcrShowWindow = editorOcrShowWindow
+                    EditorOcrShowWindow = editorOcrShowWindow,
+                    Shortcuts = shortcuts.Count > 0 ? shortcuts : null,
+                    AutoStart = autoStart,
+                    FirstRunShown = firstRunShown,
+                    CloseToTray = closeToTray,
+                    PluginChoicesTouched = pluginChoicesTouched,
                 },
                 new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(SettingsPath, json);
+                File.WriteAllText(SettingsPath, json);
+            }
         }
         catch
         {
@@ -234,8 +432,29 @@ public class SettingsStore : ISettingsStore
             changed = enabled
                 ? _enabledPlugins.Add(pluginName)
                 : _enabledPlugins.Remove(pluginName);
+            // Mark "user has made a choice" — the first-run
+            // bootstrap reads this via HasAnyExplicitPluginChoice
+            // to decide whether to opt the user in. Setting
+            // the flag regardless of `changed` is fine: even a
+            // duplicate "enable already-enabled" call still
+            // signals user intent.
+            _pluginChoicesTouched = true;
         }
         if (changed) ScheduleSave();
+    }
+
+    /// <summary>True if the user has ever interacted with the
+    /// enabled-plugins list — i.e. <see cref="SetPluginEnabled"/>
+    /// has been called at least once. Even a "disable the only
+    /// plugin" call counts: an explicit empty list is
+    /// respected, only the unset default is overwritten.
+    /// We track this separately from the list length so the
+    /// first-run bootstrap can tell "fresh user" from
+    /// "advanced user who disabled everything".</summary>
+    public bool HasAnyExplicitPluginChoice()
+    {
+        Load();
+        lock (_lock) return _pluginChoicesTouched;
     }
 
     /// <summary>Add <paramref name="path"/> to favorites if not
@@ -379,5 +598,42 @@ public class SettingsStore : ISettingsStore
         /// Default false.
         /// </summary>
         public bool EditorOcrShowWindow { get; set; }
+
+        /// <summary>
+        /// User-customised keyboard-shortcut bindings. Only
+        /// overrides are stored here; the canonical defaults
+        /// live in <see cref="SettingsStore.DefaultShortcuts"/>.
+        /// </summary>
+        public Dictionary<string, string>? Shortcuts { get; set; }
+
+        /// <summary>
+        /// HKCU\...\Run\ApertureNeo toggle. Mirrored into the
+        /// registry by <see cref="AutoStartService"/> when the
+        /// user changes it in the settings panel.
+        /// </summary>
+        public bool AutoStart { get; set; }
+
+        /// <summary>
+        /// Whether the first-run onboarding dialog has been
+        /// shown. Once true, never shown again.
+        /// </summary>
+        public bool FirstRunShown { get; set; }
+
+        /// <summary>
+        /// When true, the main window's close button hides to
+        /// the tray instead of exiting. Default true on new
+        /// installs; toggled via the settings panel.
+        /// </summary>
+        public bool CloseToTray { get; set; } = true;
+
+        /// <summary>
+        /// True once the user has toggled a plugin (set
+        /// <see cref="EnabledPlugins"/> explicitly). Lets the
+        /// first-run bootstrap decide whether to opt a fresh
+        /// user into the default "all plugins enabled" state
+        /// or honour their persisted choice. Defaults to
+        /// false for a brand-new install.
+        /// </summary>
+        public bool PluginChoicesTouched { get; set; }
     }
 }

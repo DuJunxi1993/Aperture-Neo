@@ -7,7 +7,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 
-namespace ApertureNeo.Plugins.Screenshot;
+namespace ApertureNeo.Services;
 
 public static class CaptureEngine
 {
@@ -25,21 +25,48 @@ public static class CaptureEngine
 
     private const int SRCCOPY = 0xCC0020;
 
+    /// <summary>Scale WPF device-independent pixels to physical
+    /// pixels for the primary screen. <c>CopyFromScreen</c> and
+    /// <c>BitBlt</c> require device (physical) pixel coordinates;
+    /// WPF APIs return DIPs (1/96"). At 125% the multiplier is 1.25.</summary>
+    private static float GetDpiScale()
+    {
+        using var screen = Graphics.FromHwnd(IntPtr.Zero);
+        return screen.DpiX / 96f;
+    }
+
     public static Bitmap CaptureFullscreen()
     {
-        var bounds = new System.Drawing.Rectangle(
+        var dipBounds = new System.Drawing.Rectangle(
             (int)SystemParameters.VirtualScreenLeft,
             (int)SystemParameters.VirtualScreenTop,
             (int)SystemParameters.VirtualScreenWidth,
             (int)SystemParameters.VirtualScreenHeight);
-        return CaptureRegion(bounds);
+        var scale = GetDpiScale();
+        var physicalRect = new System.Drawing.Rectangle(
+            (int)Math.Round(dipBounds.X * scale),
+            (int)Math.Round(dipBounds.Y * scale),
+            (int)Math.Round(dipBounds.Width * scale),
+            (int)Math.Round(dipBounds.Height * scale));
+        return CaptureRegionImpl(physicalRect);
     }
 
     public static Bitmap CaptureRegion(System.Drawing.Rectangle rect)
     {
-        var bitmap = new Bitmap(rect.Width, rect.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        var scale = GetDpiScale();
+        var physicalRect = new System.Drawing.Rectangle(
+            (int)Math.Round(rect.X * scale),
+            (int)Math.Round(rect.Y * scale),
+            (int)Math.Round(rect.Width * scale),
+            (int)Math.Round(rect.Height * scale));
+        return CaptureRegionImpl(physicalRect);
+    }
+
+    private static Bitmap CaptureRegionImpl(System.Drawing.Rectangle physicalRect)
+    {
+        var bitmap = new Bitmap(physicalRect.Width, physicalRect.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
         using var g = Graphics.FromImage(bitmap);
-        g.CopyFromScreen(rect.X, rect.Y, 0, 0, rect.Size, CopyPixelOperation.SourceCopy);
+        g.CopyFromScreen(physicalRect.X, physicalRect.Y, 0, 0, physicalRect.Size, CopyPixelOperation.SourceCopy);
         return bitmap;
     }
 

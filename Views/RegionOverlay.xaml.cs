@@ -5,8 +5,19 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Shapes;
 
-namespace ApertureNeo.Plugins.Screenshot;
+namespace ApertureNeo.Views;
 
+/// <summary>
+/// Fullscreen region-selection overlay. Same role as the
+/// original <c>ApertureNeo.Plugins.Screenshot.RegionOverlay</c>;
+/// moved to the main app so <see cref="Services.CaptureService"/>
+/// can construct it directly (the screenshot plugin's shortcut
+/// handler invokes the service, which shows the overlay
+/// modally). Standalone callers still see this class via the
+/// Plugins.Screenshot assembly's namespace forward via
+/// <c>InternalsVisibleTo</c> is not used — the standalone EXE
+/// keeps its own copy under the original namespace for now.
+/// </summary>
 public partial class RegionOverlay : Window
 {
     private System.Windows.Point _start;
@@ -16,12 +27,41 @@ public partial class RegionOverlay : Window
     public System.Drawing.Rectangle? SelectedRegion { get; private set; }
     public bool IsFullscreen { get; private set; }
 
+    /// <summary>Set true when the user picked the OCR button
+    /// (or pressed O). <see cref="Services.CaptureService"/>
+    /// reads this after ShowDialog returns to dispatch into
+    /// the OCR-aware editor flow instead of the plain editor.</summary>
+    public bool OcrRequested { get; private set; }
+
+    /// <summary>True iff the user picked Confirm / Fullscreen /
+    /// OCR (i.e. any "productive" choice, not Cancel / Esc).
+    /// Used by callers who show this window via <see cref="Window.Show"/>
+    /// (non-modal), where <see cref="Window.DialogResult"/> cannot
+    /// be set without throwing <see cref="InvalidOperationException"/>.
+    /// Also set for the <see cref="Window.ShowDialog"/> path so the
+    /// standalone ScreenshotTool can read a single consistent flag
+    /// instead of branching on the DialogResult return value.</summary>
+    public bool Confirmed { get; private set; }
+
     public RegionOverlay()
     {
         InitializeComponent();
         ConfirmBtn.IsEnabled = false;
-        ActionBarText.Text = "Drag to select an area (F = fullscreen, Esc = cancel)";
-        Loaded += (_, _) => UpdateDimRects();
+        ActionBarText.Text = "Drag to select an area (F = fullscreen, O = OCR, Esc = cancel)";
+        Loaded += OnLoaded;
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        UpdateDimRects();
+        // Force-activate the dialog. When Owner=null, WPF still
+        // creates the HWND but Windows may not foreground it
+        // (no parent HWND to chain through). Calling Activate()
+        // in Loaded (after the HWND exists) explicitly brings the
+        // dialog to the foreground so mouse clicks route to the
+        // action bar buttons. Topmost=true keeps it on top
+        // while the user picks a region.
+        Activate();
     }
 
     private void OverlayCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -117,34 +157,44 @@ public partial class RegionOverlay : Window
         }
         SelectedRegion = new System.Drawing.Rectangle(x, y, w, h);
         ConfirmBtn.IsEnabled = true;
-        ActionBarText.Text = $"Selected: {w} x {h} px — Confirm or F for fullscreen";
+        ActionBarText.Text = $"Selected: {w} x {h} px — Confirm / F (fullscreen) / O (OCR)";
     }
 
     private void ConfirmBtn_Click(object sender, RoutedEventArgs e)
     {
         if (!SelectedRegion.HasValue) return;
         IsFullscreen = false;
-        DialogResult = true;
+        Confirmed = true;
         Close();
     }
 
     private void FullscreenBtn_Click(object sender, RoutedEventArgs e)
     {
         IsFullscreen = true;
-        DialogResult = true;
+        Confirmed = true;
+        Close();
+    }
+
+    private void OcrBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedRegion.HasValue) IsFullscreen = false;
+        else IsFullscreen = true;
+        OcrRequested = true;
+        Confirmed = true;
         Close();
     }
 
     private void CancelBtn_Click(object sender, RoutedEventArgs e)
     {
-        DialogResult = false;
+        Confirmed = false;
         Close();
     }
 
     private void Window_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Escape) { DialogResult = false; Close(); return; }
+        if (e.Key == Key.Escape) { Confirmed = false; Close(); return; }
         if (e.Key == Key.Enter && SelectedRegion.HasValue) { ConfirmBtn_Click(this, new RoutedEventArgs()); return; }
         if (e.Key == Key.F) { FullscreenBtn_Click(this, new RoutedEventArgs()); return; }
+        if (e.Key == Key.O) { OcrBtn_Click(this, new RoutedEventArgs()); return; }
     }
 }

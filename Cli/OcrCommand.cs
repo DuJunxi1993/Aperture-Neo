@@ -189,7 +189,7 @@ public sealed class OcrCommand : Command
         return tcs.Task;
     }
 
-    private static Task<int> CopyToClipboardAsync(IReadOnlyList<(string Path, OcrResult Result)> entries)
+    private async Task<int> CopyToClipboardAsync(IReadOnlyList<(string Path, OcrResult Result)> entries)
     {
         var sb = new StringBuilder();
         int successCount = 0;
@@ -226,13 +226,11 @@ public sealed class OcrCommand : Command
         bool clipboardOk = false;
         try
         {
-            // Clipboard.SetText can throw COMException when another
-            // process holds the clipboard lock. We log + exit 0
-            // anyway because the OCR itself succeeded — the
-            // 448-char result is in memory; the user can rerun
-            // and try the clipboard write again. Returning exit 1
-            // here made shell scripts think the OCR failed.
-            Clipboard.SetText(sb.ToString());
+            // Clipboard.SetText must be called from the WPF STA
+            // dispatcher thread. The CLI handler runs on a
+            // threadpool thread (System.CommandLine default), so
+            // we marshal via Dispatcher.InvokeAsync.
+            await _app.Dispatcher.InvokeAsync(() => Clipboard.SetText(sb.ToString()));
             clipboardOk = true;
         }
         catch (Exception ex)
@@ -284,8 +282,8 @@ public sealed class OcrCommand : Command
             ShowToast("OCR 失败", "剪贴板写入失败");
         }
 
-        Application.Current?.Shutdown(0);
-        return Task.FromResult(0);
+        _app.Shutdown(0);
+        return 0;
     }
 
     /// <summary>

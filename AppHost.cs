@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using ApertureNeo.Controls;
 using ApertureNeo.Services;
@@ -109,6 +110,32 @@ public static class AppHost
         // value at runtime instead of fishing it out of
         // Application.Current.Resources by string key.
         services.AddSingleton<ITheme, LinearTheme>();
+
+        // Tray-resident lifecycle: TrayService owns the system-tray
+        // NotifyIcon + context menu. Created once at startup,
+        // disposed at App.OnExit. The CloseToTray settings toggle
+        // gates whether the main window's close button hides vs.
+        // exits, but the tray icon stays alive regardless.
+        services.AddSingleton<TrayService>();
+
+        // Global hotkey service: Win32 RegisterHotKey wrapper
+        // exposed via IShortcutService. Plugins (e.g. the
+        // screenshot plugin) Register("ScreenshotPlugin.X", ...)
+        // during Activate; the host wires the message hook on
+        // the main window after Show.
+        services.AddSingleton<IShortcutService, GlobalHotkeyService>();
+
+        // In-process capture flow (Stage 5): replaces the
+        // Process.Start(ScreenshotTool.exe) path. Resolved by
+        // the screenshot plugin via IPluginContext.GetService.
+        // The accessor delegate gives the service the live
+        // MainWindow without coupling to it statically —
+        // Application.Current.MainWindow is the canonical
+        // accessor but reads "during" startup race conditions.
+        services.AddSingleton<CaptureService>(sp =>
+            new CaptureService(
+                sp.GetRequiredService<ISettingsStore>(),
+                () => Application.Current?.MainWindow));
 
         // ViewModels. P2: per-window scope (Transient). Each new
         // MainWindow gets a fresh set of VMs; services stay

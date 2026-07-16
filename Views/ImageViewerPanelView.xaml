@@ -30,7 +30,10 @@
         <annot:AnnotationOverlay x:Name="AnnotationBar" Grid.Row="0"
                                  Visibility="{Binding IsAnnotating, Converter={StaticResource BoolToVisibility}}"
                                  State="{Binding AnnotationState}"
-                                 SaveRequested="AnnotationBar_SaveRequested"/>
+                                 SaveRequested="AnnotationBar_SaveRequested"
+                                 ExitRequested="AnnotationBar_ExitRequested"
+                                 OcrRequested="AnnotationBar_OcrRequested"
+                                 ModeChanged="AnnotationBar_ModeChanged"/>
 
         <Grid Grid.Row="1" ClipToBounds="True">
             <controls:SkiaImageViewer x:Name="ImageViewer" Panel.ZIndex="0">
@@ -40,11 +43,7 @@
                         <MenuItem Header="{DynamicResource ImageCtx_OpenInExplorer}" Click="CtxOpenInExplorer_Click"/>
                         <MenuItem Header="{DynamicResource ImageCtx_Print}" Click="CtxPrint_Click"/>
                         <MenuItem Header="{DynamicResource ImageCtx_SetWallpaper}" Click="CtxSetWallpaper_Click" Tag="destructive"/>
-                        <Separator/>
-                        <!-- P5: enter / leave annotation mode. Toggles
-                             the AnnotationOverlay at the top of the
-                             viewer and hides the floating bar. -->
-                        <MenuItem x:Name="CtxAnnotationItem" Click="CtxAnnotation_Click"/>
+                        <MenuItem Header="编辑图片" Click="CtxAnnotation_Click"/>
                     </ContextMenu>
                 </controls:SkiaImageViewer.ContextMenu>
             </controls:SkiaImageViewer>
@@ -52,13 +51,24 @@
             <!-- P5: PenCanvas overlay for drawing. IsHitTestVisible
                  bound to IsAnnotating so the canvas only catches
                  mouse events in annotation mode (otherwise the
-                 underlying SkiaImageViewer handles pan/zoom). -->
+                 underlying SkiaImageViewer handles pan/zoom). The
+                 mosaic-mode drag preview lives INSIDE the canvas
+                 so Canvas.SetLeft/SetTop on it actually positions
+                 (Canvas-attached properties only work on children
+                 of a Canvas). -->
             <Canvas x:Name="PenCanvas" Background="Transparent"
                     IsHitTestVisible="{Binding IsAnnotating}"
                     MouseLeftButtonDown="PenCanvas_MouseLeftButtonDown"
                     MouseMove="PenCanvas_MouseMove"
                     MouseLeftButtonUp="PenCanvas_MouseLeftButtonUp"
-                    MouseWheel="PenCanvas_MouseWheel"/>
+                    MouseWheel="PenCanvas_MouseWheel">
+                <Rectangle x:Name="MosaicPreviewRect"
+                           Stroke="#FF3a4099" StrokeThickness="1"
+                           StrokeDashArray="4 2"
+                           Fill="Transparent"
+                           IsHitTestVisible="False"
+                           Visibility="Collapsed"/>
+            </Canvas>
         </Grid>
     </Grid>
 </UserControl>

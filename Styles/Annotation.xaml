@@ -31,7 +31,7 @@
                             <ControlTemplate>
                                 <Rectangle Margin="-2"
                                            StrokeThickness="2"
-                                           Stroke="#FF5e6ad2"
+                                           Stroke="{StaticResource BrandPrimary}"
                                            SnapsToDevicePixels="True"/>
                             </ControlTemplate>
                         </Setter.Value>
@@ -47,8 +47,8 @@
          on the surface ladder. -->
     <Style x:Key="LinearToolButton" TargetType="Button">
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="#FF1a1a1a"/>
-        <Setter Property="FontFamily" Value="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="500"/>
         <Setter Property="Height" Value="28"/>
@@ -66,14 +66,14 @@
                         <ContentPresenter HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
                                           Margin="{TemplateBinding Padding}"
-                                          TextElement.Foreground="#FF1a1a1a"/>
+                                          TextElement.Foreground="{StaticResource TextPrimary}"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="#14000000"/>
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource BtnBgHover}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="#1F000000"/>
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource BtnBgPress}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4"/>
@@ -87,7 +87,7 @@
     <!-- Linear Primary Button: filled indigo. Used for the
          annotation toolbar's Save action. -->
     <Style x:Key="LinearPrimaryButton" TargetType="Button" BasedOn="{StaticResource LinearToolButton}">
-        <Setter Property="Background" Value="#FF5e6ad2"/>
+        <Setter Property="Background" Value="{StaticResource BrandPrimary}"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="FontWeight" Value="600"/>
         <Setter Property="Template">
@@ -107,6 +107,40 @@
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="border" Property="Background" Value="#FF7170ff"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Linear Dark Tool Button: variant of LinearToolButton
+         for use on a dark surface (e.g. the RegionOverlay's
+         ActionBar Background="#DD1E1E1E"). The base
+         LinearToolButton hard-codes near-black text
+         (#FF1a1a1a) for use on light surfaces; this style
+         mirrors it but with white text + white-tinted hover
+         / pressed states so the buttons remain visible and
+         readable on dark. -->
+    <Style x:Key="LinearDarkToolButton" TargetType="Button"
+           BasedOn="{StaticResource LinearToolButton}">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}" TextElement.Foreground="White"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#3FFFFFFF"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#66FFFFFF"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4"/>
@@ -156,8 +190,8 @@
          this TargetType for a valid BasedOn chain). -->
     <Style x:Key="LinearToolToggle" TargetType="ToggleButton">
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="#FF1a1a1a"/>
-        <Setter Property="FontFamily" Value="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="500"/>
         <Setter Property="Height" Value="28"/>
@@ -193,17 +227,17 @@
                                           HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
                                           Margin="{TemplateBinding Padding}"
-                                          TextElement.Foreground="#FF1a1a1a"/>
+                                          TextElement.Foreground="{StaticResource TextPrimary}"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="#14000000"/>
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource BtnBgHover}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="#1F000000"/>
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource BtnBgPress}"/>
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="#FFe0e1ff"/>
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource SelectionBg}"/>
                             <Setter TargetName="text" Property="TextElement.Foreground" Value="#FF3a4099"/>
                             <Setter Property="FontWeight" Value="600"/>
                         </Trigger>
@@ -256,15 +290,15 @@
                                  HorizontalAlignment="Center"
                                  VerticalAlignment="Center"
                                  Fill="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
-                                 Stroke="#1F000000"
+                                 Stroke="{StaticResource BorderStandard}"
                                  StrokeThickness="1"/>
-                    </Grid>
+                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="ring" Property="Stroke" Value="#40000000"/>
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="ring" Property="Stroke" Value="#FF5e6ad2"/>
+                            <Setter TargetName="ring" Property="Stroke" Value="{StaticResource BrandPrimary}"/>
                             <Setter TargetName="ring" Property="StrokeThickness" Value="2"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -277,8 +311,8 @@
          Used for the zoom slider in the annotation toolbar. -->
     <Style x:Key="LinearSlider" TargetType="Slider">
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="#FF5e6ad2"/>
-        <Setter Property="FontFamily" Value="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial"/>
+        <Setter Property="Foreground" Value="{StaticResource BrandPrimary}"/>
+        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="Height" Value="24"/>
         <Setter Property="IsMoveToPointEnabled" Value="True"/>
         <Setter Property="FocusVisualStyle" Value="{StaticResource LinearAnnotationFocusVisual}"/>
@@ -288,16 +322,17 @@
                     <Grid VerticalAlignment="Center">
                         <Border x:Name="TrackBackground"
                                 Height="4"
-                                Background="#1F000000"
-                                CornerRadius="2"
-                                VerticalAlignment="Center"/>
-                        <Track x:Name="PART_Track" Height="4">
+                                 Background="{StaticResource BorderStandard}"
+                                 CornerRadius="2"
+                                 VerticalAlignment="Center"/>
+                        <Track x:Name="PART_Track" Height="14">
                             <Track.DecreaseRepeatButton>
                                 <RepeatButton Command="Slider.DecreaseLarge">
                                     <RepeatButton.Template>
                                          <ControlTemplate TargetType="RepeatButton">
-                                             <Border Background="#FF5e6ad2" CornerRadius="2"/>
-                                         </ControlTemplate>
+                                              <Border Background="{StaticResource BrandPrimary}" CornerRadius="2"
+                                                      Height="4" VerticalAlignment="Center"/>
+                                          </ControlTemplate>
                                     </RepeatButton.Template>
                                 </RepeatButton>
                             </Track.DecreaseRepeatButton>
@@ -316,8 +351,8 @@
                                         <ControlTemplate TargetType="Thumb">
                                             <Ellipse Width="14" Height="14"
                                                      Fill="White"
-                                                     Stroke="#1F000000"
-                                                     StrokeThickness="1"/>
+                                              Stroke="{StaticResource BorderStandard}"
+                                              StrokeThickness="1"/>
                                         </ControlTemplate>
                                     </Thumb.Template>
                                 </Thumb>
@@ -335,15 +370,15 @@
         <Setter Property="Width" Value="1"/>
         <Setter Property="Height" Value="20"/>
         <Setter Property="Margin" Value="12,0"/>
-        <Setter Property="Fill" Value="#1F000000"/>
+        <Setter Property="Fill" Value="{StaticResource BorderStandard}"/>
     </Style>
 
     <!-- Linear Subtle Label: 12px weight 500 secondary text. -->
     <Style x:Key="LinearSubtleLabel" TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial"/>
+        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="500"/>
-        <Setter Property="Foreground" Value="#FF4a4a52"/>
+        <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
@@ -355,7 +390,7 @@
          just the font and TextOptions on the toolbar so child
          controls inherit consistent defaults. -->
     <Style TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial"/>
+        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
     </Style>
 
@@ -407,10 +442,10 @@
          in the consumer XAML, not here, so the segmented
          control can be reused with different option sets. -->
     <Style x:Key="LinearSegmentedItem" TargetType="RadioButton">
-        <Setter Property="FontFamily" Value="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial"/>
+        <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="600"/>
-        <Setter Property="Foreground" Value="#FF4a4a52"/>
+        <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Padding" Value="12,4"/>
         <Setter Property="MinHeight" Value="24"/>
@@ -431,11 +466,11 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Foreground" Value="#FF1a1a1a"/>
+                            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="#FFe0e1ff"/>
-                            <Setter Property="Foreground" Value="#FF3a4099"/>
+                            <Setter TargetName="border" Property="Background" Value="{StaticResource SelectionBg}"/>
+                            <Setter Property="Foreground" Value="{StaticResource SelectionFg}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4"/>

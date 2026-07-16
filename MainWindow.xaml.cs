@@ -92,9 +92,37 @@ public partial class MainWindow : FluentWindow
     // VM reference for the App to call SetAvailablePlugins on.
     private PluginShellViewModel? _pluginShell;
 
+    /// <summary>Static reference to the live MainWindow so
+    /// non-window code paths (e.g. <see cref="App.OpenSettingsWindow"/>)
+    /// can resolve services that live on the window's VM
+    /// (e.g. <see cref="PluginShellViewModel"/>) without
+    /// re-routing through DI. Set in the constructor, cleared
+    /// in <c>Closed</c>. Named <c>Instance</c> to avoid the
+    /// clash with the WPF-inherited <c>Application.MainWindow</c>.</summary>
+    public static MainWindow? Instance { get; private set; }
+
     public MainWindow()
     {
+        Instance = this;
         InitializeComponent();
+
+        // Startup: set window height so viewer content area is square
+        var workArea = SystemParameters.WorkArea;
+        const double titleBarH = 44.0;
+        const double splitterW = 12.0;
+        double viewerSize = Math.Min(1000, workArea.Height * 0.8);
+        double w = Math.Round(viewerSize * 6.0 / 4.0 + splitterW);
+        double h = Math.Round(viewerSize + titleBarH);
+        Width = Math.Clamp(w, MinWidth, workArea.Width * 0.9);
+        Height = Math.Clamp(h, MinHeight, workArea.Height * 0.9);
+
+        // Tray-resident lifecycle (Stage 1): by default the close
+        // button only hides the window to the system tray. The user
+        // exits via the tray menu (or the explicit title-bar close
+        // shortcut Shift+Ctrl+Alt+X wired in the shortcut service,
+        // once Stage 3 lands). CloseToTray is read live so toggling
+        // it in Settings takes effect on the next close.
+        Closing += OnClosingRouteToTray;
 
         // R70: window-level click-outside handler that dismisses
         // the info popover when the user clicks anywhere outside
@@ -155,8 +183,8 @@ public partial class MainWindow : FluentWindow
         // IPluginContext, so App.RunViewerAsync hands this
         // VM to PluginLoader.Activate so plugins see the
         // same IPluginContext contract they always have.
-        _pluginShell = new PluginShellViewModel(_settings, _theme, _navigation);
-        _pluginShell.AttachShell(MenuPlugins, ImageViewer.ContextMenu);
+        _pluginShell = new PluginShellViewModel(_settings, _navigation);
+        _pluginShell.AttachShell(ImageViewer.ContextMenu);
 
         // ---- P1: wire up the 9 extracted UserControls ----
         // P2: TitleBarView's events are gone (replaced by VM
@@ -341,6 +369,8 @@ public partial class MainWindow : FluentWindow
 
         Closed += (_, _) =>
         {
+            if (Instance == this) Instance = null;
+
             var current = _navigation.Current;
             if (current != null)
                 _settings.LastOpenedImage = current.FilePath;
@@ -576,7 +606,9 @@ public partial class MainWindow : FluentWindow
     // stay self-contained (they don't need to know about the
     // UserControl wrapper layer).
 
-    private System.Windows.Controls.MenuItem MenuPlugins => TitleBar.MenuPluginsRef;
+    // MenuPlugins removed (Stage 4): plugin toggles now live
+    // in Settings → Plugins. Title bar overflow menu no longer
+    // hosts a 插件 submenu.
     // P2: SlideshowIcon / ImageIndexInfo / ZoomTextBlock are
     // now VM properties (bound via XAML on FloatingBarView).
     // The legacy convenience properties are removed; the
@@ -667,6 +699,29 @@ public partial class MainWindow : FluentWindow
     public void SetAvailablePlugins(IReadOnlyList<PluginInfo> plugins)
         => _pluginShell?.SetAvailablePlugins(plugins);
 
-    public void RestoreEnabledPlugins()
+public void RestoreEnabledPlugins()
         => _pluginShell?.RestoreEnabledPlugins();
+
+    /// <summary>
+    /// Tray-resident close routing: by default the close button
+    /// hides the window to the tray instead of exiting the
+    /// process. The user exits via the tray menu's "退出" item
+    /// (which routes through App.Shutdown). If the user has
+    /// toggled CloseToTray off in settings, the close button
+    /// exits normally.
+    /// </summary>
+    private void OnClosingRouteToTray(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (ForceExitOnClose) return;
+        if (!_settings.CloseToTray) return;
+        e.Cancel = true;
+        Hide();
+    }
+
+    /// <summary>
+    /// Set by the tray's "退出" handler so the imminent shutdown
+    /// close is not intercepted by the close-to-tray routing.
+    /// Read once per Closing event; cleared after the app exits.
+    /// </summary>
+    public bool ForceExitOnClose { get; set; }
 }

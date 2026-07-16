@@ -9,6 +9,8 @@ using System.Windows;
 using ApertureNeo.Cli;
 using ApertureNeo.Helpers;
 using ApertureNeo.Services;
+using ApertureNeo.ViewModels;
+using ApertureNeo.Views;
 using Microsoft.Extensions.DependencyInjection;
 using SQLitePCL;
 
@@ -33,6 +35,12 @@ public partial class App : Application
     /// </summary>
     public static IServiceProvider Host => AppHost.Services
         ?? throw new InvalidOperationException("AppHost not built — call AppHost.Build() in App.OnStartup first.");
+
+    /// <summary>Process-level single-instance gate. Held by the
+    /// primary instance for the lifetime of the process; null
+    /// for secondary instances that have already forwarded
+    /// and shut down. Disposed in <see cref="OnExit"/>.</summary>
+    private SingleInstance? _instance;
 
     /// <summary>
     /// First-position argument tokens that route the process into the
@@ -63,6 +71,62 @@ public partial class App : Application
 
     protected override async void OnStartup(StartupEventArgs e)
     {
+        // Single-instance gate. Must run before EVERYTHING else —
+        // before AppHost.Build (which constructs the SQLite
+        // ThumbnailCache), before the tray icon, before
+        // GlobalHotkeyService.Initialize (which claims a hotkey
+        // via Win32 RegisterHotKey). If another instance of
+        // ApertureNeo.exe is already running in this Windows
+        // session, we forward our argv to it (so a second
+        // `ApertureNeo.exe C:\path\to\image.jpg` still opens
+        // the image in the running instance) and then exit
+        // before doing any of the heavy startup work.
+        //
+        // We do this BEFORE AttachConsole because the secondary
+        // instance may want to print to a console (e.g. for
+        // diagnostics), and AFTER the WPF Application is
+        // initialised by `base.OnStartup` (which the async
+        // OnStartupCore calls). To do it cleanly we need
+        // Application.Current to be non-null, which it is by
+        // the time OnStartup is invoked.
+        try
+        {
+            _instance = SingleInstance.EnsurePrimary();
+            if (!_instance.IsPrimary)
+            {
+                // Secondary. Push args to primary and exit.
+                // Skip AttachConsole rebinding and the entire
+                // OnStartupCore — the running primary owns
+                // the tray icon, the hotkey slot, and the
+                // SQLite cache. We just need to talk to it.
+                bool forwarded = _instance.ForwardArgsAndExit(e.Args);
+                // Whether or not forwarding succeeded, the
+                // right thing to do is exit. The primary
+                // handles the args (or ignores them if we
+                // failed to forward).
+                DebugLog.Write("App",
+                    forwarded
+                        ? "secondary instance: args forwarded, shutting down"
+                        : "secondary instance: forward failed, shutting down anyway");
+                _instance.Dispose();
+                _instance = null;
+                Shutdown(0);
+                return;
+            }
+            // Primary: wire the forwarded-args handler now so
+            // it's ready by the time a secondary forwards.
+            _instance.ArgsReceived += OnSecondaryArgsReceived;
+        }
+        catch (Exception ex)
+        {
+            // Never let the single-instance layer prevent
+            // the app from starting — fall through to the
+            // normal startup path if the gate itself throws
+            // (corrupted ACL on the mutex name, etc.).
+            DebugLog.Write("App",
+                $"SingleInstance gate threw: {ex.GetType().Name}: {ex.Message}");
+        }
+
         // P2 fix: attach to the parent process's console (if any)
         // and re-bind Console.Out/Error so CLI invocations
         // (`--help`, `plugin-list`, `ocr …`, etc.) actually reach
@@ -270,6 +334,56 @@ public partial class App : Application
 
         mainWindow.Show();
 
+        // First-run onboarding (Stage 2 + decision B1+B2): shown once
+        // after install / upgrade. The user's choices write straight
+        // into SettingsStore; the registry write for auto-start
+        // happens later (Stage 7 — AutoStartService). The dialog is
+        // modal so the main window stays unresponsive until dismissed.
+        // CenterScreen positioning lands it on the same screen as the
+        // main window without needing Owner (Owner would block Show).
+        if (!settings.FirstRunShown)
+        {
+            var firstRun = new Views.FirstRunDialog
+            {
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = mainWindow,
+            };
+            firstRun.ShowDialog();
+
+            // Persist the choices regardless of OK / 稍后 — the
+            // dialog's IsChecked bindings already reflect the user's
+            // final state.
+            settings.FirstRunShown = true;
+            settings.AutoStart = firstRun.EnableAutoStart;
+            settings.CloseToTray = firstRun.EnableCloseToTray;
+            settings.Save();
+        }
+
+        // Tray-resident lifecycle (Stage 1): bring up the system
+        // tray icon once the main window is on screen. The icon
+        // stays alive even when the user closes the window to the
+        // tray; the only way to exit the process is via the tray
+        // menu's "退出" item (or the future Ctrl+Alt+Q shortcut).
+        var tray = AppHost.Services!.GetRequiredService<TrayService>();
+
+        // Capture service (Stage 5): in-process screenshot flow.
+        // The tray's 截图 / OCR menu items call into this directly;
+        // the screenshot plugin's hotkeys do the same via
+        // IPluginContext.GetService<CaptureService>().
+        var captureService = AppHost.Services!.GetRequiredService<CaptureService>();
+
+        WireTray(tray, mainWindow, captureService);
+        tray.Show();
+
+        // Global hotkey hook (Stage 3): attach the WM_HOTKEY message
+        // hook to the main window's HWND. Must happen after Show so
+        // the HWND exists. Plugins call shortcutService.Register(...)
+        // during their Activate() (which runs in RestoreEnabledPlugins
+        // below) and the callbacks fire from here on.
+        var shortcutService = AppHost.Services!.GetRequiredService<IShortcutService>();
+        if (shortcutService is GlobalHotkeyService ghk)
+            ghk.Initialize(mainWindow);
+
         // Discover plugins from bin/Plugins/*.dll. We only LOAD the
         // assemblies (so Name/Description can be read for the menu)
         // — Activate is NOT called, so the plugin's heavy resources
@@ -280,7 +394,200 @@ public partial class App : Application
         var pluginsDir = Path.Combine(AppContext.BaseDirectory, "Plugins");
         var available = PluginLoader.Discover(pluginsDir);
         mainWindow.SetAvailablePlugins(available);
+
+        // First-run bootstrap: if the user has never explicitly
+        // enabled or disabled a plugin (the enabled list is
+        // empty), opt them into all discovered plugins so the
+        // global hotkeys (Ctrl+Alt+A etc.) work out of the box.
+        // After the first run the list is non-empty and this
+        // branch is a no-op — the user's subsequent choices
+        // are respected.
+        if (available.Count > 0)
+        {
+            var settingsStore = AppHost.Services!.GetRequiredService<ISettingsStore>();
+            if (!settingsStore.HasAnyExplicitPluginChoice())
+            {
+                DebugLog.Write("App",
+                    "first run: enabling all discovered plugins by default");
+                foreach (var p in available)
+                    settingsStore.SetPluginEnabled(p.Name, true);
+            }
+        }
+
         mainWindow.RestoreEnabledPlugins();
+    }
+
+    /// <summary>
+    /// Connect the tray service's events to the main window. The
+    /// tray stays alive while the main window is hidden; double-click
+    /// or "显示主窗口" re-shows it. "退出" terminates the process
+    /// (the only path that does so — closing the window via its
+    /// own close button just hides, see MainWindow.OnClosingRouteToTray).
+    /// </summary>
+    private static void WireTray(TrayService tray, MainWindow mainWindow, CaptureService captureService)
+    {
+        tray.ShowMainRequested += (_, _) =>
+        {
+            // Un-hide the main window when the user picks
+            // "显示主窗口" from the tray. Idempotent.
+            if (!mainWindow.IsVisible) mainWindow.Show();
+            if (mainWindow.WindowState == WindowState.Minimized)
+                mainWindow.WindowState = WindowState.Normal;
+            mainWindow.Activate();
+            mainWindow.Topmost = true;
+            mainWindow.Topmost = false;
+            mainWindow.Focus();
+        };
+
+        tray.OpenSettingsRequested += (_, _) =>
+        {
+            OpenSettingsWindow(mainWindow);
+        };
+
+        tray.CaptureAreaRequested += (_, _) =>
+        {
+            // CaptureService marshals the flow to the WPF UI
+            // thread internally, so this handler doesn't need an
+            // explicit Dispatcher.BeginInvoke. Calling
+            // RunCaptureAreaAsync from the WinForms worker thread
+            // is safe — the first thing CaptureService does is
+            // hop onto Application.Current.Dispatcher.
+            _ = captureService.RunCaptureAreaAsync();
+        };
+
+        tray.CaptureOcrRequested += (_, _) =>
+        {
+            // Same as CaptureAreaRequested: CaptureService handles
+            // thread marshaling internally.
+            _ = captureService.RunCaptureAreaOcrAsync();
+        };
+
+        tray.ExitRequested += (_, _) =>
+        {
+            // Truly exit the process. TrayService gets disposed in
+            // App.OnExit alongside the rest of the singletons. The
+            // CloseToTray setting stays true (persisted for the
+            // next session), but we temporarily force it false so
+            // MainWindow.OnClosingRouteToTray doesn't intercept the
+            // shutdown close and hide instead of exiting.
+            mainWindow.ForceExitOnClose = true;
+            Application.Current.Shutdown();
+        };
+    }
+
+    /// <summary>
+    /// Handle argv forwarded from a secondary <c>ApertureNeo.exe</c>
+    /// instance via the <see cref="SingleInstance"/> named pipe.
+    /// Already marshalled to the WPF UI thread by the pipe loop.
+    ///
+    /// Two responsibilities:
+    /// <list type="bullet">
+    ///   <item>If the main window is hidden (close-to-tray), show
+    ///         and activate it so the user can see the result.</item>
+    ///   <item>If <paramref name="args"/> contains a supported
+    ///         file path, navigate the viewer to it (mirrors
+    ///         <see cref="RunViewerAsync"/>'s startup-file
+    ///         logic).</item>
+    /// </list>
+    /// </summary>
+    private void OnSecondaryArgsReceived(string[] args)
+    {
+        try
+        {
+            DebugLog.Write("App",
+                $"OnSecondaryArgsReceived: {args.Length} arg(s) — {(args.Length > 0 ? string.Join(" | ", args) : "(empty)")}");
+
+            var mainWindow = ApertureNeo.MainWindow.Instance;
+            if (mainWindow != null)
+            {
+                // Restore the main window if it was closed to tray.
+                // Use the same Show + WindowState.Normal pattern as
+                // the tray menu's "显示主窗口" handler.
+                if (!mainWindow.IsVisible)
+                {
+                    mainWindow.Show();
+                }
+                if (mainWindow.WindowState == WindowState.Minimized)
+                {
+                    mainWindow.WindowState = WindowState.Normal;
+                }
+                mainWindow.Activate();
+                mainWindow.Topmost = true;
+                mainWindow.Topmost = false;
+                mainWindow.Focus();
+            }
+
+            // If the secondary was launched with a file path,
+            // navigate the existing viewer to it. Reuses the same
+            // FormatHelper check as the startup path.
+            string? targetFile = null;
+            foreach (var a in args)
+            {
+                if (File.Exists(a) && FormatHelper.IsSupported(a))
+                {
+                    targetFile = a;
+                    break;
+                }
+            }
+            if (targetFile != null)
+            {
+                DebugLog.Write("App",
+                    $"OnSecondaryArgsReceived: navigating to {targetFile}");
+                try
+                {
+                    var nav = AppHost.Services?.GetService<INavigationService>();
+                    nav?.NavigateTo(targetFile);
+                }
+                catch (Exception ex)
+                {
+                    DebugLog.Write("App",
+                        $"navigation failed: {ex.GetType().Name}: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write("App",
+                $"OnSecondaryArgsReceived threw: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Show the settings window modally against the main window.
+    /// Single-instance: if already open, focus the existing one
+    /// rather than stacking duplicates. Stage 8 entry point.
+    /// Public so the title bar's "设置..." menu item and the
+    /// tray's settings menu can both reach it.
+    /// </summary>
+    private static SettingsWindow? _openSettings;
+    public static void OpenSettingsWindow(Window owner)
+    {
+        if (_openSettings != null && _openSettings.IsLoaded)
+        {
+            _openSettings.Activate();
+            return;
+        }
+        var sp = AppHost.Services!;
+        // Fully-qualify: Application.MainWindow is a property
+        // of the WPF base class, ApertureNeo.MainWindow is our
+        // type. Without the namespace prefix the compiler
+        // treats MainWindow.Instance as Application.MainWindow
+        // (which is a non-static instance property).
+        var mainWindow = ApertureNeo.MainWindow.Instance
+            ?? throw new InvalidOperationException(
+                "MainWindow.Instance not set; OpenSettingsWindow must be called after MainWindow is constructed.");
+        var vm = new SettingsViewModel(
+            sp.GetRequiredService<ISettingsStore>(),
+            sp.GetRequiredService<IShortcutService>(),
+            mainWindow.PluginShell ?? throw new InvalidOperationException(
+                "PluginShell not attached; call AttachShell on MainWindow before OpenSettingsWindow."),
+            sp.GetRequiredService<ITheme>());
+        _openSettings = new SettingsWindow(vm)
+        {
+            Owner = owner,
+        };
+        _openSettings.Closed += (_, _) => _openSettings = null;
+        _openSettings.ShowDialog();
     }
 
     /// <summary>
@@ -365,7 +672,21 @@ public partial class App : Application
         {
             (sp.GetService<ISettingsStore>() as SettingsStore)?.Save();
             (sp.GetService<IThumbnailCache>() as ThumbnailCache)?.Dispose();
+        // TrayService owns the NotifyIcon. Dispose removes it
+        // from the system tray; otherwise the icon would linger
+        // for ~10s after process exit (Windows uses the icon's
+        // owner process for shell notifications).
+        (sp.GetService<TrayService>())?.Dispose();
+        // GlobalHotkeyService releases the Win32 hotkey slots.
+        (sp.GetService<IShortcutService>() as IDisposable)?.Dispose();
         }
+        // Single-instance gate: release the named mutex so a
+        // future launch can become primary. Runs even when
+        // AppHost.Services is null (secondary-instance early
+        // exit path: _instance is already disposed there, so
+        // this is a no-op).
+        try { _instance?.Dispose(); } catch { }
+        _instance = null;
         base.OnExit(e);
     }
 

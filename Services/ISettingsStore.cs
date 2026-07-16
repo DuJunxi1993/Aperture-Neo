@@ -51,6 +51,54 @@ public interface ISettingsStore
     /// </summary>
     bool EditorOcrShowWindow { get; set; }
 
+    /// <summary>
+    /// P5 (tray-resident lifecycle): when true (the default on
+    /// a fresh install), the main window's title-bar close
+    /// button only hides the window to the tray; the process
+    /// keeps running so global hotkeys continue to work. Set
+    /// false via the settings panel to make the close button
+    /// exit the process immediately.
+    /// </summary>
+    bool CloseToTray { get; set; }
+
+    /// <summary>
+    /// Whether the app should auto-start with Windows. Mirrored
+    /// into HKCU\...\Run\ApertureNeo by the settings panel
+    /// (the registry write is decoupled from this property so
+    /// a future portable install can implement its own
+    /// persistence).
+    /// </summary>
+    bool AutoStart { get; set; }
+
+    /// <summary>
+    /// Set true once the first-run onboarding dialog has
+    /// been shown. The dialog is shown only when this is
+    /// false; subsequent launches skip it.
+    /// </summary>
+    bool FirstRunShown { get; set; }
+
+    /// <summary>
+    /// Snapshot of the current shortcut bindings. Falls back
+    /// to the defaults baked into <see cref="SettingsStore"/>
+    /// on a fresh install, so the user always sees a populated
+    /// table.
+    /// </summary>
+    IReadOnlyDictionary<string, string> GetShortcuts();
+
+    /// <summary>
+    /// Replace or remove a single shortcut binding. Pass
+    /// <c>null</c> to remove the override and fall back to
+    /// the default.
+    /// </summary>
+    void SetShortcut(string id, string? gesture);
+
+    /// <summary>
+    /// Drop every user-customised shortcut binding so the
+    /// next read returns the canonical defaults. Used by
+    /// the settings panel's "重置全部" button.
+    /// </summary>
+    void ResetShortcuts();
+
     /// <summary>Raised after a successful Add/RemoveFavorite.</summary>
     event Action? FavoritesChanged;
 
@@ -71,6 +119,16 @@ public interface ISettingsStore
 
     /// <summary>Add/remove <paramref name="pluginName"/> from enabled-plugins. Triggers a debounced save.</summary>
     void SetPluginEnabled(string pluginName, bool enabled);
+
+    /// <summary>True if the user has ever toggled a plugin (the
+    /// enabled-plugins list has been touched). Used by the
+    /// app's first-run bootstrap to decide whether to opt the
+    /// user into the default "all plugins enabled" state or
+    /// honour their persisted choices. The list can still be
+    /// empty (e.g. the user explicitly disabled everything) —
+    /// we only need to know it was non-empty at some point.
+    /// </summary>
+    bool HasAnyExplicitPluginChoice();
 
     /// <summary>Add <paramref name="path"/> to favorites if not present. Fires FavoritesChanged on actual change.</summary>
     void AddFavorite(string path);

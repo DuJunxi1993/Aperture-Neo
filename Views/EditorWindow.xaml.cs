@@ -9,7 +9,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
+using System.Windows.Threading;
 using ApertureNeo.Controls.Annotation;
 using ApertureNeo.Plugins.Ocr.Core.Models;
 using ApertureNeo.Plugins.Ocr.Core.Services;
@@ -17,7 +20,7 @@ using ApertureNeo.Plugins.Ocr.Ui;
 using ApertureNeo.Services;
 using SkiaSharp;
 
-namespace ApertureNeo.Plugins.Screenshot;
+namespace ApertureNeo.Views;
 
 /// <summary>
 /// Annotation editor for a captured screenshot. Uses
@@ -40,6 +43,16 @@ public partial class EditorWindow : Window
     private readonly AnnotationState _annotationState;
     private readonly int _width, _height;
     private readonly ISettingsStore? _settings;
+
+    /// <summary>Set true before Show() to auto-trigger OCR ~50ms
+    /// after the editor is fully loaded. Used by the "OCR 选区"
+    /// flow in CaptureService.</summary>
+    public bool AutoOcrOnShow { get; set; }
+
+    /// <summary>Optional original file path. When set, the save
+    /// dialog enables "覆盖原图" (overwrite original). Set by
+    /// the viewer's right-click "编辑图片" flow.</summary>
+    public string? OriginalFilePath { get; set; }
 
     // Local mirror of the in-progress flag. AnnotationState holds
     // its own _inProgress field but doesn't expose a public
@@ -73,6 +86,10 @@ public partial class EditorWindow : Window
     private SKPoint _mosaicCurrent;
     private bool _isDraggingMosaic;
     private readonly List<(SKRectI Rect, byte[] OriginalData)> _mosaicHistory = new();
+
+    // Template parts cached for maximize visual adjust
+    private Grid? _contentGrid;
+    private Border? _shadowBorder;
 
     public EditorWindow(Bitmap capturedBitmap, ISettingsStore? settings = null)
     {
@@ -115,6 +132,8 @@ public partial class EditorWindow : Window
         // drawing state machine must reset. Without this, a
         // half-drawn stroke could leave _isDrawing stuck on.
         PenCanvas.LostMouseCapture += (_, _) => { _isDrawing = false; };
+
+        SourceInitialized += EditorWindow_SourceInitialized;
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -141,7 +160,34 @@ public partial class EditorWindow : Window
         // the color picker is enabled accordingly.
         SetColorPickerEnabled(true);
 
+        // Force-activate the editor window so it appears in front
+        // (matches RegionOverlay.OnLoaded's Activate() call).
+        Activate();
+
         UpdateStatus();
+
+        // Auto-OCR: when CaptureService started this editor via
+        // the "OCR 选区" flow, fire the OCR button after a brief
+        // delay so the window is fully rendered first.
+        if (AutoOcrOnShow)
+        {
+            var timer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(50),
+                IsEnabled = false,
+            };
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop();
+                Ocr_Click(this, new RoutedEventArgs());
+            };
+            timer.Start();
+        }
+
+        // Cache template parts for maximize visual adjust
+        if (Template.FindName("ContentGrid", this) is Grid cg) _contentGrid = cg;
+        if (Template.FindName("ShadowBorder", this) is Border sb) _shadowBorder = sb;
+        StateChanged += EditorWindow_StateChanged;
     }
 
     /// <summary>
@@ -212,12 +258,14 @@ public partial class EditorWindow : Window
         if (WindowState == WindowState.Maximized)
         {
             WindowState = WindowState.Normal;
-            if (MaximizeIcon != null) MaximizeIcon.Text = "□";
+            if (MaximizeIcon != null)
+                MaximizeIcon.Data = Geometry.Parse("M3 6.25C3 4.45507 4.45507 3 6.25 3H17.75C19.5449 3 21 4.45507 21 6.25V17.75C21 19.5449 19.5449 21 17.75 21H6.25C4.45507 21 3 19.5449 3 17.75V6.25ZM6.25 4.5C5.2835 4.5 4.5 5.2835 4.5 6.25V17.75C4.5 18.7165 5.2835 19.5 6.25 19.5H17.75C18.7165 19.5 19.5 18.7165 19.5 17.75V6.25C19.5 5.2835 18.7165 4.5 17.75 4.5H6.25Z");
         }
         else
         {
             WindowState = WindowState.Maximized;
-            if (MaximizeIcon != null) MaximizeIcon.Text = "▢";
+            if (MaximizeIcon != null)
+                MaximizeIcon.Data = Geometry.Parse("M7.51758 5H6.00932C6.13697 3.32189 7.53905 2 9.24988 2H17.25C19.8733 2 22 4.12665 22 6.75V14.75C22 16.4608 20.6781 17.8629 19 17.9905V16.4823C19.8481 16.361 20.5 15.6316 20.5 14.75V6.75C20.5 4.95507 19.0449 3.5 17.25 3.5H9.24988C8.36825 3.5 7.63889 4.15193 7.51758 5ZM5.25003 6C3.45509 6 2 7.45507 2 9.25V18.75C2 20.5449 3.45509 22 5.25003 22H14.7501C16.5451 22 18.0002 20.5449 18.0002 18.75V9.25C18.0002 7.45507 16.5451 6 14.7501 6H5.25003ZM3.50001 9.25C3.50001 8.2835 4.28352 7.5 5.25003 7.5H14.7501C15.7166 7.5 16.5001 8.2835 16.5001 9.25V18.75C16.5001 19.7165 15.7166 20.5 14.7501 20.5H5.25003C4.28352 20.5 3.50001 19.7165 3.50001 18.75V9.25Z");
         }
     }
 
@@ -259,6 +307,132 @@ public partial class EditorWindow : Window
     {
         DialogResult = false;
         Close();
+    }
+
+    // ------------------------------------------------------------------
+    //  Manual window resize (WindowStyle=None +
+    //  AllowsTransparency=True strips the native chrome, so
+    //  invisible Rectangle handles in the template call
+    //  SendMessage(WM_NCLBUTTONDOWN, HT...) to initiate the OS
+    //  resize loop while preserving the custom shadow + rounded
+    //  corners).
+    // ------------------------------------------------------------------
+
+    private const int WM_NCLBUTTONDOWN = 0x00A1;
+    private const int HT_LEFT = 10;
+    private const int HT_RIGHT = 11;
+    private const int HT_TOP = 12;
+    private const int HT_TOPLEFT = 13;
+    private const int HT_TOPRIGHT = 14;
+    private const int HT_BOTTOM = 15;
+    private const int HT_BOTTOMLEFT = 16;
+    private const int HT_BOTTOMRIGHT = 17;
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    private void SendNcResize(int htEdge)
+    {
+        if (WindowState != WindowState.Normal) return;
+        var hwnd = new WindowInteropHelper(this).Handle;
+        SendMessage(hwnd, WM_NCLBUTTONDOWN, (IntPtr)htEdge, IntPtr.Zero);
+    }
+
+    private void ResizeTop_Click(object sender, MouseButtonEventArgs e)
+    { SendNcResize(HT_TOP); e.Handled = true; }
+    private void ResizeBottom_Click(object sender, MouseButtonEventArgs e)
+    { SendNcResize(HT_BOTTOM); e.Handled = true; }
+    private void ResizeLeft_Click(object sender, MouseButtonEventArgs e)
+    { SendNcResize(HT_LEFT); e.Handled = true; }
+    private void ResizeRight_Click(object sender, MouseButtonEventArgs e)
+    { SendNcResize(HT_RIGHT); e.Handled = true; }
+    private void ResizeTopLeft_Click(object sender, MouseButtonEventArgs e)
+    { SendNcResize(HT_TOPLEFT); e.Handled = true; }
+    private void ResizeTopRight_Click(object sender, MouseButtonEventArgs e)
+    { SendNcResize(HT_TOPRIGHT); e.Handled = true; }
+    private void ResizeBottomLeft_Click(object sender, MouseButtonEventArgs e)
+    { SendNcResize(HT_BOTTOMLEFT); e.Handled = true; }
+    private void ResizeBottomRight_Click(object sender, MouseButtonEventArgs e)
+    { SendNcResize(HT_BOTTOMRIGHT); e.Handled = true; }
+
+    // ------------------------------------------------------------------
+    //  Maximize constraints + visual adjust (WindowStyle=None
+    //  strips the OS non-client area, so WM_GETMINMAXINFO
+    //  constrains the maximized size to the current monitor's
+    //  work area; StateChanged removes the shadow margin and
+    //  rounded corners when maximized and restores them on
+    //  restore).
+    // ------------------------------------------------------------------
+
+    private const int WM_GETMINMAXINFO = 0x0024;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT
+    {
+        public int x;
+        public int y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MINMAXINFO
+    {
+        public POINT ptReserved;
+        public POINT ptMaxSize;
+        public POINT ptMaxPosition;
+        public POINT ptMinTrackSize;
+        public POINT ptMaxTrackSize;
+    }
+
+    private void EditorWindow_SourceInitialized(object? sender, EventArgs e)
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        var source = HwndSource.FromHwnd(hwnd);
+        source?.AddHook(WndProc);
+    }
+
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WM_GETMINMAXINFO)
+        {
+            var mmi = Marshal.PtrToStructure<MINMAXINFO>(lParam);
+            var screen = System.Windows.Forms.Screen.FromHandle(hwnd);
+            var wa = screen.WorkingArea;
+            mmi.ptMaxPosition.x = wa.Left;
+            mmi.ptMaxPosition.y = wa.Top;
+            mmi.ptMaxSize.x = wa.Width;
+            mmi.ptMaxSize.y = wa.Height;
+            Marshal.StructureToPtr(mmi, lParam, true);
+            handled = true;
+        }
+        return IntPtr.Zero;
+    }
+
+    private void EditorWindow_StateChanged(object? sender, EventArgs e)
+    {
+        if (WindowState == WindowState.Maximized)
+        {
+            if (_contentGrid != null) _contentGrid.Margin = new Thickness(0);
+            if (_shadowBorder != null)
+            {
+                _shadowBorder.CornerRadius = new CornerRadius(0);
+                _shadowBorder.Effect = null;
+            }
+        }
+        else
+        {
+            if (_contentGrid != null) _contentGrid.Margin = new Thickness(16, 16, 16, 32);
+            if (_shadowBorder != null)
+            {
+                _shadowBorder.CornerRadius = new CornerRadius(8);
+                _shadowBorder.Effect = new DropShadowEffect
+                {
+                    BlurRadius = 24,
+                    ShadowDepth = 8,
+                    Opacity = 0.18,
+                    Color = Colors.Black
+                };
+            }
+        }
     }
 
     // ------------------------------------------------------------------
@@ -462,7 +636,7 @@ public partial class EditorWindow : Window
         int maxY = (int)Math.Round(Math.Max(start.Y, end.Y));
         if (maxX <= minX || maxY <= minY) return;
 
-        int blockSize = Math.Max(2, (int)Math.Round(_annotationState.CurrentSize));
+        int blockSize = Math.Max(2, (int)Math.Round(_annotationState.CurrentSize * _annotationState.DpiScale));
 
         // Block-align the rect so the mosaic grid is consistent
         // across overlapping strokes.
@@ -572,6 +746,10 @@ public partial class EditorWindow : Window
         var width = Math.Abs(x2 - x1);
         var height = Math.Abs(y2 - y1);
 
+        DebugLog.Write("EditorWindow", $"UpdateMosaicPreview: zoom={zoom:F3} offX={offX:F1} offY={offY:F1} " +
+            $"start=({_mosaicStart.X:F1},{_mosaicStart.Y:F1}) cur=({_mosaicCurrent.X:F1},{_mosaicCurrent.Y:F1}) " +
+            $"left={left:F1} top={top:F1} w={width:F1} h={height:F1}");
+
         Canvas.SetLeft(MosaicPreviewRect, left);
         Canvas.SetTop(MosaicPreviewRect, top);
         MosaicPreviewRect.Width = width;
@@ -630,7 +808,7 @@ public partial class EditorWindow : Window
         // an overwrite), so the dialog's "覆盖原图" button is
         // disabled.
         var saveService = new AnnotationSaveService(_settings);
-        var outcome = saveService.Save(_originalBitmap, _annotationState, this, currentFilePath: null);
+        var outcome = saveService.Save(_originalBitmap, _annotationState, this, currentFilePath: OriginalFilePath);
         switch (outcome)
         {
             case AnnotationSaveService.SaveOutcome.Saved:
@@ -771,8 +949,13 @@ public partial class EditorWindow : Window
     {
         var zoom = SkiaViewer.Zoom;
         if (zoom < 0.001f) return null;
-        var worldX = (pt.X - SkiaViewer.OffsetX) / zoom;
-        var worldY = (pt.Y - SkiaViewer.OffsetY) / zoom;
+        var offX = SkiaViewer.OffsetX;
+        var offY = SkiaViewer.OffsetY;
+        var worldX = (pt.X - offX) / zoom;
+        var worldY = (pt.Y - offY) / zoom;
+        DebugLog.Write("EditorWindow", $"ToImageCoords: screen=({pt.X:F1},{pt.Y:F1}) " +
+            $"zoom={zoom:F3} off=({offX:F1},{offY:F1}) world=({worldX:F1},{worldY:F1}) " +
+            $"imgSize=({_width},{_height}) inBounds={worldX >= 0 && worldY >= 0 && worldX < _width && worldY < _height}");
         if (worldX < 0 || worldY < 0 || worldX >= _width || worldY >= _height) return null;
         return new SKPoint((float)worldX, (float)worldY);
     }

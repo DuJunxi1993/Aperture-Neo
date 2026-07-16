@@ -76,6 +76,7 @@ public class ThumbnailGrid : ListBox
     }
 
     public event Action<ImageItem>? ItemClicked;
+    private ImageItem? _lastSelectedItem;
 
     protected override bool IsItemItsOwnContainerOverride(object item) => item is ThumbnailItem;
 
@@ -151,13 +152,19 @@ public class ThumbnailGrid : ListBox
 
     private void UpdateSelection()
     {
-        for (int i = 0; i < Items.Count; i++)
+        if (_lastSelectedItem != null && !ReferenceEquals(_lastSelectedItem, SelectedItem))
         {
-            if (ItemContainerGenerator.ContainerFromIndex(i) is ThumbnailItem ti)
-            {
-                ti.IsSelected = ReferenceEquals(ti.ImageItem, SelectedItem);
-            }
+            var idx = Items.IndexOf(_lastSelectedItem);
+            if (idx >= 0 && ItemContainerGenerator.ContainerFromIndex(idx) is ThumbnailItem oldTi)
+                oldTi.IsSelected = false;
         }
+        if (SelectedItem != null)
+        {
+            var idx = Items.IndexOf(SelectedItem);
+            if (idx >= 0 && ItemContainerGenerator.ContainerFromIndex(idx) is ThumbnailItem newTi && !newTi.IsSelected)
+                newTi.IsSelected = true;
+        }
+        _lastSelectedItem = SelectedItem;
     }
 }
 

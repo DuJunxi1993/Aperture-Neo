@@ -67,6 +67,7 @@ public partial class FloatingBarViewModel : ObservableObject
     /// ImageViewerPanelViewModel; sharing it across the two VMs
     /// keeps Fit/Zoom commands pointing at the same viewer the
     /// double-click handler is hooked on.</summary>
+    public ApertureNeo.Controls.SkiaImageViewer? Viewer => _viewer;
     public void SetViewer(ApertureNeo.Controls.SkiaImageViewer viewer) => _viewer = viewer;
 
     [ObservableProperty]

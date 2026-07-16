@@ -163,7 +163,7 @@
     <Style x:Key="LinearSeparator" TargetType="Separator">
         <Setter Property="Background" Value="{StaticResource BorderSubtle}"/>
         <Setter Property="Height" Value="1"/>
-        <Setter Property="Margin" Value="6,4"/>
+        <Setter Property="Margin" Value="12,3"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Separator">

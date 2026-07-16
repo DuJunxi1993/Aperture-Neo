@@ -23,17 +23,17 @@
        and then shipped to bin/Plugins/ via DeployToMain. -->
   <Target Name="DeployToMain" AfterTargets="Build">
     <PropertyGroup>
-      <!-- Destination must match the main exe's actual bin folder. The
-           main exe has Platform=x64 so it lives at
-           bin\x64\Debug\net10.0-windows\ApertureNeo.exe and looks for
-           plugins at bin\x64\Debug\net10.0-windows\Plugins\.
-           $(Platform) is "x64" when building x64 and "AnyCPU" for
-           AnyCPU; we use $(Platform) in the path unconditionally so
-           the same csproj works in either configuration and
-           publish.ps1 (which uses AnyCPU by default) can find the
-           deployed plugin folder at bin\AnyCPU\$(Configuration)\...\
-           Plugins\. -->
-      <MainPluginDir>$(MSBuildThisFileDirectory)..\bin\$(Platform)\$(Configuration)\net10.0-windows\Plugins\</MainPluginDir>
+      <!-- Destination must match the main exe's actual bin folder.
+           Default `dotnet build` puts the main exe at
+           bin\$(Configuration)\net10.0-windows\ApertureNeo.exe
+           (Platform=AnyCPU, Configuration=Debug by default).
+           Earlier this target used $(Platform) in the path,
+           which works when publishing with -Platform AnyCPU but
+           breaks local dev where the exe lives at bin\Debug\
+           with no Platform segment. Dropping $(Platform) keeps
+           the plugin alongside the main exe for both dev and
+           publish flows. -->
+      <MainPluginDir>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\net10.0-windows\Plugins\</MainPluginDir>
       <OpenCvRuntimeDir>$(NuGetPackageRoot)opencvsharp4.runtime.win\4.13.0.20260528\runtimes\win-x64\native\</OpenCvRuntimeDir>
       <RapidOcrRuntime>$(NuGetPackageRoot)rapidocrsharponnx\1.2.2\lib\net10.0\RapidOCRSharpOnnx.dll</RapidOcrRuntime>
       <OpenCvSharpRuntime>$(NuGetPackageRoot)opencvsharp4\4.13.0.20260528\lib\net8.0\OpenCvSharp.dll</OpenCvSharpRuntime>

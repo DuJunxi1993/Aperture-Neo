@@ -5,105 +5,165 @@
              mc:Ignorable="d"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             d:DesignHeight="48" d:DesignWidth="800">
+             d:DesignHeight="80" d:DesignWidth="900">
 
-    <Border Background="{DynamicResource SurfacePanel}"
+    <!-- Two-row layout so the toolbar never gets clipped when
+         the viewer's column is narrow (the previous single-row
+         layout could exceed 700px and got cropped on a 400px
+         MinWidth view column).
+
+         Row 0: top-level actions + mode switch + primary
+                save (left → right: 退出编辑, 清空, 撤销, mode
+                segmented, 保存).
+         Row 1: pickers (left → right: 颜色 label, 7 color
+                circles, 粗细 label, 5 size buttons, OCR button).
+
+         The Border background + bottom hairline + Padding come
+         from the same tokens as the EditorWindow's title row
+         (SurfaceCanvas / BorderSubtle / 16,8) so the two
+         surfaces feel like one design language. -->
+    <Border Background="{DynamicResource SurfaceCanvas}"
             BorderBrush="{DynamicResource BorderSubtle}"
             BorderThickness="0,0,0,1"
             Padding="16,8">
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-            <!-- Drawing tools group: Clear / Undo.
-                 Pen is always "on" while the toolbar is visible
-                 (entering annotation mode = pen is on, exiting =
-                 toolbar gone). So no Pen toggle here — the
-                 annotation mode itself is the toggle. -->
-            <Button Content="清空" Style="{DynamicResource LinearToolButton}"
-                    Click="Clear_Click"/>
-            <Button Content="撤销" Style="{DynamicResource LinearToolButton}"
-                    Margin="6,0,0,0" Click="Undo_Click"/>
+            <!-- Row 0: actions + mode + save -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal"
+                        VerticalAlignment="Center" Margin="0,0,0,6">
+                <Button Content="退出编辑"
+                        Style="{DynamicResource LinearToolButton}"
+                        Click="Exit_Click"/>
+                <Button Content="清空"
+                        Style="{DynamicResource LinearToolButton}"
+                        Margin="6,0,0,0"
+                        Click="Clear_Click"/>
+                <Button Content="撤销"
+                        Style="{DynamicResource LinearToolButton}"
+                        Margin="6,0,0,0"
+                        Click="Undo_Click"/>
 
-            <Rectangle Style="{DynamicResource LinearToolbarSeparator}"/>
+                <Rectangle Style="{DynamicResource LinearToolbarSeparator}" Margin="12,0,12,0"/>
 
-            <!-- Color group: 7 RadioButtons styled as color
-                 circles. The selected one is shown with a brand
-                 ring (via the LinearColorCircle template). Tag
-                 is a hex string consumed by the ColorBtn_Click
-                 handler. -->
-            <TextBlock Text="颜色" Style="{DynamicResource LinearSubtleLabel}" Margin="0,0,8,0"/>
-            <RadioButton x:Name="ColorRedBtn" Width="22" Height="22" Margin="0,0,4,0"
-                          GroupName="AnnotationColor" IsChecked="True"
-                          Tag="#FFE11D48"
-                          Click="ColorBtn_Click"
-                          Style="{DynamicResource LinearColorCircle}"/>
-            <RadioButton x:Name="ColorOrangeBtn" Width="22" Height="22" Margin="0,0,4,0"
-                          GroupName="AnnotationColor"
-                          Tag="#FFEA580C"
-                          Click="ColorBtn_Click"
-                          Style="{DynamicResource LinearColorCircle}"/>
-            <RadioButton x:Name="ColorYellowBtn" Width="22" Height="22" Margin="0,0,4,0"
-                          GroupName="AnnotationColor"
-                          Tag="#FFEAB308"
-                          Click="ColorBtn_Click"
-                          Style="{DynamicResource LinearColorCircle}"/>
-            <RadioButton x:Name="ColorGreenBtn" Width="22" Height="22" Margin="0,0,4,0"
-                          GroupName="AnnotationColor"
-                          Tag="#FF16A34A"
-                          Click="ColorBtn_Click"
-                          Style="{DynamicResource LinearColorCircle}"/>
-            <RadioButton x:Name="ColorBlueBtn" Width="22" Height="22" Margin="0,0,4,0"
-                          GroupName="AnnotationColor"
-                          Tag="#FF2563EB"
-                          Click="ColorBtn_Click"
-                          Style="{DynamicResource LinearColorCircle}"/>
-            <RadioButton x:Name="ColorBlackBtn" Width="22" Height="22"
-                          GroupName="AnnotationColor"
-                          Tag="#FF1a1a1a"
-                          Click="ColorBtn_Click"
-                          Style="{DynamicResource LinearColorCircle}"/>
-            <RadioButton x:Name="ColorWhiteBtn" Width="22" Height="22" Margin="4,0,0,0"
-                          GroupName="AnnotationColor"
-                          Tag="#FFFFFFFF"
-                          Click="ColorBtn_Click"
-                          Style="{DynamicResource LinearColorCircle}"/>
+                <!-- Mode segmented control. Bound to Mode
+                     DependencyProperty. Same pattern as
+                     PenModeColor/PenModeMosaic in EditorWindow. -->
+                <Border BorderBrush="#1F000000" BorderThickness="1"
+                        CornerRadius="6"
+                        Background="#FFf4f4f5"
+                        Padding="2">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton x:Name="PenModeColor" GroupName="AnnotationMode"
+                                     Content="颜色"
+                                     Style="{DynamicResource LinearSegmentedItem}"
+                                     IsChecked="True"
+                                     Checked="PenModeColor_Checked"/>
+                        <RadioButton x:Name="PenModeMosaic" GroupName="AnnotationMode"
+                                     Content="马赛克"
+                                     Style="{DynamicResource LinearSegmentedItem}"
+                                     Checked="PenModeMosaic_Checked"/>
+                    </StackPanel>
+                </Border>
 
-            <Rectangle Style="{DynamicResource LinearToolbarSeparator}"/>
+                <!-- Spacer to push 保存 to the right -->
+                <Rectangle Width="1" Height="1" Margin="0,0,0,0"
+                           HorizontalAlignment="Stretch"
+                           Fill="Transparent"/>
 
-            <!-- Size group: 5 RadioButtons showing 2/4/8/12/20. -->
-            <TextBlock Text="粗细" Style="{DynamicResource LinearSubtleLabel}" Margin="0,0,6,0"/>
-            <RadioButton x:Name="Size2Btn" Content="2" GroupName="AnnotationSize"
-                          Style="{DynamicResource LinearPenSizeToggle}"
-                          Click="SizeBtn_Click"/>
-            <RadioButton x:Name="Size4Btn" Content="4" GroupName="AnnotationSize" IsChecked="True"
-                          Style="{DynamicResource LinearPenSizeToggle}"
-                          Margin="3,0,0,0" Click="SizeBtn_Click"/>
-            <RadioButton x:Name="Size8Btn" Content="8" GroupName="AnnotationSize"
-                          Style="{DynamicResource LinearPenSizeToggle}"
-                          Margin="3,0,0,0" Click="SizeBtn_Click"/>
-            <RadioButton x:Name="Size12Btn" Content="12" GroupName="AnnotationSize"
-                          Style="{DynamicResource LinearPenSizeToggle}"
-                          Margin="3,0,0,0" Click="SizeBtn_Click"/>
-            <RadioButton x:Name="Size20Btn" Content="20" GroupName="AnnotationSize"
-                          Style="{DynamicResource LinearPenSizeToggle}"
-                          Margin="3,0,0,0" Click="SizeBtn_Click"/>
-
-            <!-- Right-side spacer pushes the Save action to the
-                 far edge. We use a 2-column Grid (column 0 = *,
-                 column 1 = Auto) instead of a Width="*" on a
-                 regular Grid — Width="*" only parses as
-                 GridLength inside ColumnDefinition/RowDefinition,
-                 not on Grid itself, so using it directly throws
-                 "无法将"*"字符串转换为 Length" at runtime. -->
-            <Grid Margin="0,0,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Grid Grid.Column="0" />
-                <Button Grid.Column="1" Content="保存"
+                <Button Content="保存"
                         Style="{DynamicResource LinearPrimaryButton}"
-                        Click="Save_Click" Margin="0"/>
-            </Grid>
-        </StackPanel>
+                        Click="Save_Click"
+                        HorizontalAlignment="Right"
+                        Margin="0,0,0,0"/>
+            </StackPanel>
+
+            <!-- Row 1: pickers -->
+            <StackPanel x:Name="PickerRow" Grid.Row="1" Orientation="Horizontal"
+                        VerticalAlignment="Center">
+
+                <!-- Color picker group. Visible only in Color mode. -->
+                <StackPanel x:Name="ColorPickerGroup" Orientation="Horizontal">
+                    <TextBlock Text="颜色" Style="{DynamicResource LinearSubtleLabel}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <RadioButton x:Name="ColorRedBtn" Width="22" Height="22" Margin="0,0,4,0"
+                                  GroupName="AnnotationColor" IsChecked="True"
+                                  Tag="#FFE11D48"
+                                  Click="ColorBtn_Click"
+                                  Style="{DynamicResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorOrangeBtn" Width="22" Height="22" Margin="0,0,4,0"
+                                  GroupName="AnnotationColor"
+                                  Tag="#FFEA580C"
+                                  Click="ColorBtn_Click"
+                                  Style="{DynamicResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorYellowBtn" Width="22" Height="22" Margin="0,0,4,0"
+                                  GroupName="AnnotationColor"
+                                  Tag="#FFEAB308"
+                                  Click="ColorBtn_Click"
+                                  Style="{DynamicResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorGreenBtn" Width="22" Height="22" Margin="0,0,4,0"
+                                  GroupName="AnnotationColor"
+                                  Tag="#FF16A34A"
+                                  Click="ColorBtn_Click"
+                                  Style="{DynamicResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorBlueBtn" Width="22" Height="22" Margin="0,0,4,0"
+                                  GroupName="AnnotationColor"
+                                  Tag="#FF2563EB"
+                                  Click="ColorBtn_Click"
+                                  Style="{DynamicResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorBlackBtn" Width="22" Height="22"
+                                  GroupName="AnnotationColor"
+                                  Tag="#FF1a1a1a"
+                                  Click="ColorBtn_Click"
+                                  Style="{DynamicResource LinearColorCircle}"/>
+                    <RadioButton x:Name="ColorWhiteBtn" Width="22" Height="22" Margin="4,0,0,0"
+                                  GroupName="AnnotationColor"
+                                  Tag="#FFFFFFFF"
+                                  Click="ColorBtn_Click"
+                                  Style="{DynamicResource LinearColorCircle}"/>
+                </StackPanel>
+
+                <!-- Size picker group — always visible. Label
+                     changes between "粗细" (Color mode) and
+                     "方块大小" (Mosaic mode). -->
+                <StackPanel x:Name="SizePickerGroup" Orientation="Horizontal">
+                    <Rectangle Style="{DynamicResource LinearToolbarSeparator}" Margin="12,0,12,0"/>
+                    <TextBlock x:Name="SizeLabel" Text="粗细" Style="{DynamicResource LinearSubtleLabel}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <RadioButton x:Name="Size2Btn" Content="2" GroupName="AnnotationSize"
+                                  Style="{DynamicResource LinearPenSizeToggle}"
+                                  Click="SizeBtn_Click"/>
+                    <RadioButton x:Name="Size4Btn" Content="4" GroupName="AnnotationSize"
+                                  Style="{DynamicResource LinearPenSizeToggle}"
+                                  Margin="3,0,0,0" Click="SizeBtn_Click"/>
+                    <RadioButton x:Name="Size8Btn" Content="8" GroupName="AnnotationSize" IsChecked="True"
+                                  Style="{DynamicResource LinearPenSizeToggle}"
+                                  Margin="3,0,0,0" Click="SizeBtn_Click"/>
+                    <RadioButton x:Name="Size12Btn" Content="12" GroupName="AnnotationSize"
+                                  Style="{DynamicResource LinearPenSizeToggle}"
+                                  Margin="3,0,0,0" Click="SizeBtn_Click"/>
+                    <RadioButton x:Name="Size20Btn" Content="20" GroupName="AnnotationSize"
+                                  Style="{DynamicResource LinearPenSizeToggle}"
+                                  Margin="3,0,0,0" Click="SizeBtn_Click"/>
+                </StackPanel>
+
+                <!-- Mosaic block-size hint (additional label).
+                     Visible only in Mosaic mode alongside the
+                     size buttons. -->
+                <StackPanel x:Name="MosaicPickerGroup" Orientation="Horizontal" Visibility="Collapsed">
+                    <Rectangle Style="{DynamicResource LinearToolbarSeparator}" Margin="12,0,12,0"/>
+                    <TextBlock Text="方块大小" Style="{DynamicResource LinearSubtleLabel}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="MosaicSizeLabel" Text="8" FontSize="13" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- OCR button — visible in both modes. Mirrors
+                     the OCR button in EditorWindow's title row. -->
+                <Rectangle Style="{DynamicResource LinearToolbarSeparator}" Margin="12,0,12,0"/>
+                <Button x:Name="OcrBtn" Content="OCR"
+                        Style="{DynamicResource LinearToolButton}"
+                        Margin="0,0,0,0" Click="OcrBtn_Click"/>
+            </StackPanel>
+        </Grid>
     </Border>
 </UserControl>

@@ -7,8 +7,18 @@ namespace ApertureNeo.Services;
 /// Append-only text log at <c>%TEMP%\ApertureNeo\debug.log</c>.
 /// Used for runtime diagnostics that don't justify a full UI
 /// surface (thumbnail load errors, cache IO failures, render
-/// reentrancy events). All write failures are swallowed — the
-/// log is a diagnostic aid, not a contract.
+/// reentrancy events).
+///
+/// Write failures are NOT silently swallowed: if the file write
+/// itself throws (file locked, disk full, ACL denial, path
+/// oddity, sandboxed OneDrive folder, etc.) the failure is
+/// echoed to <see cref="Console.Error"/> wrapped in a
+/// <c>[DebugLog-IO-FAIL]</c> tag so the parent terminal (or
+/// attached debugger) can still see it. The earlier
+/// <c>catch {}</c> policy made every "log this and continue"
+/// site a black hole — the original DebugLog contract is
+/// preserved (the app never throws on log failure) but
+/// visibility is restored.
 /// </summary>
 public static class DebugLog
 {
@@ -30,8 +40,13 @@ public static class DebugLog
             lock (_lock)
                 File.AppendAllText(LogPath, line);
         }
-        catch
+        catch (Exception ex)
         {
+            // Echo to stderr so the diagnostic is still
+            // observable when the file write itself fails.
+            // (Previously: catch {} — a black hole that masked
+            // every hotkey-conflict / capture-NRE / IO error.)
+            try { Console.Error.WriteLine($"[DebugLog-IO-FAIL] {category}: {message} → {ex.GetType().Name}: {ex.Message}"); } catch { }
         }
     }
 

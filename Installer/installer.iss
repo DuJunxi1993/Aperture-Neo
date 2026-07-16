@@ -32,7 +32,7 @@
 #define MyAppPublisher "DuJunxi1993"
 #define MyAppExeName "ApertureNeo.exe"
 #define MyAppURL "https://github.com/DuJunxi1993/Aperture-Neo"
-#define SupportedExtensions ".jpg|.jpeg|.png|.bmp|.gif|.tiff|.tif|.webp|.heic|.heif|.avif|.ico"
+#define SupportedExtensions ".jpg|.jpeg|.png|.bmp|.gif|.tiff|.tif|.webp|.heic|.heif|.avif|.ico|.wbmp"
 #define ProgId "ApertureNeo.Image.1"
 #define FontDir "Fonts\HarmonyOS_Sans_SC"
 
@@ -235,6 +235,7 @@ Root: HKCU; Subkey: "Software\Classes\.heic\OpenWithProgids"; ValueType: string;
 Root: HKCU; Subkey: "Software\Classes\.heif\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
 Root: HKCU; Subkey: "Software\Classes\.avif\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
 Root: HKCU; Subkey: "Software\Classes\.ico\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
+Root: HKCU; Subkey: "Software\Classes\.wbmp\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
 
 ; "Set as default" — override (default) for each extension so the system
 ; uses Aperture Neo as the primary handler. Optional and off by default.
@@ -250,6 +251,7 @@ Root: HKCU; Subkey: "Software\Classes\.heic"; ValueType: string; ValueName: ""; 
 Root: HKCU; Subkey: "Software\Classes\.heif"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
 Root: HKCU; Subkey: "Software\Classes\.avif"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
 Root: HKCU; Subkey: "Software\Classes\.ico"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
+Root: HKCU; Subkey: "Software\Classes\.wbmp"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
 
 ; v3.1.x: Win11's compact (top-level) context menu is only
 ; populated by IExplorerCommand implementations, and our four
@@ -307,6 +309,8 @@ Root: HKCU; Subkey: "Software\Classes\.avif\shell\ocr";     ValueType: string; V
 Root: HKCU; Subkey: "Software\Classes\.avif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
 Root: HKCU; Subkey: "Software\Classes\.ico\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
 Root: HKCU; Subkey: "Software\Classes\.ico\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.wbmp\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
+Root: HKCU; Subkey: "Software\Classes\.wbmp\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
 
 ; v3.1.x (Plan C fallback): also restore the legacy
 ; SystemFileAssociations\image entry so the verb shows in the
@@ -667,7 +671,7 @@ begin
   if CurUninstallStep = usPostUninstall then
   begin
     // Clean per-user file association entries written by this installer.
-    Extensions := ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tiff', '.tif', '.webp', '.heic', '.heif', '.avif', '.ico'];
+    Extensions := ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tiff', '.tif', '.webp', '.heic', '.heif', '.avif', '.ico', '.wbmp'];
     for I := 0 to GetArrayLength(Extensions) - 1 do
     begin
       Ext := Extensions[I];

@@ -1,9 +1,12 @@
 using System;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
+using ApertureNeo;
 using ApertureNeo.Controls;
 using ApertureNeo.Controls.Annotation;
 using ApertureNeo.Models;
@@ -184,6 +187,30 @@ public partial class ImageViewerPanelViewModel : ObservableObject
         // bitmap (or NRE if the new image is smaller than the
         // old).
         AnnotationState = new AnnotationState(result.Width, result.Height);
+        // Set the source bitmap so mosaic mode can read original
+        // image pixels instead of averaging the transparent overlay.
+        AnnotationState.SourceBitmap = result.Bitmap;
+        // Scale pen + mosaic sizes by the host view's DPI so a
+        // "20" brush on a 192-DPI display renders as a
+        // 40-image-pixel stroke (matching the screen-space size
+        // the user sees in the size picker). The view pushes its
+        // dpi scale via SetAnnotationDpiScale when it loads; if
+        // no value arrives (test harness, etc.) we fall back to
+        // 1.0 which preserves the historical stroke-width
+        // behaviour.
+        AnnotationState.DpiScale = _annotationDpiScale;
+    }
+
+    private float _annotationDpiScale = 1.0f;
+
+    /// <summary>Called by <c>ImageViewerPanelView</c> when its
+    /// visual tree is realised. Pushes the view's DPI scale into
+    /// <see cref="AnnotationState"/> so pen + mosaic strokes
+    /// render at a screen-consistent size on hi-DPI displays.</summary>
+    public void SetAnnotationDpiScale(float dpiScale)
+    {
+        _annotationDpiScale = dpiScale <= 0 ? 1.0f : dpiScale;
+        if (AnnotationState != null) AnnotationState.DpiScale = _annotationDpiScale;
     }
 
     // P5: exposes the currently-displayed image's file path so
@@ -191,6 +218,14 @@ public partial class ImageViewerPanelViewModel : ObservableObject
     // the "覆盖原图" button in the SaveDialog). Mirrors
     // IUiState.CurrentImage.FilePath, which the VM is the writer of.
     public string? CurrentImagePath => _uiState.CurrentImage?.FilePath;
+
+    /// <summary>在 EditorWindow 编辑完成后重新加载当前图片。
+    /// 调用 SkiaImageViewer.LoadImage 会触发异步解码 + 自适应缩放。</summary>
+    public void ReloadCurrentImage()
+    {
+        if (_uiState.CurrentImage?.FilePath is { } path)
+            _viewer?.LoadImage(path);
+    }
 
     [RelayCommand]
     private void Fit() => _viewer?.FitToScreen();
@@ -204,13 +239,12 @@ public partial class ImageViewerPanelViewModel : ObservableObject
     [RelayCommand]
     private void ZoomOut() => _viewer?.ZoomOut();
 
-    // P5: annotation mode toggle. Bound to the annotation
-    // toolbar's "退出标注" / "开始标注" button (or keyboard
-    // shortcut). When entering, the viewer's OverlayBitmap is
-    // set to the current AnnotationState.OverlayBitmap so the
-    // user's strokes appear in real time. When exiting, the
-    // overlay is cleared (the strokes stay in the state, ready
-    // for re-entry or save).
+    // ================================================================
+    // 以下为 view 栏内部标注模式的代码，保留以供将来开发。
+    // 当前已被弹出 EditorWindow 的流程替代，IsAnnotating 永远不会
+    // 设为 true。所有标注相关属性/命令在此保留不删。
+    // ================================================================
+
     partial void OnIsAnnotatingChanged(bool value)
     {
         _uiState.IsAnnotating = value;
@@ -245,6 +279,93 @@ public partial class ImageViewerPanelViewModel : ObservableObject
         // Only meaningful when there's an image to annotate.
         if (_uiState.CurrentImage == null) return;
         IsAnnotating = !IsAnnotating;
+    }
+
+    /// <summary>Stage 7: invoked by the AnnotationOverlay's
+    /// "退出编辑" button. Just flips <see cref="IsAnnotating"/>
+    /// off — the AnnotationState itself (strokes, color, size)
+    /// is preserved so re-entering annotation mode brings back
+    /// the user's work. Use <see cref="ToggleAnnotation"/> for
+    /// the inverse (re-enter).</summary>
+    [RelayCommand]
+    private void ExitAnnotation()
+    {
+        IsAnnotating = false;
+    }
+
+    /// <summary>Stage F: invoked by the AnnotationOverlay's
+    /// "OCR" button. Runs the OCR pipeline against the current
+    /// image (composed with the live annotation overlay if
+    /// annotation mode is active). Mirrors the screenshot
+    /// editor's OCR flow — copy to clipboard, optionally show
+    /// the result window per SettingsStore.EditorOcrShowWindow.
+    /// Async because OCR is on the order of 1-2s.</summary>
+    [RelayCommand]
+    private async Task RunOcrOnCurrentImageAsync()
+    {
+        var path = CurrentImagePath;
+        if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path)) return;
+        try
+        {
+            using var original = new System.Drawing.Bitmap(path);
+            // Compose the live overlay (if any) on top of the
+            // original so the OCR sees what the user sees.
+            System.Drawing.Bitmap composed = original;
+            var overlay = AnnotationState;
+            if (IsAnnotating && overlay is { OverlayBitmap.Width: > 0, OverlayBitmap.Height: > 0 })
+            {
+                composed = new System.Drawing.Bitmap(original.Width, original.Height);
+                using (var g = System.Drawing.Graphics.FromImage(composed))
+                {
+                    g.DrawImage(original, 0, 0);
+                    using var overlayGdi = SkBitmapToGdi(overlay.OverlayBitmap);
+                    g.DrawImage(overlayGdi, 0, 0);
+                }
+            }
+
+            var settings = AppHost.Services?.GetService(typeof(ApertureNeo.Services.ISettingsStore))
+                as ApertureNeo.Services.ISettingsStore;
+            var captureService = AppHost.Services?.GetService<CaptureService>();
+            if (captureService == null) return;
+
+            await captureService.RunOcrOnBitmapAsync(composed);
+
+            // Free the composed bitmap if we allocated one.
+            if (!ReferenceEquals(composed, original)) composed.Dispose();
+        }
+        catch (Exception ex)
+        {
+            ApertureNeo.Services.DebugLog.Write("ImageViewerPanelViewModel",
+                $"RunOcrOnCurrentImageAsync failed: {ex.Message}");
+        }
+    }
+
+    private static System.Drawing.Bitmap SkBitmapToGdi(SkiaSharp.SKBitmap sk)
+    {
+        var w = sk.Width;
+        var h = sk.Height;
+        var bmp = new System.Drawing.Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        var data = bmp.LockBits(new System.Drawing.Rectangle(0, 0, w, h),
+            System.Drawing.Imaging.ImageLockMode.WriteOnly,
+            System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        try
+        {
+            unsafe
+            {
+                // GDI+ scans top-down by default; SKBitmap is also
+                // top-down, so a single contiguous copy suffices.
+                // 4-arg MemoryCopy(void*, void*, int, int) — bytes
+                // per row and total bytes (matches EditorWindow's
+                // SkBitmapToGdi helper).
+                int size = w * h * 4;
+                System.Buffer.MemoryCopy(sk.GetPixels().ToPointer(), data.Scan0.ToPointer(), size, size);
+            }
+        }
+        finally
+        {
+            bmp.UnlockBits(data);
+        }
+        return bmp;
     }
 
     // P1: Win32 GetDoubleClickTime returns the system double-click

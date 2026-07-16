@@ -22,10 +22,10 @@ namespace ApertureNeo.Views;
 /// the View because they touch the parent Window's HWND state.
 ///
 /// The View also still exposes a few element references
-/// (<see cref="MaximizeIconRef"/>, <see cref="MenuPluginsRef"/>,
-/// etc.) for the host MainWindow's IPluginContext + update-suffix
-/// event hookups — those are pure UI plumbing, not business
-/// logic, and stay in the view layer per MVVM.
+/// (<see cref="MaximizeIconRef"/>, etc.) for the host
+/// MainWindow's update-suffix event hookups — those are pure
+/// UI plumbing, not business logic, and stay in the view
+/// layer per MVVM.
 /// </summary>
 public partial class TitleBarView : UserControl
 {
@@ -45,7 +45,6 @@ public partial class TitleBarView : UserControl
     public System.Windows.Controls.Button BtnMaximizeRef => BtnMaximize;
     public System.Windows.Controls.Button BtnCloseRef => BtnClose;
     public Wpf.Ui.Controls.SymbolIcon MaximizeIconRef => MaximizeIcon;
-    public System.Windows.Controls.MenuItem MenuPluginsRef => MenuPlugins;
     public System.Windows.Controls.MenuItem MenuAboutRef => MenuAbout;
     public System.Windows.Controls.TextBlock AboutUpdateSuffixRef => AboutUpdateSuffix;
 
@@ -123,5 +122,19 @@ public partial class TitleBarView : UserControl
             b.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
             b.ContextMenu.IsOpen = true;
         }
+    }
+
+    /// <summary>
+    /// Stage 8: open the unified settings panel. Routed via the
+    /// "设置..." entry in the title bar overflow menu (and the
+    /// tray's settings menu item — same handler, different entry
+    /// point). SettingsViewModel is built here so the Window
+    /// can be reused / re-opened cleanly.
+    /// </summary>
+    private void MenuSettings_Click(object sender, RoutedEventArgs e)
+    {
+        var owner = Window.GetWindow(this);
+        if (owner == null) return;
+        ApertureNeo.App.OpenSettingsWindow(owner);
     }
 }

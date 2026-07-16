@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Threading;
 using ApertureNeo.Helpers;
 using ApertureNeo.Models;
 
@@ -33,6 +34,7 @@ public class NavigationService : INavigationService
     // was index 0 (but is actually N in the merged list). The
     // callback checks IsCancellationRequested before adding items.
     private CancellationTokenSource? _loadCts;
+    private DispatcherTimer? _fswDebounceTimer;
 
     public event Action? CollectionChanged;
     public event Action<ImageItem>? CurrentImageChanged;
@@ -178,10 +180,22 @@ public class NavigationService : INavigationService
 
     private void HandleFileChange(string path)
     {
-        if (FormatHelper.IsSupported(path))
+        if (!FormatHelper.IsSupported(path)) return;
+        if (_fswDebounceTimer == null)
         {
-            LoadFolder(_currentFolder);
+            _fswDebounceTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(300),
+                IsEnabled = false,
+            };
+            _fswDebounceTimer.Tick += (_, _) =>
+            {
+                _fswDebounceTimer.Stop();
+                LoadFolder(_currentFolder);
+            };
         }
+        _fswDebounceTimer.Stop();
+        _fswDebounceTimer.Start();
     }
 
     public void Dispose()

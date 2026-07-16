@@ -4,7 +4,8 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:controls="clr-namespace:ApertureNeo.Controls;assembly="
              xmlns:converters="clr-namespace:ApertureNeo.Converters;assembly="
-             xmlns:sys="clr-namespace:System;assembly=mscorlib">
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -23,6 +24,19 @@
                 <ResourceDictionary Source="/Styles/Thumbnail.xaml"/>
                 <ResourceDictionary Source="/Styles/ContextMenu.xaml"/>
                 <ResourceDictionary Source="/Styles/Popover.xaml"/>
+                <!-- Annotation.xaml brings LinearToolButton /
+                     LinearColorCircle / LinearPenSizeToggle /
+                     LinearToolbarSeparator / LinearSubtleLabel used
+                     by AnnotationOverlay and SettingsWindow. Must
+                     be app-level so they resolve inside UserControls
+                     hosted by MainWindow (UserControl resources
+                     don't reach into MainWindow.Resources by
+                     default — DynamicResource lookup walks up the
+                     tree but only finds what's in App.Resources).
+                     LinearPrimaryButton is defined here AND in
+                     Buttons.xaml; the second merge wins, no
+                     observable conflict. -->
+                <ResourceDictionary Source="/Styles/Annotation.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
             <!-- P5: localised user-facing strings. Looked up via
@@ -61,7 +75,9 @@
             <sys:String x:Key="TitleBar_ClearCache">清除缓存</sys:String>
             <sys:String x:Key="TitleBar_ClearThumbCache">缩略图缓存</sys:String>
             <sys:String x:Key="TitleBar_ClearRecent">最近访问记录</sys:String>
-            <sys:String x:Key="TitleBar_Plugins">插件</sys:String>
+            <!-- TitleBar_Plugins removed (Stage 4): plugin toggles now live
+                 in Settings → Plugins. -->
+            <sys:String x:Key="TitleBar_Settings">设置...</sys:String>
             <sys:String x:Key="TitleBar_About">关于</sys:String>
             <sys:String x:Key="ImageCtx_CopyPath">复制图片路径</sys:String>
             <sys:String x:Key="ImageCtx_OpenInExplorer">在资源管理器中打开</sys:String>
@@ -111,6 +127,7 @@
                  BoolToVisibility maps the VM's bool flags to
                  WPF's Visibility enum. -->
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+            <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility"/>
 
             <!-- Global default font. Note: we intentionally do NOT set
                  Foreground here. A Style setter would beat the inherited

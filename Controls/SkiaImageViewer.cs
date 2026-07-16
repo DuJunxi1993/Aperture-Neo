@@ -124,7 +124,11 @@ public class SkiaImageViewer : FrameworkElement
         get => _overlayBitmap;
         set
         {
-            _overlayBitmap = value;
+            if (_overlayBitmap != value)
+            {
+                _overlayBitmap?.Dispose();
+                _overlayBitmap = value;
+            }
             _dirty = true;
             InvalidateVisual();
         }
@@ -324,6 +328,9 @@ public class SkiaImageViewer : FrameworkElement
             CompositionTarget.Rendering -= OnRendering;
             _animating = false;
         }
+        _paintOld?.Dispose(); _paintOld = null;
+        _paintNew?.Dispose(); _paintNew = null;
+        _surface?.Dispose(); _surface = null;
     }
 
     public void FitToScreen()

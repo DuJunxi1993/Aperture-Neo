@@ -12,7 +12,22 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Plugins.Screenshot\Plugins.Screenshot.csproj" Private="true" />
+    <ProjectReference Include="..\ApertureNeo.csproj" Private="true" />
+    <!-- OCR support for the standalone screenshot tool: brings in
+         OcrService + OcrResultWindow. Plugins.Ocr.Ui transitively
+         references Plugins.Ocr.Core (which depends on
+         RapidOCRSharpOnnx + ONNX model assets deployed to bin/
+         Assets/models/paddleocr). -->
+    <ProjectReference Include="..\Plugins.Ocr.Ui\ApertureNeo.Plugins.Ocr.Ui.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Defensive SQLite provider init for the standalone tool —
+         the main app initializes this in App.OnStartup, but the
+         standalone EXE bypasses that path. The bundle package
+         brings in batteries_v2 + the native provider DLLs and is
+         the same one the main app uses. Idempotent. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.10" />
   </ItemGroup>
 
 </Project>

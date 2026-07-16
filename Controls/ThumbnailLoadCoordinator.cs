@@ -84,16 +84,9 @@ public class ThumbnailLoadCoordinator : IDisposable
         // Priority-load items near the current index; the rest are loaded
         // on demand by EnsureVisible().
         var snapshot = items.ToList();
-        var priority = snapshot.Select((it, idx) => (it, dist: Math.Abs(idx - currentIndex)))
-                          .Where(x => x.dist <= PriorityWindow)
-                          .OrderBy(x => x.dist)
-                          .Select(x => x.it)
-                          .ToList();
-        var remaining = snapshot.Select((it, idx) => (it, dist: Math.Abs(idx - currentIndex)))
-                           .Where(x => x.dist > PriorityWindow)
-                           .OrderBy(x => x.dist)
-                           .Select(x => x.it)
-                           .ToList();
+        var indexed = snapshot.Select((it, idx) => (it, dist: Math.Abs(idx - currentIndex))).ToList();
+        var priority = indexed.Where(x => x.dist <= PriorityWindow).OrderBy(x => x.dist).Select(x => x.it).ToList();
+        var remaining = indexed.Where(x => x.dist > PriorityWindow).OrderBy(x => x.dist).Select(x => x.it).ToList();
         _allRemaining = remaining;
         _currentFocusIndex = currentIndex;
         _ = Task.Run(async () =>

@@ -4,6 +4,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>x64</PlatformTarget>
@@ -144,6 +145,29 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Views\FloatingBarView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\FirstRunDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <!-- Stage 8: settings panel — 5 categories, chrome-less
+         window with rounded Border + DropShadowEffect. -->
+    <Page Include="Views\SettingsWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <!-- Stage 5: RegionOverlay + EditorWindow moved from
+         Plugins.Screenshot/ so CaptureService (in main app)
+         can construct them directly. The plugin DLL now
+         contains just ScreenshotPlugin.cs (shortcut
+         registration). -->
+    <Page Include="Views\RegionOverlay.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\EditorWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

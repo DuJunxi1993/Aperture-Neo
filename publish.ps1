@@ -90,7 +90,7 @@ if (-not (Test-Path $ocrProj)) {
     & dotnet build $ocrProj -c $Configuration -v:q
     if ($LASTEXITCODE -ne 0) { throw "Plugins.Ocr build failed with exit code $LASTEXITCODE" }
 
-    $pluginSrc = Join-Path $root "bin\AnyCPU\$Configuration\net10.0-windows\Plugins"
+    $pluginSrc = Join-Path $root "bin\$Configuration\net10.0-windows\Plugins"
     $pluginDst = Join-Path $publishDir "Plugins"
     if (-not (Test-Path $pluginSrc)) {
         throw "Plugins.Ocr deploy target didn't produce $pluginSrc (DeployToMain target missing?)"

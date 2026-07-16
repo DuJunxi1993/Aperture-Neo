@@ -60,7 +60,7 @@
                                 <MenuItem Header="{DynamicResource TitleBar_ClearRecent}" Command="{Binding ClearRecentCommand}"/>
                             </MenuItem>
                             <Separator/>
-                            <MenuItem Header="{DynamicResource TitleBar_Plugins}" x:Name="MenuPlugins"/>
+                            <MenuItem Header="{DynamicResource TitleBar_Settings}" Click="MenuSettings_Click" x:Name="MenuSettings"/>
                             <Separator/>
                             <MenuItem x:Name="MenuAbout" Command="{Binding OpenAboutCommand}">
                                 <MenuItem.Header>

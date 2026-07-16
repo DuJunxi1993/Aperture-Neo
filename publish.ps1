@@ -26,7 +26,7 @@
 [CmdletBinding()]
 param(
     [string]$Configuration = 'Release',
-    [string]$Version = '3.1.0',
+    [string]$Version = '4.0.0',
     [switch]$SkipInstaller,
     [switch]$Zip
 )

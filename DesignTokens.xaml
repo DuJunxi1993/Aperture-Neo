@@ -50,6 +50,19 @@
     <SolidColorBrush x:Key="BorderSubtle"   Color="#12000000"/>
     <SolidColorBrush x:Key="BorderStandard" Color="#1F000000"/>
     <SolidColorBrush x:Key="BorderSolid"    Color="#FFE5E5E8"/>
+    <!-- BorderStrong: window outline color. Pixel-sampled from the
+         OS-chrome border of MainWindow and AboutWindow (both use
+         WindowStyle=SingleBorderWindow). The left edge of the
+         About window's OS chrome border samples to
+         (187,187,187) = #BBBBBB.
+
+         The OCR window can't use OS chrome (it needs
+         AllowsTransparency for the shadow) so it draws its
+         border in XAML. Using a semi-transparent overlay like
+         #80000000 produces wrong math (renders ~125,125,125 on
+         white, much darker than intended). Use the solid
+         #FFBBBBBB value to match the OS chrome pixel exactly. -->
+    <SolidColorBrush x:Key="BorderStrong"   Color="#FFBBBBBB"/>
 
     <!-- Button backgrounds: nearly transparent black for light mode.
          BtnBgGhost is the resting state (used by the title-bar
@@ -61,6 +74,7 @@
 
     <!-- Status colors (light mode uses deeper hues for 4.5:1 contrast) -->
     <SolidColorBrush x:Key="StatusRed"   Color="#FFdc2626"/>
+    <SolidColorBrush x:Key="StatusGreen" Color="#FF16a34a"/>
 
     <!-- Close button hover (subtle red wash) -->
     <SolidColorBrush x:Key="CloseBgHover" Color="#1AE81123"/>

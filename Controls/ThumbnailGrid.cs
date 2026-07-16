@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using ApertureNeo.Models;
+using ApertureNeo.Services;
 
 namespace ApertureNeo.Controls;
 
@@ -23,7 +24,18 @@ public class ThumbnailGrid : ListBox
 {
     public static new readonly DependencyProperty SelectedItemProperty =
         DependencyProperty.Register(nameof(SelectedItem), typeof(ImageItem), typeof(ThumbnailGrid),
-            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, OnSelectedItemChanged));
+            // P1 fix: BindsTwoWayByDefault so a bare
+            // `SelectedItem="{Binding SelectedItem}"` defaults
+            // to TwoWay (matching Selector.SelectedItemProperty's
+            // contract). Without this the binding is OneWay
+            // and a click → NotifyItemClicked → DP write
+            // does NOT propagate back to the VM, leaving the
+            // source out of sync on first launch. The diagnostic
+            // log in OnSelectedItemChanged helps confirm this.
+            new FrameworkPropertyMetadata(null,
+                FrameworkPropertyMetadataOptions.AffectsRender |
+                FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
+                OnSelectedItemChanged));
 
     public ThumbnailGrid()
     {
@@ -52,6 +64,7 @@ public class ThumbnailGrid : ListBox
 
     private static void OnSelectedItemChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
+        DebugLog.Write("ThumbGrid", $"OnSelectedItemChanged: old={e.OldValue?.GetHashCode()} new={e.NewValue?.GetHashCode()}");
         if (d is ThumbnailGrid grid)
             grid.UpdateSelection();
     }
@@ -63,6 +76,7 @@ public class ThumbnailGrid : ListBox
     }
 
     public event Action<ImageItem>? ItemClicked;
+    private ImageItem? _lastSelectedItem;
 
     protected override bool IsItemItsOwnContainerOverride(object item) => item is ThumbnailItem;
 
@@ -89,15 +103,18 @@ public class ThumbnailGrid : ListBox
     /// </summary>
     protected override void OnSelectionChanged(SelectionChangedEventArgs e)
     {
-        // Intentionally do not call base: ListBox default behavior
-        // would mark the container as Selected via the Selector
-        // pipeline and apply its keyboard focus visual. We mirror
-        // the active container's selection state on the next
-        // layout pass through UpdateSelection.
-        if (SelectedItem != null && ItemContainerGenerator.ContainerFromItem(SelectedItem) is ThumbnailItem ti)
-        {
-            ti.IsSelected = true;
-        }
+        // P1 fix: route through UpdateSelection instead of
+        // only flagging the newly-selected container. The
+        // previous code set IsSelected=true on the new
+        // container but never cleared the old one — so if
+        // Selector fires this on first launch (e.g. during
+        // ListBox initialization with a non-null SelectedItem
+        // from the binding), the previously-selected
+        // container would stay highlighted, looking like
+        // "highlight stuck on first" while subsequent binding
+        // writes also stamped true on the new container.
+        DebugLog.Write("ThumbGrid", $"OnSelectionChanged: added={e.AddedItems.Count} removed={e.RemovedItems.Count}");
+        UpdateSelection();
     }
 
     /// <summary>
@@ -135,13 +152,19 @@ public class ThumbnailGrid : ListBox
 
     private void UpdateSelection()
     {
-        for (int i = 0; i < Items.Count; i++)
+        if (_lastSelectedItem != null && !ReferenceEquals(_lastSelectedItem, SelectedItem))
         {
-            if (ItemContainerGenerator.ContainerFromIndex(i) is ThumbnailItem ti)
-            {
-                ti.IsSelected = ReferenceEquals(ti.ImageItem, SelectedItem);
-            }
+            var idx = Items.IndexOf(_lastSelectedItem);
+            if (idx >= 0 && ItemContainerGenerator.ContainerFromIndex(idx) is ThumbnailItem oldTi)
+                oldTi.IsSelected = false;
         }
+        if (SelectedItem != null)
+        {
+            var idx = Items.IndexOf(SelectedItem);
+            if (idx >= 0 && ItemContainerGenerator.ContainerFromIndex(idx) is ThumbnailItem newTi && !newTi.IsSelected)
+                newTi.IsSelected = true;
+        }
+        _lastSelectedItem = SelectedItem;
     }
 }
 

@@ -1,0 +1,74 @@
+<UserControl x:Class="ApertureNeo.Views.ImageViewerPanelView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:ApertureNeo.Controls;assembly="
+             xmlns:annot="clr-namespace:ApertureNeo.Controls.Annotation;assembly="
+             xmlns:vm="clr-namespace:ApertureNeo.ViewModels;assembly="
+             mc:Ignorable="d"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DesignHeight="600" d:DesignWidth="800">
+    <Grid ClipToBounds="False" x:Name="ViewerColumn"
+          Background="{StaticResource SurfaceElevated}">
+        <Grid.RowDefinitions>
+            <!-- P5: annotation toolbar at the very top. Visible
+                 only when the user is in annotation mode
+                 (IsAnnotating == true). Sits ABOVE the image so
+                 it never occludes it. -->
+            <RowDefinition Height="Auto"/>
+            <!-- Viewer + PenCanvas overlay area. -->
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Annotation toolbar: hosts the shared AnnotationOverlay
+             UserControl with Clear/Undo/Color/Size/Save. Bound
+             to the VM's AnnotationState. The VM toggles
+             IsAnnotating on/off; the toolbar's Visibility binds
+             to that flag via the BoolToVisibility converter.
+             When the VM swaps AnnotationState (e.g. on image
+             change), the toolbar automatically picks it up. -->
+        <annot:AnnotationOverlay x:Name="AnnotationBar" Grid.Row="0"
+                                 Visibility="{Binding IsAnnotating, Converter={StaticResource BoolToVisibility}}"
+                                 State="{Binding AnnotationState}"
+                                 SaveRequested="AnnotationBar_SaveRequested"
+                                 ExitRequested="AnnotationBar_ExitRequested"
+                                 OcrRequested="AnnotationBar_OcrRequested"
+                                 ModeChanged="AnnotationBar_ModeChanged"/>
+
+        <Grid Grid.Row="1" ClipToBounds="True">
+            <controls:SkiaImageViewer x:Name="ImageViewer" Panel.ZIndex="0">
+                <controls:SkiaImageViewer.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="{DynamicResource ImageCtx_CopyPath}" Click="CtxCopyPath_Click"/>
+                        <MenuItem Header="{DynamicResource ImageCtx_OpenInExplorer}" Click="CtxOpenInExplorer_Click"/>
+                        <MenuItem Header="{DynamicResource ImageCtx_Print}" Click="CtxPrint_Click"/>
+                        <MenuItem Header="{DynamicResource ImageCtx_SetWallpaper}" Click="CtxSetWallpaper_Click" Tag="destructive"/>
+                        <MenuItem Header="编辑图片" Click="CtxAnnotation_Click"/>
+                    </ContextMenu>
+                </controls:SkiaImageViewer.ContextMenu>
+            </controls:SkiaImageViewer>
+
+            <!-- P5: PenCanvas overlay for drawing. IsHitTestVisible
+                 bound to IsAnnotating so the canvas only catches
+                 mouse events in annotation mode (otherwise the
+                 underlying SkiaImageViewer handles pan/zoom). The
+                 mosaic-mode drag preview lives INSIDE the canvas
+                 so Canvas.SetLeft/SetTop on it actually positions
+                 (Canvas-attached properties only work on children
+                 of a Canvas). -->
+            <Canvas x:Name="PenCanvas" Background="Transparent"
+                    IsHitTestVisible="{Binding IsAnnotating}"
+                    MouseLeftButtonDown="PenCanvas_MouseLeftButtonDown"
+                    MouseMove="PenCanvas_MouseMove"
+                    MouseLeftButtonUp="PenCanvas_MouseLeftButtonUp"
+                    MouseWheel="PenCanvas_MouseWheel">
+                <Rectangle x:Name="MosaicPreviewRect"
+                           Stroke="#FF3a4099" StrokeThickness="1"
+                           StrokeDashArray="4 2"
+                           Fill="Transparent"
+                           IsHitTestVisible="False"
+                           Visibility="Collapsed"/>
+            </Canvas>
+        </Grid>
+    </Grid>
+</UserControl>

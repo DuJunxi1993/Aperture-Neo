@@ -1,0 +1,43 @@
+<UserControl x:Class="ApertureNeo.Views.ThumbnailPanelView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:controls="clr-namespace:ApertureNeo.Controls;assembly="
+             mc:Ignorable="d"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DesignHeight="600" d:DesignWidth="400">
+    <Border x:Name="ThumbPanel" Background="{StaticResource SurfacePanel}">
+        <Grid>
+            <controls:ThumbnailGrid x:Name="ThumbGrid" FocusVisualStyle="{x:Null}"
+                                    ItemTemplate="{StaticResource LinearThumbnailTemplate}"
+                                    ItemsSource="{Binding Items}"
+                                    SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                                    Padding="8,2,8,2"
+                                    BorderThickness="0"
+                                    Loaded="ThumbGrid_Loaded"
+                                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                    ScrollViewer.VerticalScrollBarVisibility="Auto">
+                <controls:ThumbnailGrid.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <controls:AutoFitPanel MinItemSize="150" Spacing="6" IsItemsHost="True"/>
+                    </ItemsPanelTemplate>
+                </controls:ThumbnailGrid.ItemsPanel>
+            </controls:ThumbnailGrid>
+            <StackPanel x:Name="ThumbEmpty" HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}">
+                <Border Width="56" Height="56" CornerRadius="12"
+                        Background="{StaticResource SurfaceCardHover}"
+                        HorizontalAlignment="Center">
+                    <ui:SymbolIcon Symbol="Image32" FontSize="24" Foreground="{StaticResource TextQuat}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Text="{DynamicResource Thumb_EmptyStateTitle}" FontSize="13" FontWeight="700"
+                           Foreground="{StaticResource TextSecondary}" Margin="0,14,0,2"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="{DynamicResource Thumb_EmptyStateFormats}" FontSize="11" FontWeight="400"
+                           Foreground="{StaticResource TextQuat}" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

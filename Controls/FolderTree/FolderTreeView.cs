@@ -12,6 +12,7 @@ using System.Windows.Media;
 using ApertureNeo.Models;
 using ApertureNeo.Services;
 using ApertureNeo.Helpers;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ApertureNeo.Controls.FolderTree;
 
@@ -40,7 +41,13 @@ public enum FolderSource
 public class FolderTreeView : ItemsControl
 {
     public new ObservableCollection<TreeNodeBase> Items { get; } = new();
-    private readonly Stack<(List<TreeNodeBase> items, string? parentPath)> _navStack = new();
+    // P2 fix: the second slot now carries the folder whose images
+    // were loaded BEFORE the drill — i.e. the folder the user was
+    // viewing when they drilled into the current level. NavigateBack
+    // reads this to reload the previous folder's images. Previously
+    // the slot was hard-coded to null, which made it impossible to
+    // restore the parent folder's images on back-navigation.
+    private readonly Stack<(List<TreeNodeBase> items, string? loadedFolder)> _navStack = new();
 
     /// <summary>
     /// Pop the drill stack back to the top-level
@@ -60,6 +67,25 @@ public class FolderTreeView : ItemsControl
         _pendingRecentRefresh = false;
         Init(skipAutoSelect);
         if (wasInDrill) DrillModeChanged?.Invoke();
+
+        // P2 fix: reload the most-recent folder's images so the
+        // thumbnail grid updates when the user returns to the
+        // root view. SelectFirstNode (called by Init) only sets
+        // SelectedNode on the Recent SECTION HEADER — a section
+        // header click is a no-op per HandleClick, so no
+        // FolderSelected would fire. We fire explicitly here
+        // using SettingsStore.Recent[0] (newest first), guarded
+        // on wasInDrill so an out-of-drill programmatic call
+        // (e.g. JumpToDirectory's pre-clear) doesn't clobber
+        // the currently-loaded folder.
+        if (wasInDrill && !skipAutoSelect)
+        {
+            var mostRecent = _settingsStore.Recent.FirstOrDefault();
+            if (mostRecent != null && Directory.Exists(mostRecent.Path))
+            {
+                FolderSelected?.Invoke(FolderSource.Recent, mostRecent.Path);
+            }
+        }
     }
 
     /// <summary>
@@ -132,13 +158,53 @@ public class FolderTreeView : ItemsControl
 
     public event Action<FolderSource, string>? FolderSelected;
 
-    public FolderTreeView()
+    /// <summary>
+    /// WPF / XAML instantiation path. Delegates to the
+    /// DI-injected constructor by resolving the default
+    /// <see cref="ISettingsStore"/> from <see cref="AppHost.Services"/>.
+    /// Throws at design time / before the host is built — that's
+    /// intentional (the tree is meaningless without settings).
+    /// </summary>
+    public FolderTreeView() : this(AppHost.Services?.GetService<ISettingsStore>()
+        ?? throw new InvalidOperationException(
+            "FolderTreeView requires ISettingsStore from AppHost; " +
+            "ensure App.OnStartup called AppHost.Build() before any tree is instantiated."))
     {
+    }
+
+    /// <summary>
+    /// Test-friendly ctor. Production code goes through the
+    /// parameterless ctor; tests pass a mock
+    /// <see cref="ISettingsStore"/> directly.
+    /// </summary>
+    internal FolderTreeView(ISettingsStore settingsStore)
+    {
+        _settingsStore = settingsStore;
         ItemsSource = Items;
         Loaded += (_, _) => Init();
-        App.SettingsStore.FavoritesChanged += RefreshFavorites;
-        App.SettingsStore.RecentChanged += RefreshRecent;
+        _settingsStore.FavoritesChanged += RefreshFavorites;
+        _settingsStore.RecentChanged += RefreshRecent;
+        // P2 fix: self-subscribe so CurrentLoadedFolder tracks
+        // every FolderSelected fire (direct click, drill,
+        // JumpToDirectory, PageUp/Down) without per-site updates.
+        // Self-subscription is added FIRST here, so this handler
+        // runs before the external subscribers (FolderTreePanelVM,
+        // MainWindow) when FolderSelected fires — the external
+        // handlers see CurrentLoadedFolder already updated.
+        FolderSelected += (_, path) => CurrentLoadedFolder = path;
     }
+
+    private readonly ISettingsStore _settingsStore;
+
+    /// <summary>The folder whose images are currently loaded in
+    /// the thumbnail grid. Updated automatically by the ctor's
+    /// self-subscription to <see cref="FolderSelected"/>. Read by
+    /// <see cref="NavigateInto"/> (pushed onto the drill stack)
+    /// and <see cref="NavigateBack"/> (popped and re-fired) so
+    /// back-navigation restores the previous folder's images.
+    /// <see cref="ReturnToRoot"/> also reads it to decide whether
+    /// the most-recent folder reload is meaningful.</summary>
+    public string? CurrentLoadedFolder { get; private set; }
 
     private bool _pendingRecentRefresh;
 
@@ -187,6 +253,22 @@ public class FolderTreeView : ItemsControl
         // Leaf directories — load images without drilling
         if (!HasSubdirectories(node.Path))
         {
+            // P2 fix: in drill mode, the leaf click is a
+            // "virtual drill" — push a frame so back-navigation
+            // returns to the current drill level (e.g.
+            // /level1/level2), not the level before the drill
+            // started (e.g. /level1). The at-root leaf /
+            // Recent / Favorite case is handled by the first if
+            // (gated on !IsInDrillMode), so this push only fires
+            // when the user is genuinely inside a drill
+            // hierarchy. Without this, clicking back from a
+            // leaf that's the deepest in the drill chain would
+            // skip one level (e.g. /level1/level2/level3 leaf
+            // → back → /level1 instead of /level1/level2).
+            if (IsInDrillMode)
+            {
+                _navStack.Push((Items.ToList(), CurrentLoadedFolder));
+            }
             FolderSelected?.Invoke(ResolveSourceForNode(node), node.Path!);
             return;
         }
@@ -207,7 +289,15 @@ public class FolderTreeView : ItemsControl
     private void NavigateInto(TreeNodeBase node, bool fireFolderSelected = true)
     {
         SelectedNode = node;
-        _navStack.Push((Items.ToList(), null));
+        // P2 fix: push the currently-loaded folder (not null) so
+        // NavigateBack can restore the previous loaded folder
+        // along with the previous tree view. The slot's old
+        // "parentPath" name was misleading — what we actually
+        // want is the folder whose images were loaded BEFORE
+        // this drill, which is tracked by CurrentLoadedFolder
+        // and stays accurate across all fire paths thanks to
+        // the self-subscription in the ctor.
+        _navStack.Push((Items.ToList(), CurrentLoadedFolder));
         Items.Clear();
         // "Back" is no longer injected as a fake tree node — the
         // floating chip in the sidebar (BtnTreeBack) handles the
@@ -319,6 +409,24 @@ public class FolderTreeView : ItemsControl
             if (match == null) return;
             if (!HasSubdirectories(match.Path!)) return;
             NavigateInto(match, fireFolderSelected: false);
+            // P2 fix: self-subscribe only updates
+            // CurrentLoadedFolder when FolderSelected fires, but
+            // these intermediate drills suppress the fire (to
+            // avoid loading the intermediate folders' images).
+            // Update explicitly here so the NEXT push (and the
+            // final target-push below) captures this drill
+            // level as the "loaded folder" — i.e. the level
+            // the user would have been viewing if the jump
+            // had been a manual drill. Without this, the
+            // pushed frames carry the previous
+            // CurrentLoadedFolder (whatever the user was
+            // viewing before JumpToDirectory) and
+            // back-navigation jumps to that unrelated folder
+            // instead of the target's parent. Matches
+            // 2aeeaf6's leaf-in-drill semantics: the drilled
+            // level is the implicit "currently loaded"
+            // folder at that tree depth.
+            CurrentLoadedFolder = match.Path;
         }
 
         // Find the target folder as a child of the current Items.
@@ -333,6 +441,23 @@ public class FolderTreeView : ItemsControl
                 break;
             }
         }
+
+        // P2 fix: push a virtual frame for the final target so
+        // back-navigation from the target returns to the drill
+        // level (the target's parent in the tree), not the
+        // level the loop just drilled into. The frame's
+        // loadedFolder is CurrentLoadedFolder at this point,
+        // which the loop's last iteration just set to the
+        // target's parent path (via the explicit assignment
+        // above). The subsequent FolderSelected fire below
+        // updates CurrentLoadedFolder to the target path
+        // itself, so forward navigation (clicking the target
+        // in the tree later) still works correctly. Mirrors
+        // 2aeeaf6's leaf-in-drill push: any "entry into a
+        // folder from the tree" leaves a back frame whose
+        // loadedFolder is the level the user was on just
+        // before.
+        _navStack.Push((Items.ToList(), CurrentLoadedFolder));
 
         // Load the target folder's images into the main viewer. Use
         // the original path so casing/whitespace is preserved.
@@ -350,12 +475,27 @@ public class FolderTreeView : ItemsControl
     {
         if (_navStack.Count == 0) return;
         var stackBefore = _navStack.Count;
-        var (previous, _) = _navStack.Pop();
+        var (previous, previouslyLoaded) = _navStack.Pop();
         Items.Clear();
         SelectedNode = null;
         foreach (var r in previous) Items.Add(r);
         if (_pendingRecentRefresh) RefreshRecent();
         DrillModeChanged?.Invoke();
+
+        // P2 fix: re-load the folder that was loaded before this
+        // drill, so the thumbnail grid updates. Previously the
+        // back chip left the grid showing the drilled-in folder's
+        // images because nothing fired FolderSelected here. The
+        // stack now carries the pre-drill loaded folder and we
+        // restore it via FolderSelected — the same event the
+        // forward path uses, so the rest of the navigation chain
+        // (FolderTreePanelVM.OnFolderSelected → AddRecent →
+        // MainWindow → NavigationService.LoadFolder) handles it
+        // uniformly.
+        if (previouslyLoaded != null && Directory.Exists(previouslyLoaded))
+        {
+            FolderSelected?.Invoke(FolderSource.Subdirectory, previouslyLoaded);
+        }
 
         // Popped back to root view (stack now empty): run the same
         // Recent-priority auto-select that Init() uses, so the user
@@ -478,7 +618,7 @@ public class FolderTreeView : ItemsControl
             menu.Items.Add(jump);
             menu.Items.Add(new Separator());
             var remove = new MenuItem { Header = "从收藏夹移除", Tag = "destructive" };
-            remove.Click += (_, _) => App.SettingsStore.RemoveFavorite(node.Path);
+            remove.Click += (_, _) => _settingsStore.RemoveFavorite(node.Path);
             menu.Items.Add(remove);
         }
         else if (section == FolderSource.Recent)
@@ -487,35 +627,35 @@ public class FolderTreeView : ItemsControl
             jump.Click += (_, _) => JumpToDirectory(node.Path!);
             menu.Items.Add(jump);
             menu.Items.Add(new Separator());
-            if (App.SettingsStore.IsFavorite(node.Path))
+            if (_settingsStore.IsFavorite(node.Path))
             {
                 var remove = new MenuItem { Header = "从收藏夹移除", Tag = "destructive" };
-                remove.Click += (_, _) => App.SettingsStore.RemoveFavorite(node.Path);
+                remove.Click += (_, _) => _settingsStore.RemoveFavorite(node.Path);
                 menu.Items.Add(remove);
             }
             else
             {
                 var add = new MenuItem { Header = "添加到收藏夹" };
-                add.Click += (_, _) => App.SettingsStore.AddFavorite(node.Path);
+                add.Click += (_, _) => _settingsStore.AddFavorite(node.Path);
                 menu.Items.Add(add);
             }
             menu.Items.Add(new Separator());
             var removeFromRecent = new MenuItem { Header = "从最近访问移除", Tag = "destructive" };
-            removeFromRecent.Click += (_, _) => App.SettingsStore.RemoveRecent(node.Path);
+            removeFromRecent.Click += (_, _) => _settingsStore.RemoveRecent(node.Path);
             menu.Items.Add(removeFromRecent);
         }
         else
         {
-            if (App.SettingsStore.IsFavorite(node.Path))
+            if (_settingsStore.IsFavorite(node.Path))
             {
                 var remove = new MenuItem { Header = "从收藏夹移除", Tag = "destructive" };
-                remove.Click += (_, _) => App.SettingsStore.RemoveFavorite(node.Path);
+                remove.Click += (_, _) => _settingsStore.RemoveFavorite(node.Path);
                 menu.Items.Add(remove);
             }
             else
             {
                 var add = new MenuItem { Header = "添加到收藏夹" };
-                add.Click += (_, _) => App.SettingsStore.AddFavorite(node.Path);
+                add.Click += (_, _) => _settingsStore.AddFavorite(node.Path);
                 menu.Items.Add(add);
             }
         }
@@ -540,7 +680,7 @@ public class FolderTreeView : ItemsControl
         for (int i = next - 1; i > idx; i--) Items.RemoveAt(i);
         int ins = idx + 1;
         int addedFavs = 0;
-        foreach (var p in App.SettingsStore.Favorites)
+        foreach (var p in _settingsStore.Favorites)
         {
             if (Directory.Exists(p)) { Items.Insert(ins++, new FolderItemNode(p)); addedFavs++; }
         }
@@ -561,7 +701,7 @@ public class FolderTreeView : ItemsControl
         for (int i = next - 1; i > idx; i--) Items.RemoveAt(i);
         int ins = idx + 1;
         int addedRecs = 0;
-        foreach (var e in App.SettingsStore.Recent)
+        foreach (var e in _settingsStore.Recent)
         {
             if (Directory.Exists(e.Path)) { Items.Insert(ins++, new RecentNode(e)); addedRecs++; }
         }
@@ -765,7 +905,7 @@ public class FolderTreeView : ItemsControl
 
         Items.Add(fav);
         int addedFavs = 0;
-        foreach (var p in App.SettingsStore.Favorites)
+        foreach (var p in _settingsStore.Favorites)
         {
             if (Directory.Exists(p)) { Items.Add(new FolderItemNode(p)); addedFavs++; }
         }
@@ -773,7 +913,7 @@ public class FolderTreeView : ItemsControl
 
         Items.Add(rec);
         int addedRecs = 0;
-        foreach (var e in App.SettingsStore.Recent)
+        foreach (var e in _settingsStore.Recent)
         {
             if (Directory.Exists(e.Path)) { Items.Add(new RecentNode(e)); addedRecs++; }
         }

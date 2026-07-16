@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Threading;
 using ApertureNeo.Helpers;
 using ApertureNeo.Models;
 
@@ -18,12 +20,21 @@ namespace ApertureNeo.Services;
 /// <see cref="FileSystemWatcher"/> reloads on file
 /// create/delete/rename in the watched folder.
 /// </summary>
-public class NavigationService
+public class NavigationService : INavigationService
 {
     private readonly ObservableCollection<ImageItem> _items = new();
     private int _currentIndex = -1;
     private string _currentFolder = "";
     private FileSystemWatcher? _watcher;
+    // P0 fix: cancel any in-flight enumeration when the user
+    // navigates to a new folder. Without this, two rapid
+    // folder-switches could leave Items[0..N-1] from folder A
+    // and Items[N..M-1] from folder B mixed in the same list, with
+    // _currentIndex pointing at what the second callback thought
+    // was index 0 (but is actually N in the merged list). The
+    // callback checks IsCancellationRequested before adding items.
+    private CancellationTokenSource? _loadCts;
+    private DispatcherTimer? _fswDebounceTimer;
 
     public event Action? CollectionChanged;
     public event Action<ImageItem>? CurrentImageChanged;
@@ -61,6 +72,18 @@ public class NavigationService
     {
         if (!Directory.Exists(folderPath)) return;
 
+        // P0 fix: cancel the in-flight enumeration, if any. The
+        // background task's BeginInvoke callback checks
+        // IsCancellationRequested before mutating _items, so the
+        // older enumeration becomes a no-op even if it was already
+        // past the directory enumeration step. Without this, two
+        // rapid LoadFolder calls would race on _items / _currentIndex
+        // and produce a mixed list.
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+        _loadCts = new CancellationTokenSource();
+        var ct = _loadCts.Token;
+
         _currentFolder = folderPath;
 
         // Clear current items synchronously so the UI updates immediately.
@@ -93,6 +116,10 @@ public class NavigationService
             if (dispatcher == null) return;
             dispatcher.BeginInvoke(new Action(() =>
             {
+                // Bail if a newer LoadFolder cancelled us between
+                // the enumeration and this dispatcher dispatch.
+                if (ct.IsCancellationRequested) return;
+
                 // Round 68: suppress per-item CollectionChanged during bulk
                 // add. With a 1000-image folder the naive foreach+Add
                 // fires 1000 CollectionChanged events → 1000 layout passes
@@ -153,14 +180,28 @@ public class NavigationService
 
     private void HandleFileChange(string path)
     {
-        if (FormatHelper.IsSupported(path))
+        if (!FormatHelper.IsSupported(path)) return;
+        if (_fswDebounceTimer == null)
         {
-            LoadFolder(_currentFolder);
+            _fswDebounceTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(300),
+                IsEnabled = false,
+            };
+            _fswDebounceTimer.Tick += (_, _) =>
+            {
+                _fswDebounceTimer.Stop();
+                LoadFolder(_currentFolder);
+            };
         }
+        _fswDebounceTimer.Stop();
+        _fswDebounceTimer.Start();
     }
 
     public void Dispose()
     {
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
         _watcher?.Dispose();
     }
 }

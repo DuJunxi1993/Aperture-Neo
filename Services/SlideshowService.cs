@@ -1,6 +1,5 @@
 using System;
-using System.Timers;
-using Timer = System.Timers.Timer;
+using System.Windows.Threading;
 
 namespace ApertureNeo.Services;
 
@@ -13,7 +12,7 @@ namespace ApertureNeo.Services;
 /// </summary>
 public class SlideshowService : IDisposable
 {
-    private readonly Timer _timer;
+    private readonly DispatcherTimer _timer;
     private bool _isRunning;
     private int _intervalMs = 3000;
 
@@ -29,16 +28,16 @@ public class SlideshowService : IDisposable
             _intervalMs = Math.Clamp(value, 500, 60000);
             if (_isRunning)
             {
-                _timer.Interval = _intervalMs;
+                _timer.Interval = TimeSpan.FromMilliseconds(_intervalMs);
             }
         }
     }
 
     public SlideshowService()
     {
-        _timer = new Timer(_intervalMs);
-        _timer.AutoReset = true;
-        _timer.Elapsed += (_, _) => NextRequested?.Invoke();
+        _timer = new DispatcherTimer();
+        _timer.Tick += (_, _) => NextRequested?.Invoke();
+        _timer.Interval = TimeSpan.FromMilliseconds(_intervalMs);
     }
 
     /// <summary>Start the slideshow timer. No-op if already
@@ -48,7 +47,7 @@ public class SlideshowService : IDisposable
     {
         if (_isRunning) return;
         _isRunning = true;
-        _timer.Interval = _intervalMs;
+        _timer.Interval = TimeSpan.FromMilliseconds(_intervalMs);
         _timer.Start();
     }
 
@@ -72,7 +71,6 @@ public class SlideshowService : IDisposable
 
     public void Dispose()
     {
-        _timer.Dispose();
-        GC.SuppressFinalize(this);
+        _timer.Stop();
     }
 }

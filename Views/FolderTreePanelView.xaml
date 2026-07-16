@@ -1,0 +1,131 @@
+<UserControl x:Class="ApertureNeo.Views.FolderTreePanelView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:tree="clr-namespace:ApertureNeo.Controls.FolderTree;assembly="
+             mc:Ignorable="d"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DesignHeight="600" d:DesignWidth="232">
+    <Border x:Name="TreePanel" Background="{StaticResource SurfaceElevated}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Floating "back" chip (drill mode only). P2:
+                 Visibility binds to FolderTreePanelViewModel.IsDrillMode
+                 (the View forwards FolderTree.DrillModeChanged into the
+                 VM). The chip is Collapsed outside drill mode, Visible
+                 inside. -->
+            <Button Grid.Row="0" x:Name="BtnTreeBack"
+                    Command="{Binding BackCommand}"
+                    Margin="8,8,8,4" Cursor="Hand"
+                    Style="{StaticResource LinearFloatingChip}"
+                    HorizontalAlignment="Left"
+                    Visibility="{Binding IsDrillMode, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <ui:SymbolIcon Symbol="ArrowLeft24" FontSize="13"/>
+                    <TextBlock Text="{DynamicResource FolderTree_DrillChipBack}" Margin="6,0,0,0" FontSize="12" FontWeight="600" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+
+            <ScrollViewer Grid.Row="1" Background="Transparent"
+                          VerticalScrollBarVisibility="Auto">
+                <tree:FolderTreeView x:Name="FolderTree"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     Foreground="{StaticResource TextPrimary}"
+                                     Padding="0,4">
+                    <tree:FolderTreeView.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding Icon}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource LinearTreeIcon}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSectionHeader}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                                <DataTrigger Value="True">
+                                                    <DataTrigger.Binding>
+                                                        <Binding Path="IsMouseOver"
+                                                                 RelativeSource="{RelativeSource AncestorType=tree:FolderItemContainer}"/>
+                                                    </DataTrigger.Binding>
+                                                    <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                                                </DataTrigger>
+                                                <DataTrigger Value="True">
+                                                    <DataTrigger.Binding>
+                                                        <Binding Path="IsSelected" RelativeSource="{RelativeSource AncestorType=tree:FolderItemContainer}"/>
+                                                    </DataTrigger.Binding>
+                                                    <Setter Property="Foreground" Value="{StaticResource SelectionFg}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Text="{Binding DisplayName}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
+                                            <Setter Property="FontSize" Value="13"/>
+                                            <Setter Property="FontWeight" Value="500"/>
+                                            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSectionHeader}" Value="True">
+                                                    <Setter Property="FontSize" Value="11"/>
+                                                    <Setter Property="FontWeight" Value="600"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource TextTertiary}"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsEmptyHint}" Value="True">
+                                                    <Setter Property="FontSize" Value="11"/>
+                                                    <Setter Property="FontWeight" Value="400"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource TextQuat}"/>
+                                                    <Setter Property="FontStyle" Value="Italic"/>
+                                                </DataTrigger>
+                                                <DataTrigger Value="True">
+                                                    <DataTrigger.Binding>
+                                                        <Binding Path="IsSelected" RelativeSource="{RelativeSource AncestorType=tree:FolderItemContainer}"/>
+                                                    </DataTrigger.Binding>
+                                                    <Setter Property="Foreground" Value="{StaticResource SelectionFg}"/>
+                                                    <Setter Property="FontWeight" Value="600"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </DataTemplate>
+                    </tree:FolderTreeView.ItemTemplate>
+                    <tree:FolderTreeView.ItemContainerStyle>
+                        <Style TargetType="tree:FolderItemContainer" BasedOn="{StaticResource LinearFolderItemContainer}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSectionHeader}" Value="True">
+                                    <Setter Property="IsHitTestVisible" Value="False"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </tree:FolderTreeView.ItemContainerStyle>
+                </tree:FolderTreeView>
+            </ScrollViewer>
+
+            <!-- Floating "return to root" chip (drill mode only). P2:
+                 Visibility driven by IsDrillMode (see BtnTreeBack above). -->
+            <Button Grid.Row="2" x:Name="BtnReturnToRoot"
+                    Command="{Binding ReturnToRootCommand}"
+                    Margin="8,6,8,8" Cursor="Hand"
+                    Style="{StaticResource LinearFloatingChip}"
+                    HorizontalAlignment="Left"
+                    Visibility="{Binding IsDrillMode, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <ui:SymbolIcon Symbol="ArrowLeft24" FontSize="13"/>
+                    <TextBlock Text="{DynamicResource FolderTree_DrillChipReturnToRoot}" Margin="6,0,0,0" FontSize="12" FontWeight="600" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </Grid>
+    </Border>
+</UserControl>

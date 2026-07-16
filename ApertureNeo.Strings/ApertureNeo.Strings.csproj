@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Plain net10.0 (no -windows) so any project — main WPF
+         app, plugin UI DLL, future console tools — can reference
+         it without dragging in Windows-only references. The .resx
+         + ResourceManager API is pure managed code. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <RootNamespace>ApertureNeo.Strings</RootNamespace>
+    <AssemblyName>ApertureNeo.Strings</AssemblyName>
+    <!-- Disable the SDK's auto-glob of *.resx so we can set
+         the LogicalName explicitly. The Strings.cs wrapper
+         looks the resource up as
+         "ApertureNeo.Strings.Strings" — matching the
+         ResourceManager ctor — and the LogicalName controls
+         the embedded path that becomes the lookup key. -->
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+  </PropertyGroup>
+
+  <!-- Strings.resx is the single source of truth for all
+       user-facing text. Read via the hand-written Strings.cs
+       wrapper (this folder's sibling) using ResourceManager
+       with hard-coded fallbacks — see the comment on the
+       Strings class for why we don't use the auto-generated
+       designer. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Strings.resx">
+      <LogicalName>ApertureNeo.Strings.Strings.resources</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

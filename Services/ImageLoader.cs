@@ -14,7 +14,7 @@ namespace ApertureNeo.Services;
 /// pre-scaled bitmap of <c>(decodeW, decodeH)</c> to keep
 /// allocations bounded for huge photos (8K JPEGs etc.).
 /// </summary>
-public class ImageLoader
+public class ImageLoader : IImageLoader
 {
     private int _maxDecodeDimension = 7680;
 

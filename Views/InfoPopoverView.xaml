@@ -1,0 +1,61 @@
+<UserControl x:Class="ApertureNeo.Views.InfoPopoverView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             mc:Ignorable="d"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DesignHeight="200" d:DesignWidth="280">
+    <Border Background="{StaticResource SurfaceElevated}"
+            BorderBrush="{StaticResource BorderStandard}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource RadiusPanel}"
+            Padding="14,12"
+            MinWidth="240" MaxWidth="320">
+        <StackPanel>
+            <!-- All text blocks below are bound to
+                 InfoPopoverViewModel properties (P2). -->
+            <TextBlock Text="{DynamicResource InfoPill_File}" Style="{StaticResource LinearPopoverEyebrow}"/>
+            <TextBlock Text="{Binding FileName}" Style="{StaticResource LinearPopoverValue}"/>
+
+            <Border Style="{StaticResource LinearPopoverDivider}"/>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="{DynamicResource InfoPill_Size}" Style="{StaticResource LinearPopoverEyebrow}"/>
+                    <TextBlock Text="{Binding FileSize}" Style="{StaticResource LinearPopoverMono}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                    <TextBlock Text="{DynamicResource InfoPill_Dimensions}" Style="{StaticResource LinearPopoverEyebrow}"/>
+                    <TextBlock Text="{Binding Dimensions}" Style="{StaticResource LinearPopoverMono}"/>
+                </StackPanel>
+            </Grid>
+
+            <Border Style="{StaticResource LinearPopoverDivider}"/>
+
+            <StackPanel>
+                <TextBlock Text="EXIF" Style="{StaticResource LinearPopoverEyebrow}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{DynamicResource InfoPill_Camera}" Style="{StaticResource LinearPopoverKey}"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ExifMake}" Style="{StaticResource LinearPopoverRight}"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{DynamicResource InfoPill_Lens}" Style="{StaticResource LinearPopoverKey}"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ExifModel}" Style="{StaticResource LinearPopoverRight}"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="{DynamicResource InfoPill_DateTaken}" Style="{StaticResource LinearPopoverKey}"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ExifDate}" Style="{StaticResource LinearPopoverRight}"/>
+                </Grid>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

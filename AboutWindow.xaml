@@ -2,9 +2,9 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-        Title="关于 Aperture Neo"
-        Width="480" Height="440"
-        MinWidth="400" MinHeight="380"
+        Title="{DynamicResource AboutWindow_Title}"
+        Width="540" Height="600"
+        MinWidth="440" MinHeight="460"
         WindowStartupLocation="CenterOwner"
         Foreground="{StaticResource TextPrimary}"
         Background="{StaticResource SurfaceCanvas}"
@@ -18,100 +18,149 @@
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0"/>
     </WindowChrome.WindowChrome>
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="44"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <Border Background="{StaticResource SurfaceCanvas}" CornerRadius="10">
+        <Border.Effect>
+            <StaticResource ResourceKey="ShadowDialog"/>
+        </Border.Effect>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="44"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <!-- Title bar: 44px, drag region, no system chrome (per Linear) -->
-        <Border Grid.Row="0" Background="{StaticResource SurfaceCanvas}"
-                BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,0,0,1"
-                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-            <Grid>
-                <TextBlock Text="关于" VerticalAlignment="Center" HorizontalAlignment="Center"
-                           Foreground="{StaticResource TextTertiary}" FontSize="12" FontWeight="700"/>
-                <Button HorizontalAlignment="Right" Width="28" Height="28" Margin="0,0,8,0"
-                        Style="{StaticResource LinearWindowButton}" Click="BtnClose_Click">
-                    <ui:SymbolIcon Symbol="Dismiss24" FontSize="14"/>
-                </Button>
-            </Grid>
-        </Border>
-
-        <StackPanel Grid.Row="1" Margin="32,24,32,8">
-            <!-- Brand mark: 48px indigo square, Linear-style flat -->
-            <Border Width="48" Height="48" CornerRadius="10"
-                    Background="{StaticResource BrandPrimary}"
-                    HorizontalAlignment="Left" Margin="0,0,0,14">
-                <ui:SymbolIcon Symbol="Image32" FontSize="24" Foreground="White"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <!-- Title bar: 44px, drag region, no system chrome (per Linear) -->
+            <Border Grid.Row="0" Background="{StaticResource SurfaceCanvas}"
+                    BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,0,0,1"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid>
+                    <TextBlock Text="{DynamicResource TitleBar_About}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                               Foreground="{StaticResource TextTertiary}" FontSize="12" FontWeight="700"/>
+                    <Button x:Name="BtnClose" HorizontalAlignment="Right" Width="28" Height="28" Margin="0,0,8,0"
+                            Style="{StaticResource LinearWindowButton}" Click="BtnClose_Click">
+                        <ui:SymbolIcon Symbol="Dismiss24" FontSize="14"/>
+                    </Button>
+                </Grid>
             </Border>
 
-            <!-- Heading: app name + tagline -->
-            <TextBlock Text="Aperture Neo" FontSize="22" FontWeight="600"
-                       Foreground="{StaticResource TextPrimary}" Margin="0,0,0,2"/>
-            <TextBlock Text="A precision image viewer for the desktop." FontSize="13"
-                       Foreground="{StaticResource TextSecondary}" FontWeight="400"
-                       Margin="0,0,0,2"/>
-            <TextBlock Text="Built on the Linear design system — 1px hairline borders, 12px radii, zero drop shadows." 
-                       FontSize="12" Foreground="{StaticResource TextTertiary}" FontWeight="400"
-                       TextWrapping="Wrap" Margin="0,0,0,18"/>
+            <!-- Body: brand + version + update panel (no 关键能力 anymore) -->
+            <Grid Grid.Row="1" Margin="32,24,32,8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-            <!-- Section: 关键能力 (Key capabilities) — Linear eyebrow + content pattern -->
-            <TextBlock Text="关键能力" Style="{StaticResource LinearPopoverEyebrow}" Margin="0,0,0,6"/>
-            <StackPanel Margin="0,0,0,16">
-                <Grid Margin="0,0,0,4">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="渲染" FontSize="12" FontWeight="510"
-                               Foreground="{StaticResource TextTertiary}" Width="64"/>
-                    <TextBlock Grid.Column="1" Text="SkiaSharp GPU 加速，最大 7680px 边长解码"
-                               FontSize="12" Foreground="{StaticResource TextSecondary}"/>
-                </Grid>
-                <Grid Margin="0,0,0,4">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="缩略图" FontSize="12" FontWeight="510"
-                               Foreground="{StaticResource TextTertiary}" Width="64"/>
-                    <TextBlock Grid.Column="1" Text="2000 项 LRU SQLite 缓存，磁盘零拷贝，SizeProvider 动态采样"
-                               FontSize="12" Foreground="{StaticResource TextSecondary}"/>
-                </Grid>
-                <Grid Margin="0,0,0,4">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="迁移" FontSize="12" FontWeight="510"
-                               Foreground="{StaticResource TextTertiary}" Width="64"/>
-                    <TextBlock Grid.Column="1" Text="ImageViewerNeo · HighSpeedImageViewer 旧版本自动迁移"
-                               FontSize="12" Foreground="{StaticResource TextSecondary}"/>
-                </Grid>
-            </StackPanel>
-        </StackPanel>
+                <!-- Brand mark + app name + current version line -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+                    <Border Width="44" Height="44" CornerRadius="9"
+                            Background="{StaticResource BrandPrimary}" Margin="0,0,12,0">
+                        <ui:SymbolIcon Symbol="Image32" FontSize="22" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Aperture Neo" FontSize="20" FontWeight="600"
+                                   Foreground="{StaticResource TextPrimary}"/>
+                        <TextBlock x:Name="CurrentVersionText" Text="v…"
+                                   FontSize="12" FontWeight="510"
+                                   Foreground="{StaticResource TextTertiary}" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </StackPanel>
 
-        <!-- Bottom bar: 1px hairline top border, copyright left, OK button right -->
-        <Border Grid.Row="2" Background="{StaticResource SurfaceCanvas}"
-                BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,1,0,0"
-                Padding="20,12">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="© 2026 DJx · HarmoryOS Sans SC (System) · JetBrains Mono OFL"
-                           FontSize="11" Foreground="{StaticResource TextQuat}" FontWeight="600"
-                           VerticalAlignment="Center"/>
-                <Button Grid.Column="1" x:Name="BtnOk" Click="BtnOk_Click"
-                        MinWidth="80" Cursor="Hand" IsDefault="True"
-                        Style="{StaticResource LinearPrimaryButton}">
-                    <TextBlock Text="确定" FontSize="13" FontWeight="600"/>
-                </Button>
+                <!-- Body content area: idle (version panel) OR downloading (progress) -->
+                <Grid Grid.Row="1">
+                    <!-- Idle: update status + notes + actions. Visible by default;
+                         hidden while a download is in progress. -->
+                    <Border x:Name="UpdatePanel"
+                            Background="{StaticResource SurfacePanel}"
+                            BorderBrush="{StaticResource BorderStandard}" BorderThickness="1"
+                            CornerRadius="8" Padding="14,12">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <!-- Status + notes (scrollable so long release notes don't push the buttons off-screen) -->
+                            <StackPanel Grid.Row="0">
+                                <TextBlock x:Name="UpdateStatusText" Text="{DynamicResource AboutWindow_CheckingUpdate}"
+                                           FontSize="13" FontWeight="600"
+                                           Foreground="{StaticResource TextPrimary}"/>
+                            </StackPanel>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled" Margin="0,6,0,0">
+                                <TextBlock x:Name="UpdateDetailText" Text=""
+                                           FontSize="12" FontWeight="400"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           TextWrapping="Wrap"/>
+                            </ScrollViewer>
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
+                                <Button x:Name="BtnUpdate" Style="{StaticResource LinearPrimaryButton}"
+                                        Content="{DynamicResource AboutWindow_UpdateButton}" Click="BtnUpdate_Click" Visibility="Collapsed"/>
+                                <Button x:Name="BtnCheck"
+                                        Content="{DynamicResource AboutWindow_RecheckButton}" Click="BtnCheck_Click" Margin="8,0,0,0"
+                                        Cursor="Hand" Padding="12,6"
+                                        Background="Transparent"
+                                        BorderBrush="{StaticResource BorderStandard}" BorderThickness="1"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Downloading: progress bar + cancel. Hidden by default. -->
+                    <StackPanel x:Name="DownloadPanel" Visibility="Collapsed" VerticalAlignment="Center">
+                        <TextBlock x:Name="DownloadStatusText" Text="{DynamicResource AboutWindow_Downloading}"
+                                   FontSize="13" FontWeight="600"
+                                   Foreground="{StaticResource TextPrimary}"/>
+                        <Grid Margin="0,10,0,0">
+                            <ProgressBar x:Name="DownloadProgress" Height="6"
+                                         Minimum="0" Maximum="100" Value="0"
+                                         Foreground="{StaticResource BrandPrimary}"
+                                         Background="{StaticResource BorderSubtle}"
+                                         BorderThickness="0"/>
+                            <TextBlock x:Name="DownloadPercentText" Text="0%"
+                                       FontSize="11" FontWeight="600"
+                                       Foreground="{StaticResource TextTertiary}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Button x:Name="BtnCancelDownload"
+                                Content="取消" Click="BtnCancelDownload_Click"
+                                Margin="0,12,0,0" HorizontalAlignment="Right"
+                                MinWidth="80" Cursor="Hand" Padding="12,6"
+                                Background="Transparent"
+                                BorderBrush="{StaticResource BorderStandard}" BorderThickness="1"/>
+                    </StackPanel>
+                </Grid>
             </Grid>
-        </Border>
-    </Grid>
+
+            <!-- Bottom bar: 1px hairline top border, two-line credits left, OK button right.
+                 Two lines so the credits don't have to be jammed onto one. Line 1 is
+                 the primary attribution (copyright + which fonts are referenced);
+                 line 2 is the secondary note (design inspiration + license), set
+                 smaller and a bit more muted to read as a sub-line. -->
+            <Border Grid.Row="2" Background="{StaticResource SurfaceCanvas}"
+                    BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,1,0,0"
+                    Padding="20,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="© 2026 DU Junxi · Powered by HarmonyOS Sans &amp; JetBrains Mono"
+                                   FontSize="11" FontWeight="600"
+                                   Foreground="{StaticResource TextQuat}"/>
+                        <TextBlock Text="Inspired by Apple Aperture · MIT License"
+                                   FontSize="10" FontWeight="400"
+                                   Foreground="{StaticResource TextQuat}"
+                                   Opacity="0.7"
+                                   Margin="0,1,0,0"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" x:Name="BtnOk" Click="BtnOk_Click"
+                            MinWidth="80" Cursor="Hand" IsDefault="True"
+                            Style="{StaticResource LinearPrimaryButton}">
+                        <TextBlock Text="{DynamicResource AboutWindow_CloseButton}" FontSize="13" FontWeight="600"/>
+                    </Button>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
 </ui:FluentWindow>

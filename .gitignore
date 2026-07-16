@@ -25,3 +25,5 @@ bld/
 # Local files
 AGENTS.md
 publish/
+stdout.log
+DESIGN.md

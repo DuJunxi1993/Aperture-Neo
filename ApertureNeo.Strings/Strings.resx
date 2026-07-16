@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- P5: localised string resources. Loaded into App.xaml's
+       MergedDictionaries so every View + Window can reference
+       them via {DynamicResource KeyName} (resolves at parse
+       time / first use, no compile-time type lookup needed —
+       unlike {x:Static props:Strings.Xxx} which the WPF
+       MarkupCompilePass1 can't see in same-project setups).
+       Code-behind uses (string)Application.Current.FindResource(Key)
+       or ApertureNeo.Strings.Strings.Xxx (the C# wrapper) for
+       refactor-safe programmatic access.
+
+       P5 follow-up: this file moved out of ApertureNeo/Properties
+       into a standalone ApertureNeo.Strings library so the OCR
+       plugin DLL (loaded via ALC) can read the same resx without
+       depending on the main app's WPF-only Properties assembly. -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+
+  <data name="AboutWindow_Title" xml:space="preserve"><value>关于 Aperture Neo</value></data>
+  <data name="AboutWindow_About" xml:space="preserve"><value>关于</value></data>
+  <data name="AboutWindow_VersionLabel" xml:space="preserve"><value>当前版本</value></data>
+  <data name="AboutWindow_CheckingUpdate" xml:space="preserve"><value>正在检查更新…</value></data>
+  <data name="AboutWindow_UpdateButton" xml:space="preserve"><value>更新</value></data>
+  <data name="AboutWindow_RecheckButton" xml:space="preserve"><value>重新检查</value></data>
+  <data name="AboutWindow_UpdateCheckFailed" xml:space="preserve"><value>无法检查更新</value></data>
+  <data name="AboutWindow_NetworkError" xml:space="preserve"><value>网络错误</value></data>
+  <data name="AboutWindow_NewVersionFound" xml:space="preserve"><value>发现新版本  v{0}</value></data>
+  <data name="AboutWindow_NoReleaseNotes" xml:space="preserve"><value>（暂无更新说明）</value></data>
+  <data name="AboutWindow_UpToDate" xml:space="preserve"><value>已是最新版本</value></data>
+  <data name="AboutWindow_Downloading" xml:space="preserve"><value>下载中…</value></data>
+  <data name="AboutWindow_DownloadingWithProgress" xml:space="preserve"><value>下载中…  {0} / {1}</value></data>
+  <data name="AboutWindow_DownloadComplete" xml:space="preserve"><value>下载完成，正在启动安装程序…</value></data>
+  <data name="AboutWindow_InstallLaunchFailed" xml:space="preserve"><value>启动安装程序失败</value></data>
+  <data name="AboutWindow_InstallLaunchFailedMessage" xml:space="preserve"><value>无法启动安装程序：{0}</value></data>
+  <data name="AboutWindow_UpdateFailedTitle" xml:space="preserve"><value>更新失败</value></data>
+  <data name="AboutWindow_DownloadCancelled" xml:space="preserve"><value>已取消</value></data>
+  <data name="AboutWindow_DownloadFailed" xml:space="preserve"><value>下载失败</value></data>
+  <data name="AboutWindow_CloseButton" xml:space="preserve"><value>关闭</value></data>
+
+  <data name="TitleBar_UpdateAvailableSuffix" xml:space="preserve"><value>（有版本更新）</value></data>
+  <data name="TitleBar_Open" xml:space="preserve"><value>打开</value></data>
+  <data name="TitleBar_ClearCache" xml:space="preserve"><value>清除缓存</value></data>
+  <data name="TitleBar_ClearThumbCache" xml:space="preserve"><value>缩略图缓存</value></data>
+  <data name="TitleBar_ClearRecent" xml:space="preserve"><value>最近访问记录</value></data>
+  <data name="TitleBar_Plugins" xml:space="preserve"><value>插件</value></data>
+  <data name="TitleBar_About" xml:space="preserve"><value>关于</value></data>
+
+  <data name="ImageCtx_CopyPath" xml:space="preserve"><value>复制图片路径</value></data>
+  <data name="ImageCtx_OpenInExplorer" xml:space="preserve"><value>在资源管理器中打开</value></data>
+  <data name="ImageCtx_Print" xml:space="preserve"><value>打印</value></data>
+  <data name="ImageCtx_SetWallpaper" xml:space="preserve"><value>设为桌面壁纸</value></data>
+
+  <data name="InfoPill_File" xml:space="preserve"><value>文件</value></data>
+  <data name="InfoPill_Size" xml:space="preserve"><value>大小</value></data>
+  <data name="InfoPill_Dimensions" xml:space="preserve"><value>尺寸</value></data>
+  <data name="InfoPill_Camera" xml:space="preserve"><value>相机</value></data>
+  <data name="InfoPill_Lens" xml:space="preserve"><value>镜头</value></data>
+  <data name="InfoPill_DateTaken" xml:space="preserve"><value>拍摄</value></data>
+
+  <data name="Fullscreen_ExitHint" xml:space="preserve"><value>退出全屏 (Esc / Ctrl+F)</value></data>
+
+  <data name="FolderTree_DrillChipBack" xml:space="preserve"><value>返回上一层</value></data>
+  <data name="FolderTree_DrillChipReturnToRoot" xml:space="preserve"><value>返回主页</value></data>
+  <data name="FolderTree_Favorites" xml:space="preserve"><value>收藏夹</value></data>
+  <data name="FolderTree_Recent" xml:space="preserve"><value>最近访问</value></data>
+  <data name="FolderTree_ThisPC" xml:space="preserve"><value>此电脑</value></data>
+  <data name="FolderTree_EmptyFavorites" xml:space="preserve"><value>暂无收藏</value></data>
+  <data name="FolderTree_EmptyRecent" xml:space="preserve"><value>暂无最近访问</value></data>
+  <data name="FolderTreeCtx_JumpTo" xml:space="preserve"><value>跳转到目录</value></data>
+  <data name="FolderTreeCtx_AddToFavorites" xml:space="preserve"><value>添加到收藏夹</value></data>
+  <data name="FolderTreeCtx_RemoveFromFavorites" xml:space="preserve"><value>从收藏夹移除</value></data>
+  <data name="FolderTreeCtx_RemoveFromRecent" xml:space="preserve"><value>从最近访问移除</value></data>
+  <data name="FolderTreeCtx_OpenInExplorer" xml:space="preserve"><value>在资源管理器中打开</value></data>
+
+  <data name="Thumb_EmptyStateTitle" xml:space="preserve"><value>此文件夹没有图片</value></data>
+  <data name="Thumb_EmptyStateFormats" xml:space="preserve"><value>支持 JPG、PNG、GIF、WEBP、BMP、ICO</value></data>
+
+  <data name="FileFilter_ImageFiles" xml:space="preserve"><value>图片文件</value></data>
+  <data name="FileFilter_ImagePattern" xml:space="preserve"><value>*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tiff;*.tif;*.webp;*.heic;*.heif;*.avif</value></data>
+  <data name="FileFilter_AllFiles" xml:space="preserve"><value>所有文件</value></data>
+  <data name="FileFilter_AllPattern" xml:space="preserve"><value>*.*</value></data>
+
+  <data name="HeadlessOcr_Heading" xml:space="preserve"><value>OCR 结果</value></data>
+  <data name="HeadlessOcr_SummaryLabel" xml:space="preserve"><value>概要</value></data>
+  <data name="HeadlessOcr_Ready" xml:space="preserve"><value>就绪</value></data>
+  <data name="HeadlessOcr_CopyAll" xml:space="preserve"><value>复制全部</value></data>
+  <data name="HeadlessOcr_Close" xml:space="preserve"><value>关闭</value></data>
+  <data name="HeadlessOcr_FileCount" xml:space="preserve"><value>({0} 个文件)</value></data>
+  <data name="HeadlessOcr_Copy" xml:space="preserve"><value>复制</value></data>
+  <data name="HeadlessOcr_LinesMeta" xml:space="preserve"><value>{0} 行 · {1:F0} ms</value></data>
+  <data name="HeadlessOcr_RecognitionFailed" xml:space="preserve"><value>识别失败</value></data>
+  <data name="HeadlessOcr_FilesCompleted" xml:space="preserve"><value>已完成 {0}/{1} 个文件</value></data>
+  <data name="HeadlessOcr_FilesCompletedWithFailures" xml:space="preserve"><value>已完成 {0}/{1} 个文件 (失败 {2})</value></data>
+  <data name="HeadlessOcr_TotalTime" xml:space="preserve"><value>总计 {0:F0} ms</value></data>
+  <data name="HeadlessOcr_FailurePrefix" xml:space="preserve"><value>[失败]</value></data>
+  <data name="HeadlessOcr_UnknownError" xml:space="preserve"><value>未知错误</value></data>
+
+  <data name="OcrWindow_Title" xml:space="preserve"><value>文字提取</value></data>
+  <data name="OcrWindow_StatusLabel" xml:space="preserve"><value>状态</value></data>
+  <data name="OcrWindow_StatusReady" xml:space="preserve"><value>就绪</value></data>
+  <data name="OcrWindow_StatusFailed" xml:space="preserve"><value>失败</value></data>
+  <data name="OcrWindow_StatusCompleted" xml:space="preserve"><value>完成</value></data>
+  <data name="OcrWindow_LayoutLabel" xml:space="preserve"><value>排版</value></data>
+  <data name="OcrWindow_LayoutWrap" xml:space="preserve"><value>换行</value></data>
+  <data name="OcrWindow_LayoutNoWrap" xml:space="preserve"><value>不换行</value></data>
+  <data name="OcrWindow_SpaceLabel" xml:space="preserve"><value>空格</value></data>
+  <data name="OcrWindow_SpaceKeep" xml:space="preserve"><value>有空格</value></data>
+  <data name="OcrWindow_SpaceStrip" xml:space="preserve"><value>清除空格</value></data>
+  <data name="OcrWindow_EditHint" xml:space="preserve"><value>文本可直接编辑</value></data>
+  <data name="OcrWindow_Copy" xml:space="preserve"><value>复制</value></data>
+  <data name="OcrWindow_CopyAndExit" xml:space="preserve"><value>复制并退出</value></data>
+  <data name="OcrWindow_LinesMeta" xml:space="preserve"><value>{0} 行 · {1:F0} ms</value></data>
+</root>

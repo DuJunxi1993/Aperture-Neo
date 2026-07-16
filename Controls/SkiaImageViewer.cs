@@ -97,6 +97,44 @@ public class SkiaImageViewer : FrameworkElement
         }
     }
 
+    /// <summary>Current horizontal offset in device pixels
+    /// (the translation applied to the bitmap before scale).</summary>
+    public float OffsetX => _offsetX;
+
+    /// <summary>Current vertical offset in device pixels.</summary>
+    public float OffsetY => _offsetY;
+
+    /// <summary>Scale factor that fits the bitmap into the current
+    /// render size. Zero if no bitmap is loaded.</summary>
+    public float FitScale => _fitScale;
+
+    /// <summary>Dimensions of the loaded bitmap, or (0,0) if none.</summary>
+    public SKSize BitmapSize => _bitmap != null
+        ? new SKSize(_bitmap.Width, _bitmap.Height)
+        : SKSize.Empty;
+
+    /// <summary>
+    /// Optional overlay bitmap drawn on top of <see cref="_bitmap"/>
+    /// with the same zoom and offset. Setting this triggers a
+    /// re-render. Used by screenshot/editing tools to composite
+    /// user annotations over the source image.
+    /// </summary>
+    public SKBitmap? OverlayBitmap
+    {
+        get => _overlayBitmap;
+        set
+        {
+            if (_overlayBitmap != value)
+            {
+                _overlayBitmap?.Dispose();
+                _overlayBitmap = value;
+            }
+            _dirty = true;
+            InvalidateVisual();
+        }
+    }
+    private SKBitmap? _overlayBitmap;
+
     private void StartZoomAnim()
     {
         _animFromZoom = _zoom;
@@ -164,7 +202,15 @@ public class SkiaImageViewer : FrameworkElement
             {
                 if (ct.IsCancellationRequested) return;
 
-                _oldBitmap?.Dispose();
+                // P0 fix: don't dispose the current bitmap if the
+                // fade-out animation is still drawing it. The previous
+                // code unconditionally disposed _oldBitmap, which could
+                // be the one being cross-faded in OnRender → crash. Now:
+                // if _activeCrossFade is still alive, the old bitmap will
+                // be disposed when the fade completes (see OnRender).
+                // The new bitmap takes ownership of _bitmap; if no fade
+                // is in flight, dispose the old one immediately.
+                if (_activeCrossFade == null) _oldBitmap?.Dispose();
                 _oldBitmap = _bitmap;
                 _oldZoom = _zoom;
                 _oldOffX = _offsetX;
@@ -240,11 +286,52 @@ public class SkiaImageViewer : FrameworkElement
     public bool FitToScreenSkipAnimation { get; set; }
 
     /// <summary>
+    /// Tell the viewer the underlying <c>SKBitmap</c>'s pixel data
+    /// changed (e.g. after the editor applied a mosaic stroke
+    /// directly to the source bitmap). Forces the cached
+    /// <c>WriteableBitmap</c> to be re-uploaded on the next render
+    /// pass. <see cref="InvalidateVisual"/> on its own is not enough
+    /// because the <c>_dirty</c> flag short-circuits the re-upload
+    /// when false. The editor calls this after each mosaic stroke so
+    /// the next OnRender actually re-copies the modified source.
+    /// </summary>
+    public void NotifyContentChanged()
+    {
+        _dirty = true;
+        InvalidateVisual();
+    }
+
+    /// <summary>
     /// True when the current zoom is within 1% of the auto-fit scale
     /// (i.e. the image is at "Fit to screen" size). Used by the host
     /// window's double-click handler to toggle Fit ↔ 100%.
     /// </summary>
     public bool IsAtFitScale => _bitmap != null && Math.Abs(_zoom - _fitScale) < 0.01f;
+
+    /// <summary>
+    /// Cancel any in-flight cross-fade animation and detach
+    /// <see cref="CompositionTarget.Rendering"/> handlers. Called by
+    /// the host window's <c>Closed</c> handler so the per-frame
+    /// delegate (which captures this control via the lambda
+    /// closure) is released before the window is GC'd. Without this
+    /// hook a window closed mid-fade leaks until the process exits.
+    /// </summary>
+    public void AbortAnimations()
+    {
+        if (_activeCrossFade != null)
+        {
+            CompositionTarget.Rendering -= _activeCrossFade;
+            _activeCrossFade = null;
+        }
+        if (_animating)
+        {
+            CompositionTarget.Rendering -= OnRendering;
+            _animating = false;
+        }
+        _paintOld?.Dispose(); _paintOld = null;
+        _paintNew?.Dispose(); _paintNew = null;
+        _surface?.Dispose(); _surface = null;
+    }
 
     public void FitToScreen()
     {
@@ -314,6 +401,106 @@ public class SkiaImageViewer : FrameworkElement
         ZoomChanged?.Invoke(_targetZoom);
     }
 
+    /// <summary>
+    /// Set the zoom factor without animation. The image snaps to
+    /// the new scale and recentres so the bitmap stays in the
+    /// middle of the view as the user drags the slider. Used by
+    /// slider drag (where the user expects an instant response)
+    /// and by external code that needs a deterministic zoom value.
+    /// </summary>
+    public void SetZoomImmediate(float zoom)
+    {
+        _targetZoom = Math.Clamp(zoom, 0.05f, 20f);
+        _zoom = _targetZoom;
+        if (_animating)
+        {
+            _animating = false;
+            CompositionTarget.Rendering -= OnRendering;
+        }
+        // Recentre the bitmap: the user dragging the slider isn't
+        // pointing at any specific image point (unlike the wheel
+        // cursor-anchored zoom), so the natural behaviour is to
+        // keep the image centred at the new scale. Without this
+        // the bitmap drifts off-screen as the user zooms in.
+        CenterImage();
+        _offsetX = _targetOffsetX;
+        _offsetY = _targetOffsetY;
+        _dirty = true;
+        InvalidateVisual();
+        ZoomChanged?.Invoke(_zoom);
+    }
+
+    /// <summary>
+    /// Force the viewer to re-render with the latest overlay. The
+    /// overlay <see cref="SKBitmap"/> is mutated in-place (via
+    /// <see cref="SKCanvas"/>); WPF has no way to know it changed,
+    /// so an explicit dirty + invalidate is required. Without
+    /// this, pen strokes only become visible after a zoom
+    /// change forces a re-render.
+    /// </summary>
+    public void InvalidateOverlay()
+    {
+        _dirty = true;
+        InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Zoom around a specific point (typically the mouse cursor).
+    /// Used when an overlay intercepts mouse events and needs to
+    /// forward wheel-zoom to the viewer with the correct origin.
+    /// </summary>
+    public void ZoomAtPoint(float wheelDelta, double x, double y)
+    {
+        if (_bitmap == null) return;
+        var factor = wheelDelta > 0 ? 1.3f : 0.7f;
+        _targetZoom = Math.Clamp(_zoom * factor, 0.05f, 20f);
+
+        var worldX = (float)((x - _offsetX) / _zoom);
+        var worldY = (float)((y - _offsetY) / _zoom);
+
+        _targetOffsetX = (float)(x - worldX * _targetZoom);
+        _targetOffsetY = (float)(y - worldY * _targetZoom);
+
+        StartZoomAnim();
+        ZoomChanged?.Invoke(_targetZoom);
+    }
+
+    /// <summary>
+    /// Load a pre-decoded <see cref="SKBitmap"/> directly into the
+    /// viewer. Unlike <see cref="LoadImage"/>, no off-thread decode
+    /// happens (the bitmap is already in memory). The viewer snaps
+    /// to fit-to-screen without animation, so the caller does not
+    /// see a slide-in transition.
+    /// </summary>
+    public void LoadBitmap(SKBitmap bitmap)
+    {
+        // Cancel any in-flight async load
+        var oldCts = _loadCts;
+        if (oldCts != null) { oldCts.Cancel(); oldCts.Dispose(); }
+        _loadCts = null;
+
+        // Stop any cross-fade in progress
+        if (_activeCrossFade != null)
+        {
+            CompositionTarget.Rendering -= _activeCrossFade;
+            _activeCrossFade = null;
+        }
+
+        // Dispose the previous image (no fade-out)
+        _oldBitmap?.Dispose();
+        _oldBitmap = null;
+
+        _bitmap = bitmap;
+        _wbmp = null;
+        _dirty = true;
+        _overlayBitmap = null;
+
+        // Snap to fit (no animation) so the editor opens at a
+        // sensible zoom rather than zooming in from 0.
+        FitToScreenSkipAnimation = true;
+        FitToScreen();
+    }
+
     private void CenterImage()
     {
         var w = (float)Math.Max(1, ActualWidth);
@@ -374,6 +561,20 @@ public class SkiaImageViewer : FrameworkElement
             canvas.Translate(_offsetX, _offsetY);
             canvas.Scale(_zoom);
             canvas.DrawBitmap(_bitmap, 0, 0, _paintNew);
+            canvas.Restore();
+        }
+
+        // Draw overlay (e.g. pen strokes) on top of the new bitmap
+        // using the same transform. Only visible while the cross-fade
+        // is complete (_animOpacity ~ 1); during a transition the
+        // viewer is still loading a new image so the overlay is hidden
+        // to avoid showing it against the wrong source.
+        if (_overlayBitmap != null && _bitmap != null && _animOpacity > 0.99f)
+        {
+            canvas.Save();
+            canvas.Translate(_offsetX, _offsetY);
+            canvas.Scale(_zoom);
+            canvas.DrawBitmap(_overlayBitmap, 0, 0, _paintNew);
             canvas.Restore();
         }
 

@@ -2,7 +2,10 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             xmlns:controls="clr-namespace:ApertureNeo.Controls;assembly=">
+             xmlns:controls="clr-namespace:ApertureNeo.Controls;assembly="
+             xmlns:converters="clr-namespace:ApertureNeo.Converters;assembly="
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -21,7 +24,110 @@
                 <ResourceDictionary Source="/Styles/Thumbnail.xaml"/>
                 <ResourceDictionary Source="/Styles/ContextMenu.xaml"/>
                 <ResourceDictionary Source="/Styles/Popover.xaml"/>
+                <!-- Annotation.xaml brings LinearToolButton /
+                     LinearColorCircle / LinearPenSizeToggle /
+                     LinearToolbarSeparator / LinearSubtleLabel used
+                     by AnnotationOverlay and SettingsWindow. Must
+                     be app-level so they resolve inside UserControls
+                     hosted by MainWindow (UserControl resources
+                     don't reach into MainWindow.Resources by
+                     default — DynamicResource lookup walks up the
+                     tree but only finds what's in App.Resources).
+                     LinearPrimaryButton is defined here AND in
+                     Buttons.xaml; the second merge wins, no
+                     observable conflict. -->
+                <ResourceDictionary Source="/Styles/Annotation.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- P5: localised user-facing strings. Looked up via
+                 {DynamicResource KeyName} from XAML (resolves at
+                 parse / first use — no compile-time type lookup,
+                 unlike {x:Static}). Code-behind uses
+                 Properties.Strings.Xxx static properties (read
+                 from Properties\Strings.resx via ResourceManager).
+                 The resx is the source of truth; the literal
+                 values below mirror the resx entries. Adding a
+                 new locale later means adding a
+                 Strings.<culture>.resx and a culture-switching
+                 wrapper in Properties\Strings.cs. -->
+            <sys:String x:Key="AboutWindow_Title">关于 Aperture Neo</sys:String>
+            <sys:String x:Key="AboutWindow_About">关于</sys:String>
+            <sys:String x:Key="AboutWindow_VersionLabel">当前版本</sys:String>
+            <sys:String x:Key="AboutWindow_CheckingUpdate">正在检查更新…</sys:String>
+            <sys:String x:Key="AboutWindow_UpdateButton">更新</sys:String>
+            <sys:String x:Key="AboutWindow_RecheckButton">重新检查</sys:String>
+            <sys:String x:Key="AboutWindow_UpdateCheckFailed">无法检查更新</sys:String>
+            <sys:String x:Key="AboutWindow_NetworkError">网络错误</sys:String>
+            <sys:String x:Key="AboutWindow_NewVersionFound">发现新版本  v{0}</sys:String>
+            <sys:String x:Key="AboutWindow_NoReleaseNotes">（暂无更新说明）</sys:String>
+            <sys:String x:Key="AboutWindow_UpToDate">已是最新版本</sys:String>
+            <sys:String x:Key="AboutWindow_Downloading">下载中…</sys:String>
+            <sys:String x:Key="AboutWindow_DownloadingWithProgress">下载中…  {0} / {1}</sys:String>
+            <sys:String x:Key="AboutWindow_DownloadComplete">下载完成，正在启动安装程序…</sys:String>
+            <sys:String x:Key="AboutWindow_InstallLaunchFailed">启动安装程序失败</sys:String>
+            <sys:String x:Key="AboutWindow_InstallLaunchFailedMessage">无法启动安装程序：{0}</sys:String>
+            <sys:String x:Key="AboutWindow_UpdateFailedTitle">更新失败</sys:String>
+            <sys:String x:Key="AboutWindow_DownloadCancelled">已取消</sys:String>
+            <sys:String x:Key="AboutWindow_DownloadFailed">下载失败</sys:String>
+            <sys:String x:Key="AboutWindow_CloseButton">关闭</sys:String>
+            <sys:String x:Key="TitleBar_UpdateAvailableSuffix">（有版本更新）</sys:String>
+            <sys:String x:Key="TitleBar_Open">打开</sys:String>
+            <sys:String x:Key="TitleBar_ClearCache">清除缓存</sys:String>
+            <sys:String x:Key="TitleBar_ClearThumbCache">缩略图缓存</sys:String>
+            <sys:String x:Key="TitleBar_ClearRecent">最近访问记录</sys:String>
+            <!-- TitleBar_Plugins removed (Stage 4): plugin toggles now live
+                 in Settings → Plugins. -->
+            <sys:String x:Key="TitleBar_Settings">设置...</sys:String>
+            <sys:String x:Key="TitleBar_About">关于</sys:String>
+            <sys:String x:Key="ImageCtx_CopyPath">复制图片路径</sys:String>
+            <sys:String x:Key="ImageCtx_OpenInExplorer">在资源管理器中打开</sys:String>
+            <sys:String x:Key="ImageCtx_Print">打印</sys:String>
+            <sys:String x:Key="ImageCtx_SetWallpaper">设为桌面壁纸</sys:String>
+            <sys:String x:Key="InfoPill_File">文件</sys:String>
+            <sys:String x:Key="InfoPill_Size">大小</sys:String>
+            <sys:String x:Key="InfoPill_Dimensions">尺寸</sys:String>
+            <sys:String x:Key="InfoPill_Camera">相机</sys:String>
+            <sys:String x:Key="InfoPill_Lens">镜头</sys:String>
+            <sys:String x:Key="InfoPill_DateTaken">拍摄</sys:String>
+            <sys:String x:Key="Fullscreen_ExitHint">退出全屏 (Esc / Ctrl+F)</sys:String>
+            <sys:String x:Key="FolderTree_DrillChipBack">返回上一层</sys:String>
+            <sys:String x:Key="FolderTree_DrillChipReturnToRoot">返回主页</sys:String>
+            <sys:String x:Key="FolderTree_Favorites">收藏夹</sys:String>
+            <sys:String x:Key="FolderTree_Recent">最近访问</sys:String>
+            <sys:String x:Key="FolderTree_ThisPC">此电脑</sys:String>
+            <sys:String x:Key="FolderTree_EmptyFavorites">暂无收藏</sys:String>
+            <sys:String x:Key="FolderTree_EmptyRecent">暂无最近访问</sys:String>
+            <sys:String x:Key="FolderTreeCtx_JumpTo">跳转到目录</sys:String>
+            <sys:String x:Key="FolderTreeCtx_AddToFavorites">添加到收藏夹</sys:String>
+            <sys:String x:Key="FolderTreeCtx_RemoveFromFavorites">从收藏夹移除</sys:String>
+            <sys:String x:Key="FolderTreeCtx_RemoveFromRecent">从最近访问移除</sys:String>
+            <sys:String x:Key="FolderTreeCtx_OpenInExplorer">在资源管理器中打开</sys:String>
+            <sys:String x:Key="Thumb_EmptyStateTitle">此文件夹没有图片</sys:String>
+            <sys:String x:Key="Thumb_EmptyStateFormats">支持 JPG、PNG、GIF、WEBP、BMP、ICO</sys:String>
+            <sys:String x:Key="FileFilter_ImageFiles">图片文件</sys:String>
+            <sys:String x:Key="FileFilter_ImagePattern">*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tiff;*.tif;*.webp;*.heic;*.heif;*.avif</sys:String>
+            <sys:String x:Key="FileFilter_AllFiles">所有文件</sys:String>
+            <sys:String x:Key="FileFilter_AllPattern">*.*</sys:String>
+            <sys:String x:Key="HeadlessOcr_Heading">OCR 结果</sys:String>
+            <sys:String x:Key="HeadlessOcr_SummaryLabel">概要</sys:String>
+            <sys:String x:Key="HeadlessOcr_Ready">就绪</sys:String>
+            <sys:String x:Key="HeadlessOcr_CopyAll">复制全部</sys:String>
+            <sys:String x:Key="HeadlessOcr_Close">关闭</sys:String>
+            <sys:String x:Key="HeadlessOcr_FileCount">({0} 个文件)</sys:String>
+            <sys:String x:Key="HeadlessOcr_Copy">复制</sys:String>
+            <sys:String x:Key="HeadlessOcr_LinesMeta">{0} 行 · {1:F0} ms</sys:String>
+            <sys:String x:Key="HeadlessOcr_RecognitionFailed">识别失败</sys:String>
+            <sys:String x:Key="HeadlessOcr_FilesCompleted">已完成 {0}/{1} 个文件</sys:String>
+            <sys:String x:Key="HeadlessOcr_FilesCompletedWithFailures">已完成 {0}/{1} 个文件 (失败 {2})</sys:String>
+            <sys:String x:Key="HeadlessOcr_TotalTime">总计 {0:F0} ms</sys:String>
+            <sys:String x:Key="HeadlessOcr_FailurePrefix">[失败]</sys:String>
+            <sys:String x:Key="HeadlessOcr_UnknownError">未知错误</sys:String>
+
+            <!-- P2: global converters for VM-to-View bindings.
+                 BoolToVisibility maps the VM's bool flags to
+                 WPF's Visibility enum. -->
+            <converters:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+            <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility"/>
 
             <!-- Global default font. Note: we intentionally do NOT set
                  Foreground here. A Style setter would beat the inherited

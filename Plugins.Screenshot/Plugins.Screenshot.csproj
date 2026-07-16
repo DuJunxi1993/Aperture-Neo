@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>ApertureNeo.Plugins.Screenshot</RootNamespace>
+    <AssemblyName>ApertureNeo.Plugins.Screenshot</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ApertureNeo.csproj">
+      <Private>true</Private>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+
+  <!-- Copy this DLL (+ SkiaSharp native + managed runtime the
+       plugin depends on) into the main exe's Plugins/ folder so
+       PluginLoader.Discover finds it on dev builds. Mirrors
+       Plugins.Ocr/ApertureNeo.Plugins.Ocr.csproj's DeployToMain.
+       Drops $(Platform) from the destination so it always lands
+       at bin\$(Configuration)\net10.0-windows\Plugins\ alongside
+       the main exe (which itself uses the default AnyCPU output
+       dir for `dotnet build`). -->
+  <Target Name="DeployToMain" AfterTargets="Build">
+    <PropertyGroup>
+      <MainPluginDir>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\net10.0-windows\Plugins\</MainPluginDir>
+      <SkiaSharpNativeDir>$(NuGetPackageRoot)skiasharp.nativeassets.win32\3.119.4\runtimes\win-x64\native\</SkiaSharpNativeDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_DeployFiles Include="$(OutDir)ApertureNeo.Plugins.Screenshot.dll"/>
+      <_DeployFiles Include="$(OutDir)ApertureNeo.Plugins.Screenshot.pdb" Condition="Exists('$(OutDir)ApertureNeo.Plugins.Screenshot.pdb')"/>
+      <_SkiaSharpNative Include="$(SkiaSharpNativeDir)*.dll"/>
+    </ItemGroup>
+    <Copy SourceFiles="@(_DeployFiles)"
+          DestinationFolder="$(MainPluginDir)"
+          SkipUnchangedFiles="true"/>
+    <Copy SourceFiles="@(_SkiaSharpNative)"
+          DestinationFolder="$(MainPluginDir)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(SkiaSharpNativeDir)')"/>
+    <Message Text="Deployed $(AssemblyName) -> $(MainPluginDir)" Importance="high"/>
+  </Target>
+
+</Project>

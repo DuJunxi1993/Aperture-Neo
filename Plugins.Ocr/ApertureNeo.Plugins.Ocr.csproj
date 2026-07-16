@@ -1,0 +1,97 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>ApertureNeo.Plugins.Ocr</RootNamespace>
+    <AssemblyName>ApertureNeo.Plugins.Ocr</AssemblyName>
+    <GenerateRequiresPreviewFeaturesAttribute>false</GenerateRequiresPreviewFeaturesAttribute>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <EnableDefaultPageItems>false</EnableDefaultPageItems>
+    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+  </PropertyGroup>
+
+  <!-- After the Ocr.Core extraction (commit 1) and Ocr.Ui extraction
+       (commit 2), this project is just the plugin shell — the OCR
+       engine lives in Plugins.Ocr.Core and the WPF result window
+       lives in Plugins.Ocr.Ui. Both are ProjectReference'd here so
+       their DLLs are transitively copied to this project's $(OutDir)
+       and then shipped to bin/Plugins/ via DeployToMain. -->
+  <Target Name="DeployToMain" AfterTargets="Build">
+    <PropertyGroup>
+      <!-- Destination must match the main exe's actual bin folder.
+           Default `dotnet build` puts the main exe at
+           bin\$(Configuration)\net10.0-windows\ApertureNeo.exe
+           (Platform=AnyCPU, Configuration=Debug by default).
+           Earlier this target used $(Platform) in the path,
+           which works when publishing with -Platform AnyCPU but
+           breaks local dev where the exe lives at bin\Debug\
+           with no Platform segment. Dropping $(Platform) keeps
+           the plugin alongside the main exe for both dev and
+           publish flows. -->
+      <MainPluginDir>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\net10.0-windows\Plugins\</MainPluginDir>
+      <OpenCvRuntimeDir>$(NuGetPackageRoot)opencvsharp4.runtime.win\4.13.0.20260528\runtimes\win-x64\native\</OpenCvRuntimeDir>
+      <RapidOcrRuntime>$(NuGetPackageRoot)rapidocrsharponnx\1.2.2\lib\net10.0\RapidOCRSharpOnnx.dll</RapidOcrRuntime>
+      <OpenCvSharpRuntime>$(NuGetPackageRoot)opencvsharp4\4.13.0.20260528\lib\net8.0\OpenCvSharp.dll</OpenCvSharpRuntime>
+      <OnnxRuntimeManaged>$(NuGetPackageRoot)microsoft.ml.onnxruntime.managed\1.26.0\lib\netstandard2.0\Microsoft.ML.OnnxRuntime.dll</OnnxRuntimeManaged>
+      <SkiaSharpDir>$(NuGetPackageRoot)skiasharp.nativeassets.win32\3.119.4\runtimes\win-x64\native\</SkiaSharpDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_DeployFiles Include="$(OutDir)**\*.*"/>
+    </ItemGroup>
+    <Copy SourceFiles="@(_DeployFiles)"
+          DestinationFiles="@(_DeployFiles->'$(MainPluginDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"/>
+    <ItemGroup>
+      <_OpenCvNative Include="$(OpenCvRuntimeDir)*.dll"/>
+    </ItemGroup>
+    <Copy SourceFiles="@(_OpenCvNative)"
+          DestinationFolder="$(MainPluginDir)"
+          SkipUnchangedFiles="true"/>
+    <ItemGroup>
+      <_ManagedRuntime Include="$(RapidOcrRuntime);$(OpenCvSharpRuntime);$(OnnxRuntimeManaged);$(NuGetPackageRoot)clipper2\2.0.0\lib\netstandard2.0\Clipper2Lib.dll;$(NuGetPackageRoot)system.numerics.tensors\8.0.0\lib\net8.0\System.Numerics.Tensors.dll"/>
+    </ItemGroup>
+    <Copy SourceFiles="@(_ManagedRuntime)"
+          DestinationFolder="$(MainPluginDir)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('%(Identity)')"/>
+    <ItemGroup>
+      <_SkiaSharpManaged Include="$(NuGetPackageRoot)skiasharp\3.119.4\lib\net10.0-windows10.0.19041\SkiaSharp.dll"/>
+      <_SkiaSharpNative Include="$(SkiaSharpDir)*.dll"/>
+      <_WinRtRuntime Include="$(NuGetPackageRoot)microsoft.windows.sdk.net.ref\10.0.26100.57\lib\net8.0\WinRT.Runtime.dll"/>
+    </ItemGroup>
+    <Copy SourceFiles="@(_SkiaSharpManaged)"
+          DestinationFolder="$(MainPluginDir)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('%(Identity)')"/>
+    <Copy SourceFiles="@(_SkiaSharpNative)"
+          DestinationFolder="$(MainPluginDir)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('%(Identity)')"/>
+    <Copy SourceFiles="@(_WinRtRuntime)"
+          DestinationFolder="$(MainPluginDir)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('%(Identity)')"/>
+    <Message Text="Deployed $(AssemblyName) -> $(MainPluginDir) (with Ocr.Core + OpenCV + managed + SkiaSharp + WinRT runtimes)" Importance="high"/>
+  </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Plugins.Ocr.Core\ApertureNeo.Plugins.Ocr.Core.csproj">
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <Private>true</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\Plugins.Ocr.Ui\ApertureNeo.Plugins.Ocr.Ui.csproj">
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <Private>true</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\ApertureNeo.csproj">
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+</Project>

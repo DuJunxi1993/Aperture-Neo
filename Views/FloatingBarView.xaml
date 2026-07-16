@@ -1,0 +1,92 @@
+<UserControl x:Class="ApertureNeo.Views.FloatingBarView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             mc:Ignorable="d"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DesignHeight="48" d:DesignWidth="320">
+    <Grid>
+        <Popup x:Name="ZoomSliderPopup" Placement="Top"
+               PlacementTarget="{Binding ElementName=ZoomTextBlock}"
+               StaysOpen="True" AllowsTransparency="True"
+               PopupAnimation="Fade" HorizontalOffset="-60" VerticalOffset="-8"
+               Opened="ZoomSliderPopup_Opened" Closed="ZoomSliderPopup_Closed">
+            <Border Background="{StaticResource SurfaceFloating}"
+                    BorderBrush="{StaticResource BorderStandard}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource RadiusPanel}"
+                    Padding="12,8">
+                <Border.Effect>
+                    <StaticResource ResourceKey="ShadowDialog"/>
+                </Border.Effect>
+                <Slider x:Name="ZoomSlider" Width="160"
+                        Minimum="0.05" Maximum="10"
+                        Style="{DynamicResource LinearSlider}"
+                        IsMoveToPointEnabled="True"
+                        ValueChanged="ZoomSlider_ValueChanged"/>
+            </Border>
+        </Popup>
+
+        <Border x:Name="FloatingBarContent"
+                Background="{StaticResource SurfaceFloating}" BorderBrush="{StaticResource BorderStandard}" BorderThickness="1"
+                CornerRadius="{StaticResource RadiusPanel}" Padding="6,4"
+                IsHitTestVisible="True"
+                Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}, FallbackValue=Visible}">
+            <Border.Effect>
+                <StaticResource ResourceKey="ShadowDialog"/>
+            </Border.Effect>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Style="{StaticResource LinearFloatingPrimary}"
+                        Command="{Binding PrevCommand}"
+                        IsHitTestVisible="True">
+                    <ui:SymbolIcon Symbol="ChevronLeft20" FontSize="14" Foreground="White"/>
+                </Button>
+                <TextBlock Text="{Binding ImageIndexInfo}"
+                           FontFamily="{StaticResource FontMono}" FontSize="12" FontWeight="600"
+                           Foreground="{StaticResource TextSecondary}"
+                           VerticalAlignment="Center" Margin="10,0" MinWidth="48" TextAlignment="Center"/>
+                <Button Style="{StaticResource LinearFloatingPrimary}"
+                        Command="{Binding NextCommand}"
+                        IsHitTestVisible="True">
+                    <ui:SymbolIcon Symbol="ChevronRight20" FontSize="14" Foreground="White"/>
+                </Button>
+
+                <Border Width="1" Background="{StaticResource BorderStandard}" Margin="8,6"/>
+
+                <Button Style="{StaticResource LinearFloatingButton}"
+                        Command="{Binding FitCommand}"
+                        IsHitTestVisible="True">
+                    <ui:SymbolIcon Symbol="PageFit20" FontSize="14"/>
+                </Button>
+                <ToggleButton x:Name="ZoomPopupToggle" Cursor="Hand"
+                              IsChecked="{Binding IsOpen, ElementName=ZoomSliderPopup, Mode=TwoWay}"
+                              OverridesDefaultStyle="True" Background="Transparent"
+                              BorderThickness="0" Padding="8,0"
+                              ToolTip="点击调整缩放">
+                    <ToggleButton.Template>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <ContentPresenter/>
+                        </ControlTemplate>
+                    </ToggleButton.Template>
+                    <TextBlock x:Name="ZoomTextBlock" Text="{Binding ZoomText}"
+                               FontFamily="{StaticResource FontMono}" FontSize="12" FontWeight="600"
+                               Foreground="{StaticResource TextPrimary}"
+                               VerticalAlignment="Center" MinWidth="44" TextAlignment="Center"/>
+                </ToggleButton>
+                <Border Width="1" Background="{StaticResource BorderStandard}" Margin="6,6"/>
+
+                <Button Style="{StaticResource LinearFloatingButton}"
+                        Command="{Binding ToggleSlideshowCommand}"
+                        IsHitTestVisible="True">
+                    <ui:SymbolIcon Symbol="{Binding SlideshowIcon}" FontSize="12"/>
+                </Button>
+                <Button Style="{StaticResource LinearFloatingButton}"
+                        Command="{Binding ToggleFullscreenCommand}" Margin="2,0,0,0"
+                        IsHitTestVisible="True">
+                    <ui:SymbolIcon Symbol="FullScreenMaximize24" FontSize="14"/>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

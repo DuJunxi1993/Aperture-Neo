@@ -4,6 +4,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>x64</PlatformTarget>
@@ -12,13 +13,96 @@
     <ApplicationIcon>Assets\apertureneo.ico</ApplicationIcon>
     <EnableDefaultPageItems>false</EnableDefaultPageItems>
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+    <!-- Disable the SDK's AssemblyInfo + TargetFramework
+         attribute generation. The WPF markup compiler emits its
+         own AssemblyInfo + TargetFrameworkAttribute on the
+         wpftmp intermediate projects, and the duplicate
+         attribute set hits CS0579 on a clean rebuild. The
+         WPF-generated values already match our csproj
+         properties (Version, AssemblyVersion, FileVersion,
+         plus the -debug InformationalVersion), so behaviour
+         is unchanged. -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <!-- Versioning. The OCR plugin release is independently versioned
+         (its own csproj's <Version> is independent); the last main-app
+         release on GitHub is v2.0.2, and v3.0.0 added the plugin
+         system + OCR plugin + in-app update flow. v3.1.0 adds the
+         Win11 right-click menu OCR (SystemFileAssociations\image
+         + per-extension), per-user PATH integration so `aperture
+         ocr ...` is invokable from any terminal, and the bilingual
+         installer (English + 简体中文). <Version> drives
+         <InformationalVersion> and <AssemblyVersion>; <FileVersion>
+         feeds the EXE/Win32 version tab. publish.ps1 overrides
+         all three via -p: flags for the release build. -->
+    <Version>3.1.0</Version>
+    <AssemblyVersion>$(Version).0</AssemblyVersion>
+    <FileVersion>$(Version).0</FileVersion>
+  </PropertyGroup>
+  <!-- Debug builds: append "-debug" to InformationalVersion so
+       the About page can show "v3.0.0-debug 当前版本" and the
+       user can tell at a glance whether they're on a dev or
+       release build. Release builds keep the clean "3.0.0" (the
+       SDK falls back to <Version> when InformationalVersion is
+       not explicitly set). -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <InformationalVersion>$(Version)-debug</InformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.10" />
-    <PackageReference Include="SkiaSharp" Version="3.116.1" />
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.10" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
     <PackageReference Include="WPF-UI" Version="3.0.5" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+  </ItemGroup>
+
+  <!-- OCR plugin split (commits 1+2): the engine lives in
+       Plugins.Ocr.Core and the WPF result window lives in
+       Plugins.Ocr.Ui. The main exe references both so the
+       headless `ocr` CLI subcommand (commit 3) can use them
+       directly — bypassing the plugin's opt-in toggle — and
+       the future Plugins.Screenshot can share the same window
+       via the same project references. -->
+  <ItemGroup>
+    <ProjectReference Include="ApertureNeo.Strings\ApertureNeo.Strings.csproj">
+      <Private>true</Private>
+    </ProjectReference>
+    <ProjectReference Include="Plugins.Ocr.Core\ApertureNeo.Plugins.Ocr.Core.csproj">
+      <Private>true</Private>
+    </ProjectReference>
+    <ProjectReference Include="Plugins.Ocr.Ui\ApertureNeo.Plugins.Ocr.Ui.csproj">
+      <Private>true</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Plugins.Ocr\**" />
+    <Page Remove="Plugins.Ocr\**" />
+    <ApplicationDefinition Remove="Plugins.Ocr\**" />
+    <Resource Remove="Plugins.Ocr\**" />
+    <Compile Remove="Plugins.Ocr.Core\**" />
+    <Page Remove="Plugins.Ocr.Core\**" />
+    <ApplicationDefinition Remove="Plugins.Ocr.Core\**" />
+    <Resource Remove="Plugins.Ocr.Core\**" />
+    <Compile Remove="Plugins.Ocr.Ui\**" />
+    <Page Remove="Plugins.Ocr.Ui\**" />
+    <ApplicationDefinition Remove="Plugins.Ocr.Ui\**" />
+    <Resource Remove="Plugins.Ocr.Ui\**" />
+    <Compile Remove="ApertureNeo.Strings\**" />
+    <Page Remove="ApertureNeo.Strings\**" />
+    <ApplicationDefinition Remove="ApertureNeo.Strings\**" />
+    <Resource Remove="ApertureNeo.Strings\**" />
+    <Compile Remove="Plugins.Screenshot\**" />
+    <Page Remove="Plugins.Screenshot\**" />
+    <ApplicationDefinition Remove="Plugins.Screenshot\**" />
+    <Resource Remove="Plugins.Screenshot\**" />
+    <Compile Remove="ScreenshotTool\**" />
+    <Page Remove="ScreenshotTool\**" />
+    <ApplicationDefinition Remove="ScreenshotTool\**" />
+    <Resource Remove="ScreenshotTool\**" />
   </ItemGroup>
 
   <!-- Main entry XAMLs -->
@@ -32,6 +116,95 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="AboutWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\HeadlessOcrResultWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <!-- P1: UserControls extracted from MainWindow.xaml -->
+    <Page Include="Views\TitleBarView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\InfoPillView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\InfoPopoverView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\EdgeNavView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\ExitFullscreenHintView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\FloatingBarView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\FirstRunDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <!-- Stage 8: settings panel — 5 categories, chrome-less
+         window with rounded Border + DropShadowEffect. -->
+    <Page Include="Views\SettingsWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <!-- Stage 5: RegionOverlay + EditorWindow moved from
+         Plugins.Screenshot/ so CaptureService (in main app)
+         can construct them directly. The plugin DLL now
+         contains just ScreenshotPlugin.cs (shortcut
+         registration). -->
+    <Page Include="Views\RegionOverlay.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\EditorWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\ImageViewerPanelView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\ThumbnailPanelView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\FolderTreePanelView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+
+    <!-- P5: shared annotation library (used by the screenshot
+         editor and the main app's annotation mode in the image
+         viewer). The styles/Annotation.xaml dictionary is loaded
+         by both the editor (via pack URI in EditorWindow.xaml) and
+         the host controls in the main app. -->
+    <Page Include="Controls\Annotation\AnnotationOverlay.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\Annotation\SaveDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+
+  <!-- P5: shared resource dictionary for the annotation UI.
+       Loaded by EditorWindow.xaml (via pack URI) and by the
+       AnnotationOverlay/SaveDialog via MergedDictionaries on
+       their own Window.Resources. -->
+  <ItemGroup>
+    <Page Include="Styles\Annotation.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -84,5 +257,27 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <!-- Copy the OCR model files into the main exe's output folder so
+       the headless `aperture ocr ...` CLI can find them. Without
+       this, OcrService's ModelDirectory (which points to the folder
+       next to OcrService's assembly) would resolve to the main exe
+       directory and fail with "model files not found" when Ocr.Core
+       is referenced directly instead of via the plugin's
+       PluginLoadContext. The plugin path still works because the
+       plugin's own DeployToMain target copies models into bin/Plugins/.
+
+       16 MB total (3 ONNX models); the disk waste is acceptable for
+       keeping OcrService's path-resolution logic dead simple. -->
+  <Target Name="CopyOcrModelsForCli" AfterTargets="Build">
+    <ItemGroup>
+      <_OcrModelFiles Include="Plugins.Ocr.Core\Assets\models\paddleocr\*.onnx"/>
+    </ItemGroup>
+    <Copy SourceFiles="@(_OcrModelFiles)"
+          DestinationFolder="$(OutDir)Assets\models\paddleocr"
+          SkipUnchangedFiles="true"
+          Condition="Exists('%(Identity)')"/>
+    <Message Text="Copied OCR models to $(OutDir)Assets\models\paddleocr (for CLI)" Importance="low"/>
+  </Target>
 
 </Project>

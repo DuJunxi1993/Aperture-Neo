@@ -428,8 +428,7 @@ public partial class App : Application
     {
         tray.ShowMainRequested += (_, _) =>
         {
-            // Un-hide the main window when the user picks
-            // "显示主窗口" from the tray. Idempotent.
+            if (!mainWindow.IsLoaded) return;
             if (!mainWindow.IsVisible) mainWindow.Show();
             if (mainWindow.WindowState == WindowState.Minimized)
                 mainWindow.WindowState = WindowState.Normal;
@@ -441,6 +440,7 @@ public partial class App : Application
 
         tray.OpenSettingsRequested += (_, _) =>
         {
+            if (!mainWindow.IsLoaded) return;
             OpenSettingsWindow(mainWindow);
         };
 

@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/Plugins.Ocr.Core/">
+    <Project Path="Plugins.Ocr.Core/ApertureNeo.Plugins.Ocr.Core.csproj" />
+  </Folder>
+  <Folder Name="/Plugins.Ocr.Ui/">
+    <Project Path="Plugins.Ocr.Ui/ApertureNeo.Plugins.Ocr.Ui.csproj" />
+  </Folder>
+  <Folder Name="/Plugins.Ocr/">
+    <Project Path="Plugins.Ocr/ApertureNeo.Plugins.Ocr.csproj" />
+  </Folder>
+  <Project Path="ApertureNeo.csproj" />
+  <Project Path="ApertureNeo.Strings/ApertureNeo.Strings.csproj" />
+  <Project Path="Plugins.Screenshot/Plugins.Screenshot.csproj" />
+  <Project Path="ScreenshotTool/ScreenshotTool.csproj" />
+</Solution>

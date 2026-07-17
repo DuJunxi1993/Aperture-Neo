@@ -1,6 +1,6 @@
 ; Aperture Neo Inno Setup Script
 ; Requires Inno Setup 6.0 or later
-; Compiled with: ISCC /dMyAppVersion=x.y.z /dPublishDir="<abs>" Installer\installer.iss
+; Compiled with: ISCC /dMyAppVersion=x.y.z /dPublishFdDir="<abs>" Installer\installer.iss
 ;
 ; Bilingual installer (English + 简体中文). Inno Setup shows a
 ; language selection dialog at startup when 2+ languages are
@@ -13,28 +13,29 @@
 ;   - PrivilegesRequired=user
 ;   - Installs to {localappdata}\Programs\ApertureNeo
 ;   - All registry keys under HKCU
-;   - Fonts registered to %LOCALAPPDATA%\Microsoft\Windows\Fonts\ + HKCU\...\Fonts
 ;   - Detects an existing installation of the same AppId and silently
 ;     uninstalls it (after user confirmation) before installing the new
 ;     version. Settings/cache are preserved by the app's MigrateLegacyData().
+;   - Kills any running ApertureNeo.exe before uninstalling the old version.
 ;
-; v3.1.0 features:
-;   - Win11 right-click OCR: registers under both the per-extension
-;     HKCU\Software\Classes\.<ext>\shell\ocr (legacy + Win11
-;     "Show more options") and the SystemFileAssociations\image
-;     key (Win11 compact menu attempt).
+; v4.0.0 features:
 ;   - Per-user PATH integration: appends the install directory to
 ;     HKCU\Environment\Path (REG_EXPAND_SZ) so `aperture ocr ...`
 ;     is invokable from any terminal. Toggled via the addtopath
 ;     task, default checked. Removed on uninstall.
+;   - Fonts are bundled in-app (Fonts/), no system-level font
+;     registration needed.
 
 #define MyAppName "Aperture Neo"
 #define MyAppPublisher "DuJunxi1993"
 #define MyAppExeName "ApertureNeo.exe"
 #define MyAppURL "https://github.com/DuJunxi1993/Aperture-Neo"
-#define SupportedExtensions ".jpg|.jpeg|.png|.bmp|.gif|.tiff|.tif|.webp|.heic|.heif|.avif|.ico|.wbmp"
-#define ProgId "ApertureNeo.Image.1"
-#define FontDir "Fonts\HarmonyOS_Sans_SC"
+
+; .NET 10 Desktop Runtime — bundled in the installer and auto-installed
+; if the system doesn't have it yet. Downloaded from:
+;   https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.10/windowsdesktop-runtime-10.0.10-win-x64.exe
+#define DotNetRuntimeDir "DotNetRuntime"
+#define DotNetRuntimeExe "windowsdesktop-runtime-10.0.10-win-x64.exe"
 
 [Setup]
 AppId={{1B6E2D4A-3C8F-4A2E-9D7B-5E1F2A3B4C6D}
@@ -88,8 +89,8 @@ Name: "chinesesimp"; MessagesFile: "Languages\ChineseSimplified.isl"
 [Messages]
 ; Default (English) WelcomeLabel2. The Chinese override below
 ; takes effect when the user picks 简体中文 at the language dialog.
-WelcomeLabel2=This will install [name/ver] on your computer.%n%nAperture Neo is a fast, lightweight WPF image viewer. This package is self-contained and includes the .NET runtime, so no additional software installation is required.%n%nThis installer runs in your user profile (no administrator rights required).%n%nWebView2 Runtime is recommended for the modern UI. If not already present, you will be prompted to install it.
-WelcomeLabel2=即将在您的电脑上安装 [name/ver]。%n%nAperture Neo 是一款快速、轻量级的 WPF 图片查看器。本安装包为自包含模式,已包含 .NET 运行时,无需额外安装其他组件。%n%n本安装器在您的用户配置目录下运行,无需管理员权限。%n%n建议安装 WebView2 运行时以获得完整的现代化界面。如未安装,稍后会提示您下载。; Languages: chinesesimp
+WelcomeLabel2=This will install [name/ver] on your computer.%n%nAperture Neo is a fast, lightweight WPF image viewer. This installer will detect whether .NET 10 Desktop Runtime is already installed and install it automatically if needed.%n%nThis installer runs in your user profile (no administrator rights required). Only .NET Runtime installation will request administrator privileges.%n%nWebView2 Runtime is recommended for the modern UI. If not already present, you will be prompted to install it.
+WelcomeLabel2=即将在您的电脑上安装 [name/ver]。%n%nAperture Neo 是一款快速、轻量级的 WPF 图片查看器。本安装程序会自动检测 .NET 10 桌面运行时是否已安装,并会在需要时自动安装。%n%n本安装器在您的用户配置目录下运行,无需管理员权限。仅 .NET 运行时安装需要管理员权限。%n%n建议安装 WebView2 运行时以获得完整的现代化界面。如未安装,稍后会提示您下载。; Languages: chinesesimp
 
 [Tasks]
 ; Each task declares itself ONCE with {cm:KeyName} references for
@@ -108,19 +109,6 @@ WelcomeLabel2=即将在您的电脑上安装 [name/ver]。%n%nAperture Neo 是�
 ; The {cm:...} indirection is the only correct way to do
 ; bilingual tasks in Inno Setup.
 Name: "desktopicon"; Description: "{cm:Task_DesktopIcon_Description}"; GroupDescription: "{cm:Task_Group_Shortcuts}"
-
-Name: "fileassoc"; Description: "{cm:Task_FileAssoc_Description}"; GroupDescription: "{cm:Task_Group_FileAssoc}"
-
-Name: "setdefault"; Description: "{cm:Task_SetDefault_Description}"; GroupDescription: "{cm:Task_Group_FileAssoc}"
-
-; OCR shell verb: each-image-extension registration (legacy menu +
-; Win11 "Show more options") PLUS SystemFileAssociations\image
-; registration further down (Win11 compact menu attempt). v3.1.0
-; defaults to checked via the Check: TrueFunc helper in [Code] —
-; the [Tasks] `Flags: checked` form triggers an ISCC 6.7.1
-; parser bug ("Parameter 'Flags' includes an unknown flag.")
-; that we can't work around at the script level.
-Name: "ocrverb"; Description: "{cm:Task_OcrVerb_Description}"; GroupDescription: "{cm:Task_Group_Shell}"; Check: OcrVerbShouldBeChecked
 
 ; v3.1.0: per-user PATH integration. Adds the install directory
 ; to HKCU\Environment\Path (REG_EXPAND_SZ) so `aperture ocr ...`
@@ -168,17 +156,6 @@ Task_DesktopIcon_Description=创建桌面快捷方式(&D); Languages: chinesesim
 Task_Group_Shortcuts=Shortcuts:
 Task_Group_Shortcuts=快捷方式:; Languages: chinesesimp
 
-Task_FileAssoc_Description=Register as a supported image viewer (adds to 'Open With')
-Task_FileAssoc_Description=注册为受支持的图片查看器(加入「打开方式」菜单); Languages: chinesesimp
-Task_Group_FileAssoc=File associations:
-Task_Group_FileAssoc=文件关联:; Languages: chinesesimp
-
-Task_SetDefault_Description=Set as the &default image viewer for all supported types
-Task_SetDefault_Description=设为所有受支持格式的默认图片查看器(&S); Languages: chinesesimp
-
-Task_OcrVerb_Description=Add 'OCR &文字提取' to the right-click menu (classic; Win11 shows under "Show more options")
-Task_OcrVerb_Description=添加「OCR &文字提取」到右键菜单(经典菜单;Win11 在「显示更多选项」里); Languages: chinesesimp
-
 Task_AddToPath_Description=Add install dir to &PATH (use 'aperture' command from any terminal)
 Task_AddToPath_Description=将安装目录添加到 &PATH(任意终端可用 `aperture` 命令); Languages: chinesesimp
 
@@ -191,14 +168,13 @@ Run_Launch_Description=Launch {#MyAppName}
 Run_Launch_Description=启动 {#MyAppName}; Languages: chinesesimp
 
 [Files]
-; Self-contained publish output. The path is overridden at compile time via:
-;   ISCC /dPublishDir="<absolute>" Installer/installer.iss
-Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Framework-dependent publish output. Requires .NET 10 Desktop Runtime
+; on the target machine — the installer auto-installs it if missing.
+; The path is overridden at compile time via:
+;   ISCC /dPublishFdDir="<absolute>" Installer/installer.iss
+Source: "{#PublishFdDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\Assets\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\Assets\THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
-; HarmonyOS Sans SC font files (6 weights: Thin/Light/Regular/Medium/Bold/Black).
-; Packaged inside the installer; copied to the per-user Windows fonts directory.
-Source: "{#FontDir}\*.ttf"; DestDir: "{localappdata}\Microsoft\Windows\Fonts"; Flags: ignoreversion
 ; notify.ps1 — PowerShell helper that shows a Win10/11 toast via
 ; Windows.UI.Notifications (WinRT). Invoked by Cli/OcrCommand.cs
 ; after headless OCR completes, to give the user feedback
@@ -207,6 +183,10 @@ Source: "{#FontDir}\*.ttf"; DestDir: "{localappdata}\Microsoft\Windows\Fonts"; F
 ; ApertureNeo.exe ocr (no `-g`) which copies to the clipboard
 ; and then calls this script.
 Source: "notify.ps1"; DestDir: "{app}"; Flags: ignoreversion
+; .NET 10 Desktop Runtime offline installer — extracted to {tmp} and
+; launched with /quiet if the system doesn't have it yet.
+; See https://dotnet.microsoft.com/en-us/download/dotnet/10.0
+Source: "{#DotNetRuntimeDir}\{#DotNetRuntimeExe}"; Flags: dontcopy
 
 [Icons]
 Name: "{userstartmenu}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -215,122 +195,6 @@ Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:Run_Launch_Description}"; Flags: nowait postinstall skipifsilent
-
-[Registry]
-; File association: ProgId under HKCU\Software\Classes (no admin required).
-Root: HKCU; Subkey: "Software\Classes\{#ProgId}"; ValueType: string; ValueName: ""; ValueData: "Aperture Neo Image"; Flags: uninsdeletekey; Tasks: fileassoc
-Root: HKCU; Subkey: "Software\Classes\{#ProgId}\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"; Tasks: fileassoc
-Root: HKCU; Subkey: "Software\Classes\{#ProgId}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: fileassoc
-
-; OpenWithProgids (adds to "Open With" menu for each extension)
-Root: HKCU; Subkey: "Software\Classes\.jpg\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCU; Subkey: "Software\Classes\.jpeg\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCU; Subkey: "Software\Classes\.png\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCU; Subkey: "Software\Classes\.bmp\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCU; Subkey: "Software\Classes\.gif\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCU; Subkey: "Software\Classes\.tiff\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCU; Subkey: "Software\Classes\.tif\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCU; Subkey: "Software\Classes\.webp\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCU; Subkey: "Software\Classes\.heic\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCU; Subkey: "Software\Classes\.heif\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCU; Subkey: "Software\Classes\.avif\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCU; Subkey: "Software\Classes\.ico\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-Root: HKCU; Subkey: "Software\Classes\.wbmp\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: fileassoc
-
-; "Set as default" — override (default) for each extension so the system
-; uses Aperture Neo as the primary handler. Optional and off by default.
-Root: HKCU; Subkey: "Software\Classes\.jpg"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
-Root: HKCU; Subkey: "Software\Classes\.jpeg"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
-Root: HKCU; Subkey: "Software\Classes\.png"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
-Root: HKCU; Subkey: "Software\Classes\.bmp"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
-Root: HKCU; Subkey: "Software\Classes\.gif"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
-Root: HKCU; Subkey: "Software\Classes\.tiff"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
-Root: HKCU; Subkey: "Software\Classes\.tif"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
-Root: HKCU; Subkey: "Software\Classes\.webp"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
-Root: HKCU; Subkey: "Software\Classes\.heic"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
-Root: HKCU; Subkey: "Software\Classes\.heif"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
-Root: HKCU; Subkey: "Software\Classes\.avif"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
-Root: HKCU; Subkey: "Software\Classes\.ico"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
-Root: HKCU; Subkey: "Software\Classes\.wbmp"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: setdefault
-
-; v3.1.x: Win11's compact (top-level) context menu is only
-; populated by IExplorerCommand implementations, and our four
-; attempts to register one via self-contained .NET COM
-; in-proc (Plan A→D) all failed on the user's Win11 test machine.
-; We accept the limitation and revert to IContextMenu only:
-; on Win10 the verb shows in the classic right-click menu,
-; on Win11 it shows under "Show more options". Same `ocrverb`
-; task, same installer flow, no Plugins.Ocr.ShellExt project.
-;
-; Future direction (deferred): getting the verb into the Win11
-; top-level menu reliably requires either an MSIX-packaged app
-; (with full package identity) or a native C++ shell extension
-; (no .NET COM hosting in the loop). Both are larger efforts
-; that need a separate round; for now the user explicitly asked
-; to stop trying the .NET IExplorerCommand path.
-
-; v3.1.x: classic IContextMenu verbs. The earlier
-; IExplorerCommand attempt (Plan B→D) was rolled back — Win11's
-; top-level (compact) context menu only honors IExplorerCommand
-; extensions from apps with package identity (MSIX) or signed
-; shell extensions, neither of which apply to a per-user Win32
-; install. So we use the well-established Win32 IContextMenu
-; shell verb path that always works on Win10 + "Show more
-; options" on Win11. Same `ocrverb` task, same installer flow.
-;
-; The verb invokes the headless `ocr -g` CLI subcommand
-; (single-file GUI reuses OcrResultWindow from Plugins.Ocr.Ui;
-; multi-file selection invokes the verb once per file —
-; Windows shell verb semantics — each file gets its own OCR
-; result window). If the OCR plugin's ONNX models are missing,
-; the verb's process exits with an error message in the result
-; window, which is harmless.
-Root: HKCU; Subkey: "Software\Classes\.jpg\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.jpg\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.jpeg\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.jpeg\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.png\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.png\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.bmp\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.bmp\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.gif\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.gif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.tiff\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.tiff\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.tif\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.tif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.webp\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.webp\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.heic\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.heic\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.heif\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.heif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.avif\shell\ocr";     ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.avif\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.ico\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.ico\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.wbmp\shell\ocr";      ValueType: string; ValueName: ""; ValueData: "OCR 文字提取";                                                          Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\.wbmp\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-
-; v3.1.x (Plan C fallback): also restore the legacy
-; SystemFileAssociations\image entry so the verb shows in the
-; classic menu regardless of which file extension is being
-; right-clicked (the IExplorerCommand verb already covers this
-; for the modern menu, but the IContextMenu entry is the safety
-; net for the legacy menu).
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr"; ValueType: string; ValueName: ""; ValueData: "OCR 文字提取"; Flags: uninsdeletekey; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ocr -g ""%1"""; Tasks: ocrverb
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\image\shell\ocr"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"""; Tasks: ocrverb
-
-; Per-user font registration under HKCU\Software\Microsoft\Windows NT\CurrentVersion\Fonts.
-; Windows automatically loads any .ttf from %LOCALAPPDATA%\Microsoft\Windows\Fonts\
-; on the next session when its name appears under this HKCU key.
-Root: HKCU; Subkey: "Software\Microsoft\Windows NT\CurrentVersion\Fonts"; ValueType: string; ValueName: "HarmonyOS Sans SC Thin (TrueType)";    ValueData: "HarmonyOS Sans SC Thin.ttf";    Flags: uninsdeletevalue
-Root: HKCU; Subkey: "Software\Microsoft\Windows NT\CurrentVersion\Fonts"; ValueType: string; ValueName: "HarmonyOS Sans SC Light (TrueType)";   ValueData: "HarmonyOS Sans SC Light.ttf";   Flags: uninsdeletevalue
-Root: HKCU; Subkey: "Software\Microsoft\Windows NT\CurrentVersion\Fonts"; ValueType: string; ValueName: "HarmonyOS Sans SC Regular (TrueType)"; ValueData: "HarmonyOS Sans SC Regular.ttf"; Flags: uninsdeletevalue
-Root: HKCU; Subkey: "Software\Microsoft\Windows NT\CurrentVersion\Fonts"; ValueType: string; ValueName: "HarmonyOS Sans SC Medium (TrueType)";  ValueData: "HarmonyOS Sans SC Medium.ttf";  Flags: uninsdeletevalue
-Root: HKCU; Subkey: "Software\Microsoft\Windows NT\CurrentVersion\Fonts"; ValueType: string; ValueName: "HarmonyOS Sans SC Bold (TrueType)";    ValueData: "HarmonyOS Sans SC Bold.ttf";    Flags: uninsdeletevalue
-Root: HKCU; Subkey: "Software\Microsoft\Windows NT\CurrentVersion\Fonts"; ValueType: string; ValueName: "HarmonyOS Sans SC Black (TrueType)";   ValueData: "HarmonyOS Sans SC Black.ttf";   Flags: uninsdeletevalue
 
 [Code]
 const
@@ -427,20 +291,6 @@ end;
 // v3.1.0: Default-checked helpers for the [Tasks] entries. Inno Setup's
 // [Tasks] `Flags: checked` parameter triggers an ISCC 6.7.1 parser
 // bug ("Parameter 'Flags' includes an unknown flag") that we can't
-// work around at the script level. The `Check:` parameter is a
-// Pascal Script expression evaluated at runtime to determine the
-// initial checked state — it doesn't share the same parser bug.
-// Both helpers return True unconditionally (the v3.1.0 spec
-// requires both OCR and PATH to be default-on). If a future
-// release wants to make either opt-in, the helper becomes:
-//   function OcrVerbShouldBeChecked: Boolean; begin Result := False; end;
-// or more sophisticated (e.g. check whether the user has previously
-// installed the OCR plugin via the registry).
-function OcrVerbShouldBeChecked(): Boolean;
-begin
-  Result := True;
-end;
-
 function AddToPathShouldBeChecked(): Boolean;
 begin
   Result := True;
@@ -459,6 +309,24 @@ end;
 // Setup generates a fresh unins000.exe on install completion — so
 // we just skip the silent uninstall and let the new install
 // proceed rather than refusing with a critical error.
+// Kill any running ApertureNeo.exe so file handles are released
+// before the uninstaller runs. Uses taskkill.exe (bundled with
+// Windows since XP). If the process isn't running, taskkill exits
+// with a non-zero code, which we ignore. Failures are logged but
+// non-fatal.
+procedure KillAppProcess();
+var
+  ResultCode: Integer;
+begin
+  Exec('taskkill.exe', '/F /IM ApertureNeo.exe /T', '', SW_HIDE,
+       ewWaitUntilTerminated, ResultCode);
+  if ResultCode = 0 then
+    Log('Killed running ApertureNeo.exe processes.')
+  else
+    Log('taskkill.exe returned ' + IntToStr(ResultCode) +
+        ' (process was likely not running).');
+end;
+
 function RemovePreviousVersion(): Boolean;
 var
   UninstallKey: String;
@@ -487,6 +355,9 @@ begin
   if (UninstallStr <> '') and (UninstallStr[1] = '"') then
     UninstallStr := Copy(UninstallStr, 2, Length(UninstallStr) - 2);
   UninstDir := ExtractFilePath(UninstallStr);
+
+  // Kill any running instance of the app so file handles are free.
+  KillAppProcess();
 
   // Probe the standard Inno Setup uninstaller names. unins000.exe
   // is the default; unins001/002 appear if ISCC is recompiled into
@@ -537,10 +408,22 @@ begin
   if not Exec(UninstExe, '/SILENT /NORESTART', '', SW_HIDE,
               ewWaitUntilTerminated, ResultCode) then
   begin
-    MsgBox(
+    // Uninstaller couldn't even start — warn but let the user
+    // continue. The new install's [Files] `ignoreversion` flag will
+    // overwrite the old files anyway, and Inno Setup generates a
+    // fresh unins000.exe at the end of the install.
+    if MsgBox(
       FmtMessage(CustomMessage('UninstallFailedMsg'), [UninstExe]),
-      mbCriticalError, MB_OK);
-    Result := False;
+      mbError, MB_YESNO) = IDNO then
+      Result := False;
+  end
+  else if ResultCode <> 0 then
+  begin
+    // Uninstaller ran but returned an error (e.g. some files could not
+    // be removed). Warn but allow the install to proceed — the new
+    // files will overwrite whatever remains.
+    Log('Previous version uninstaller exited with code ' + IntToStr(ResultCode) +
+        '; continuing with new install.');
   end;
 end;
 
@@ -620,6 +503,106 @@ begin
   Result := SetEnvVarValue(PathEnvVar, NewPath);
 end;
 
+// Detect whether .NET 10 Desktop Runtime is installed by checking the
+// registry under Microsoft.WindowsDesktop.App for any version starting
+// with "10.". We check both 64-bit and 32-bit views (though this
+// installer targets x64, the runtime may be registered in either hive).
+// Returns True if at least one 10.x runtime is found.
+function IsDotNet10DesktopInstalled(): Boolean;
+var
+  Names: TArrayOfString;
+  I: Integer;
+begin
+  Result := False;
+
+  // Check 64-bit view first
+  if RegGetSubkeyNames(HKLM64,
+    'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App',
+    Names) then
+  begin
+    for I := 0 to GetArrayLength(Names) - 1 do
+    begin
+      if Copy(Names[I], 1, 3) = '10.' then
+      begin
+        Log('.NET 10 Desktop Runtime found (x64): ' + Names[I]);
+        Result := True;
+        Exit;
+      end;
+    end;
+  end;
+
+  // Fall back to 32-bit view
+  if RegGetSubkeyNames(HKLM32,
+    'SOFTWARE\dotnet\Setup\InstalledVersions\x86\sharedfx\Microsoft.WindowsDesktop.App',
+    Names) then
+  begin
+    for I := 0 to GetArrayLength(Names) - 1 do
+    begin
+      if Copy(Names[I], 1, 3) = '10.' then
+      begin
+        Log('.NET 10 Desktop Runtime found (x86): ' + Names[I]);
+        Result := True;
+        Exit;
+      end;
+    end;
+  end;
+
+  Log('.NET 10 Desktop Runtime is NOT installed.');
+end;
+
+// Run the bundled .NET 10 Desktop Runtime installer with administrator
+// privileges (ShellExec 'runas'). The installer is extracted to {tmp}
+// by Inno Setup's [Files] system. Uses /quiet + /norestart for silent
+// install; the user will see the UAC prompt but no further interaction
+// is needed. Returns True if the installer completed successfully.
+function InstallDotNetRuntime(): Boolean;
+var
+  ResultCode: Integer;
+  RuntimeExe: string;
+begin
+  // Extract the bundled .NET runtime installer from the setup to {tmp}.
+  // This runs inside InitializeSetup, before the main [Files] phase,
+  // so we use ExtractTemporaryFile (with Flags: dontcopy) instead of
+  // relying on DestDir.
+  ExtractTemporaryFile('{#DotNetRuntimeExe}');
+  RuntimeExe := ExpandConstant('{tmp}\{#DotNetRuntimeExe}');
+  Log('Launching .NET Runtime installer: ' + RuntimeExe);
+
+  if not FileExists(RuntimeExe) then
+  begin
+    MsgBox('Failed to locate .NET Runtime installer.', mbError, MB_OK);
+    Result := False;
+    Exit;
+  end;
+
+  // 'runas' = run with administrator privileges (triggers UAC).
+  // /install /quiet /norestart = silent install, no reboot.
+  if ShellExec('runas', RuntimeExe, '/install /quiet /norestart', '',
+    SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode) then
+  begin
+    if ResultCode = 0 then
+    begin
+      Log('.NET Runtime installer completed successfully.');
+      Result := True;
+    end
+    else
+    begin
+      Log('.NET Runtime installer exited with code ' + IntToStr(ResultCode));
+      MsgBox('.NET Runtime installation failed (error code: ' +
+        IntToStr(ResultCode) + ').' + #13#10 +
+        'Please install it manually from:' + #13#10 +
+        'https://dotnet.microsoft.com/en-us/download/dotnet/10.0',
+        mbError, MB_OK);
+      Result := False;
+    end;
+  end
+  else
+  begin
+    Log('Failed to launch .NET Runtime installer.');
+    Result := False;
+  end;
+end;
+
 // Show a warning at startup if WebView2 is missing. The app will still install
 // (the rest of the app works without it; only the modern FluentWindow chrome
 // needs WebView2).
@@ -631,6 +614,35 @@ begin
   begin
     Result := False;
     Exit;
+  end;
+
+  // Check .NET 10 Desktop Runtime — install it if missing.
+  if not IsDotNet10DesktopInstalled() then
+  begin
+    if MsgBox(
+      '.NET 10 Desktop Runtime is required but not found on this system.' + #13#10#13#10 +
+      'This installer includes the .NET Runtime (approx. 57 MB). ' +
+      'Would you like to install it now?' + #13#10#13#10 +
+      'Administrator permission is required for .NET Runtime installation.',
+      mbConfirmation, MB_YESNO) = IDYES then
+    begin
+      if not InstallDotNetRuntime() then
+      begin
+        MsgBox('.NET Runtime installation failed or was cancelled.' + #13#10 +
+          'Setup cannot continue.',
+          mbError, MB_OK);
+        Result := False;
+        Exit;
+      end;
+    end
+    else
+    begin
+      MsgBox('.NET 10 Desktop Runtime is required to run Aperture Neo.' + #13#10 +
+        'Setup will now exit.',
+        mbError, MB_OK);
+      Result := False;
+      Exit;
+    end;
   end;
 
   if NeedsWebView2() then
@@ -649,10 +661,6 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
   begin
-    // Font registry entries and font file copies are written by the [Registry]
-    // and [Files] sections. The app's MigrateLegacyData() (App.OnStartup)
-    // preserves user data when the new build starts.
-    //
     // v3.1.0: per-user PATH integration. Only runs if the user
     // checked the `addtopath` task at install time. Idempotent —
     // AddPathEntry is a no-op when the path is already in PATH.
@@ -662,58 +670,14 @@ begin
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
-var
-  I: Integer;
-  Ext: String;
-  Extensions: Array of String;
-  Fonts: Array of String;
 begin
-  if CurUninstallStep = usPostUninstall then
-  begin
-    // Clean per-user file association entries written by this installer.
-    Extensions := ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tiff', '.tif', '.webp', '.heic', '.heif', '.avif', '.ico', '.wbmp'];
-    for I := 0 to GetArrayLength(Extensions) - 1 do
+    if CurUninstallStep = usPostUninstall then
     begin
-      Ext := Extensions[I];
-      RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\' + Ext + '\OpenWithProgids\{#ProgId}');
-      // Only remove the (default) override we wrote; leave any user-installed default alone if absent.
-      if RegValueExists(HKCU, 'Software\Classes\' + Ext, '') then
-      begin
-        // Use RegDeleteValue-if-matches; Inno Setup only has RegDeleteValue.
-        // The (default) value is removed via the uninsdeletevalue flag on the [Registry] entry.
-      end;
-      // Clean OCR shell verb (per-extension \shell\ocr subkey).
-      // The uninsdeletekey flag handles the parent \shell\ocr key.
-      RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\' + Ext + '\shell\ocr');
+        // v3.1.0: clean per-user PATH entry. Idempotent — no-op if
+        // the path wasn't in PATH (or if the addtopath task wasn't
+        // checked at install time). Runs unconditionally on
+        // uninstall so we don't need to track whether the task was
+        // selected.
+        RemovePathEntry(ExpandConstant('{app}'));
     end;
-    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\{#ProgId}');
-
-    // v3.1.x (Plan C fallback): clean the legacy IContextMenu
-    // verbs. The per-extension `.<ext>\shell\ocr` keys are
-    // removed by the loop above (each .ext is in Extensions[]).
-    // The SystemFileAssociations\image one is a separate key
-    // that's not in the loop.
-    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\SystemFileAssociations\image\shell\ocr');
-
-    // v3.1.0: clean per-user PATH entry. Idempotent — no-op if
-    // the path wasn't in PATH (or if the addtopath task wasn't
-    // checked at install time). Runs unconditionally on
-    // uninstall so we don't need to track whether the task was
-    // selected.
-    RemovePathEntry(ExpandConstant('{app}'));
-
-    // Remove the per-user font registration values. The .ttf files in
-    // %LOCALAPPDATA%\Microsoft\Windows\Fonts\ are left in place so other apps
-    // that may also use HarmonyOS Sans SC keep working.
-    Fonts := [
-      'HarmonyOS Sans SC Thin (TrueType)',
-      'HarmonyOS Sans SC Light (TrueType)',
-      'HarmonyOS Sans SC Regular (TrueType)',
-      'HarmonyOS Sans SC Medium (TrueType)',
-      'HarmonyOS Sans SC Bold (TrueType)',
-      'HarmonyOS Sans SC Black (TrueType)'
-    ];
-    for I := 0 to GetArrayLength(Fonts) - 1 do
-      RegDeleteValue(HKCU, 'Software\Microsoft\Windows NT\CurrentVersion\Fonts', Fonts[I]);
-  end;
 end;

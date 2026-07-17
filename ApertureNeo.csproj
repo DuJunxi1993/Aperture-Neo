@@ -253,9 +253,7 @@
   <!-- Font assets — FontPrimary resolves to the system-installed
        "HarmonyOS Sans SC" family; JetBrainsMono ships in-tree. -->
   <ItemGroup>
-    <None Include="Fonts\JetBrainsMono-Regular.ttf">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <Resource Include="Fonts\JetBrainsMono-Regular.ttf" />
   </ItemGroup>
 
   <!-- Copy the OCR model files into the main exe's output folder so
@@ -278,6 +276,20 @@
           SkipUnchangedFiles="true"
           Condition="Exists('%(Identity)')"/>
     <Message Text="Copied OCR models to $(OutDir)Assets\models\paddleocr (for CLI)" Importance="low"/>
+  </Target>
+
+  <Target Name="CopyPluginsToPublishDir" AfterTargets="Publish">
+    <PropertyGroup>
+      <_PluginSourceDir>$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\Plugins\</_PluginSourceDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_PluginFiles Include="$(_PluginSourceDir)**\*"/>
+    </ItemGroup>
+    <Copy SourceFiles="@(_PluginFiles)"
+          DestinationFiles="@(_PluginFiles->'$(PublishDir)Plugins\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(_PluginSourceDir)')"/>
+    <Message Text="Copied Plugins to $(PublishDir)Plugins" Importance="high"/>
   </Target>
 
 </Project>

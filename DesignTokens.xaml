@@ -2,13 +2,12 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
-    <!-- Font families: FontPrimary resolves to the system-installed
-         "HarmonyOS Sans SC" (6 weight cuts: Thin/Light/Regular/
-         Medium/Bold/Black). The fallback chain catches the case
-         where the SC family isn't installed. FontMono is shipped
-         in-tree (see Fonts/JetBrainsMono-Regular.ttf in csproj). -->
-    <FontFamily x:Key="FontPrimary">HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial</FontFamily>
-    <FontFamily x:Key="FontMono">pack://siteoforigin:,,,/Fonts/JetBrainsMono-Regular.ttf#JetBrains Mono</FontFamily>
+    <!-- Font families: FontPrimary uses system fonts (Microsoft YaHei UI
+         is the Windows CJK default; Segoe UI / Arial are the English
+         fallback). FontMono is shipped in-tree (see
+         Fonts/JetBrainsMono-Regular.ttf in csproj). -->
+    <FontFamily x:Key="FontPrimary">Microsoft YaHei UI, Segoe UI, Arial</FontFamily>
+    <FontFamily x:Key="FontMono">pack://application:,,,/Fonts/JetBrainsMono-Regular.ttf#JetBrains Mono</FontFamily>
 
     <!-- Border Radius scale (Linear 8px rhythm) -->
     <CornerRadius x:Key="RadiusStd">4</CornerRadius>

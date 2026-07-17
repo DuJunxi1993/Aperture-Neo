@@ -8,7 +8,6 @@
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
-        TextOptions.TextFormattingMode="Ideal"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         Loaded="Window_Loaded">

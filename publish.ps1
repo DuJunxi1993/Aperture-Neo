@@ -36,6 +36,27 @@ $root = $PSScriptRoot
 $publishDir = Join-Path $root 'publish\win-x64'
 $installerOut = Join-Path $root 'publish'
 
+# Patch AssemblyInfo.cs to match the target version. The csproj has
+# <GenerateAssemblyInfo>false</GenerateAssemblyInfo> to avoid CS0579
+# (WPF wpftmp double-attribute), so the SDK does NOT emit version
+# attributes from MSBuild properties. Instead, a hand-written
+# AssemblyInfo.cs carries hardcoded strings. publish.ps1 must update
+# those strings before the build so the assembly version matches
+# the version WPF embeds in pack URIs.
+$assemblyInfo = Join-Path $root 'AssemblyInfo.cs'
+$assemblyInfoOrig = "$assemblyInfo.orig"
+try {
+    Copy-Item -LiteralPath $assemblyInfo -Destination $assemblyInfoOrig -Force
+    $content = Get-Content $assemblyInfo -Raw
+    $content = $content -replace 'AssemblyVersion\(".*?"\)', "AssemblyVersion(""$Version.0"")"
+    $content = $content -replace 'AssemblyFileVersion\(".*?"\)', "AssemblyFileVersion(""$Version.0"")"
+    $content = $content -replace 'AssemblyInformationalVersion\(".*?"\)', "AssemblyInformationalVersion(""$Version"")"
+    Set-Content -Path $assemblyInfo -Value $content -NoNewline
+    Write-Host "  AssemblyInfo.cs patched to v$Version" -ForegroundColor DarkGray
+} catch {
+    Write-Host "  Failed to patch AssemblyInfo.cs: $_" -ForegroundColor Yellow
+}
+
 Write-Host "[1/4] Cleaning previous publish output..." -ForegroundColor Cyan
 if (Test-Path $publishDir) { Remove-Item -Recurse -Force $publishDir }
 
@@ -58,13 +79,10 @@ try {
         '-c', $Configuration
         '-r', 'win-x64'
         '--self-contained', 'true'
-        '-p:PublishSingleFile=true'
-        '-p:IncludeNativeLibrariesForSelfExtract=true'
-        '-p:EnableCompressionInSingleFile=true'
         '-p:DebugType=embedded'
         "-p:Version=$Version"
-        "-p:AssemblyVersion=$Version"
-        "-p:FileVersion=$Version"
+        "-p:AssemblyVersion=$Version.0"
+        "-p:FileVersion=$Version.0"
         '-o', $publishDir
     )
     & dotnet @publishArgs
@@ -73,6 +91,12 @@ try {
 finally {
     if ($slnWasRenamed -and (Test-Path $slnHidden)) {
         Move-Item -LiteralPath $slnHidden -Destination $sln -Force
+    }
+    # Restore AssemblyInfo.cs regardless of success/failure
+    if (Test-Path $assemblyInfoOrig) {
+        Copy-Item -LiteralPath $assemblyInfoOrig -Destination $assemblyInfo -Force
+        Remove-Item -LiteralPath $assemblyInfoOrig -Force
+        Write-Host "  AssemblyInfo.cs restored" -ForegroundColor DarkGray
     }
 }
 

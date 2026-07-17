@@ -13,7 +13,6 @@
         WindowStartupLocation="CenterScreen"
         Foreground="{StaticResource TextPrimary}"
         Background="{StaticResource SurfaceCanvas}"
-        TextOptions.TextFormattingMode="Ideal"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         KeyboardNavigation.DirectionalNavigation="None"

@@ -10,7 +10,7 @@
         <Setter Property="FontWeight" Value="700"/>
         <Setter Property="Foreground" Value="{StaticResource TextTertiary}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
-        <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
+
     </Style>
 
     <!-- Linear Dot — 8×8 status indicator. Wrap in a Border; the

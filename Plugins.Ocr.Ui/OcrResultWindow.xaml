@@ -13,9 +13,8 @@
         SizeToContent="Manual"
         ResizeMode="CanResize"
         Topmost="True"
-        TextOptions.TextFormattingMode="Ideal"
         UseLayoutRounding="True"
-        FontFamily="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial"
+        FontFamily="Microsoft YaHei UI, HarmonyOS Sans SC, HarmonyOS Sans, Segoe UI, Arial"
         Foreground="#FF1a1a1a">
 
     <Window.Resources>
@@ -217,7 +216,6 @@
                                  Foreground="{StaticResource TextPrimary}"
                                  VerticalScrollBarVisibility="Disabled"
                                  HorizontalScrollBarVisibility="Disabled"
-                                 TextOptions.TextFormattingMode="Ideal"
                                  UseLayoutRounding="True"
                                  SpellCheck.IsEnabled="False"/>
                     </ScrollViewer>

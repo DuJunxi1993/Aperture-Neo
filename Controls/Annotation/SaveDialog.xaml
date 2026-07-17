@@ -9,7 +9,6 @@
         Background="{DynamicResource SurfaceCanvas}"
         Foreground="{DynamicResource TextPrimary}"
         FontFamily="{DynamicResource FontPrimary}"
-        TextOptions.TextFormattingMode="Ideal"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True">
 

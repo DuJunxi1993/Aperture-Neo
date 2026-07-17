@@ -12,7 +12,6 @@
         SizeToContent="Manual"
         ResizeMode="CanResize"
         Topmost="True"
-        TextOptions.TextFormattingMode="Ideal"
         UseLayoutRounding="True"
         FontFamily="{DynamicResource FontPrimary}"
         Foreground="{DynamicResource TextPrimary}">

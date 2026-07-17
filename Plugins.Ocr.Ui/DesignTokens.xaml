@@ -7,7 +7,7 @@
          dictionaries. Keep in sync if main project's DesignTokens
          changes substantially. -->
 
-    <FontFamily x:Key="FontPrimary">HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI, Segoe UI, Arial</FontFamily>
+    <FontFamily x:Key="FontPrimary">Microsoft YaHei UI, Segoe UI, Arial</FontFamily>
     <FontFamily x:Key="FontMono">Cascadia Mono, Consolas, Courier New</FontFamily>
 
     <CornerRadius x:Key="RadiusStd">4</CornerRadius>

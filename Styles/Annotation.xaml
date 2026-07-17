@@ -391,7 +391,6 @@
          controls inherit consistent defaults. -->
     <Style TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FontPrimary}"/>
-        <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
     </Style>
 
     <!-- Linear Close Icon Button (28×28, subtle red wash on hover/press).

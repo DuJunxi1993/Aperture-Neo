@@ -9,7 +9,6 @@
         Background="Transparent"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        TextOptions.TextFormattingMode="Ideal"
         UseLayoutRounding="True"
         FontFamily="{DynamicResource FontPrimary}"
         Foreground="{DynamicResource TextPrimary}">

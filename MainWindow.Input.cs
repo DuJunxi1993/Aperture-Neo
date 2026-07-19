@@ -211,11 +211,17 @@ public partial class MainWindow
         }
     }
 
+    private GridLength _savedTreeWidth = new(232);
+    private GridLength _savedThumbWidth = new(400);
+
     private void ApplyColumnVisibility()
     {
-        // P1: fullscreen state lives in the controller.
         if (_fullscreen.IsFullscreen)
         {
+            // Save current widths before zeroing so exiting fullscreen
+            // restores the user's pre-fullscreen column proportions.
+            _savedTreeWidth = TreeColumn.Width;
+            _savedThumbWidth = ThumbColumn.Width;
             TreeColumn.Width = new GridLength(0);      TreeColumn.MinWidth = 0;
             TreeSplitterColumn.Width = new GridLength(0);
             TreeSplitter.Visibility = Visibility.Collapsed;
@@ -227,11 +233,27 @@ public partial class MainWindow
             return;
         }
 
-        TreeColumn.Width = _isTreeVisible ? new GridLength(232) : new GridLength(0);
+        if (_isTreeVisible)
+        {
+            TreeColumn.Width = _savedTreeWidth;
+        }
+        else
+        {
+            if (TreeColumn.Width.Value > 0) _savedTreeWidth = TreeColumn.Width;
+            TreeColumn.Width = new GridLength(0);
+        }
         TreeColumn.MinWidth = _isTreeVisible ? 180 : 0;
         TreeSplitterColumn.Width = _isTreeVisible ? new GridLength(1, GridUnitType.Auto) : new GridLength(0);
         TreeSplitter.Visibility = _isTreeVisible ? Visibility.Visible : Visibility.Collapsed;
-        ThumbColumn.Width = _isThumbVisible ? new GridLength(400) : new GridLength(0);
+        if (_isThumbVisible)
+        {
+            ThumbColumn.Width = _savedThumbWidth;
+        }
+        else
+        {
+            if (ThumbColumn.Width.Value > 0) _savedThumbWidth = ThumbColumn.Width;
+            ThumbColumn.Width = new GridLength(0);
+        }
         ThumbColumn.MinWidth = _isThumbVisible ? 160 : 0;
         ThumbSplitterColumn.Width = _isThumbVisible ? new GridLength(6) : new GridLength(0);
         ThumbSplitter.Visibility = _isThumbVisible ? Visibility.Visible : Visibility.Collapsed;

@@ -713,6 +713,12 @@ public void RestoreEnabledPlugins()
     private void OnClosingRouteToTray(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         if (ForceExitOnClose) return;
+        if (!_settings.CloseToTray)
+        {
+            ForceExitOnClose = true;
+            System.Windows.Application.Current.Shutdown();
+            return;
+        }
         e.Cancel = true;
         Hide();
     }

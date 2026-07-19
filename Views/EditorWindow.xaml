@@ -230,10 +230,10 @@
                     <RadioButton x:Name="Size2Btn" Content="2" GroupName="PenSize"
                                   Style="{DynamicResource LinearPenSizeToggle}"
                                   Click="SizeBtn_Click"/>
-                    <RadioButton x:Name="Size4Btn" Content="4" GroupName="PenSize" IsChecked="True"
+                    <RadioButton x:Name="Size4Btn" Content="4" GroupName="PenSize"
                                   Style="{DynamicResource LinearPenSizeToggle}"
                                   Margin="3,0,0,0" Click="SizeBtn_Click"/>
-                    <RadioButton x:Name="Size8Btn" Content="8" GroupName="PenSize"
+                    <RadioButton x:Name="Size8Btn" Content="8" GroupName="PenSize" IsChecked="True"
                                   Style="{DynamicResource LinearPenSizeToggle}"
                                   Margin="3,0,0,0" Click="SizeBtn_Click"/>
                     <RadioButton x:Name="Size12Btn" Content="12" GroupName="PenSize"
@@ -317,7 +317,7 @@
                             Click="FitBtn_Click"/>
                     <Slider x:Name="ZoomSlider" Width="180"
                             Style="{DynamicResource LinearSlider}"
-                            Minimum="0.5" Maximum="2" Value="1.0"
+                            Minimum="0.05" Maximum="5" Value="1.0"
                             Margin="12,0,8,0"
                             ValueChanged="ZoomSlider_ValueChanged"/>
                     <TextBlock x:Name="ZoomLabel" Text="100%"

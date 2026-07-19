@@ -1,5 +1,4 @@
 using System;
-using System.Drawing;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -7,17 +6,6 @@ using System.Windows.Shapes;
 
 namespace ApertureNeo.Views;
 
-/// <summary>
-/// Fullscreen region-selection overlay. Same role as the
-/// original <c>ApertureNeo.Plugins.Screenshot.RegionOverlay</c>;
-/// moved to the main app so <see cref="Services.CaptureService"/>
-/// can construct it directly (the screenshot plugin's shortcut
-/// handler invokes the service, which shows the overlay
-/// modally). Standalone callers still see this class via the
-/// Plugins.Screenshot assembly's namespace forward via
-/// <c>InternalsVisibleTo</c> is not used — the standalone EXE
-/// keeps its own copy under the original namespace for now.
-/// </summary>
 public partial class RegionOverlay : Window
 {
     private System.Windows.Point _start;
@@ -27,40 +15,22 @@ public partial class RegionOverlay : Window
     public System.Drawing.Rectangle? SelectedRegion { get; private set; }
     public bool IsFullscreen { get; private set; }
 
-    /// <summary>Set true when the user picked the OCR button
-    /// (or pressed O). <see cref="Services.CaptureService"/>
-    /// reads this after ShowDialog returns to dispatch into
-    /// the OCR-aware editor flow instead of the plain editor.</summary>
     public bool OcrRequested { get; private set; }
 
-    /// <summary>True iff the user picked Confirm / Fullscreen /
-    /// OCR (i.e. any "productive" choice, not Cancel / Esc).
-    /// Used by callers who show this window via <see cref="Window.Show"/>
-    /// (non-modal), where <see cref="Window.DialogResult"/> cannot
-    /// be set without throwing <see cref="InvalidOperationException"/>.
-    /// Also set for the <see cref="Window.ShowDialog"/> path so the
-    /// standalone ScreenshotTool can read a single consistent flag
-    /// instead of branching on the DialogResult return value.</summary>
     public bool Confirmed { get; private set; }
 
     public RegionOverlay()
     {
         InitializeComponent();
+        System.Windows.Input.InputMethod.SetIsInputMethodEnabled(this, false);
         ConfirmBtn.IsEnabled = false;
-        ActionBarText.Text = "Drag to select an area (F = fullscreen, O = OCR, Esc = cancel)";
+        ActionBarText.Text = "Drag to select an area";
         Loaded += OnLoaded;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         UpdateDimRects();
-        // Force-activate the dialog. When Owner=null, WPF still
-        // creates the HWND but Windows may not foreground it
-        // (no parent HWND to chain through). Calling Activate()
-        // in Loaded (after the HWND exists) explicitly brings the
-        // dialog to the foreground so mouse clicks route to the
-        // action bar buttons. Topmost=true keeps it on top
-        // while the user picks a region.
         Activate();
     }
 
@@ -152,12 +122,43 @@ public partial class RegionOverlay : Window
         {
             SelectedRegion = null;
             ConfirmBtn.IsEnabled = false;
+            FloatBar.Visibility = Visibility.Collapsed;
             ActionBarText.Text = "Drag to select area (too small)";
             return;
         }
         SelectedRegion = new System.Drawing.Rectangle(x, y, w, h);
         ConfirmBtn.IsEnabled = true;
-        ActionBarText.Text = $"Selected: {w} x {h} px — Confirm / F (fullscreen) / O (OCR)";
+        ActionBarText.Text = $"Selected: {w} x {h} px";
+        FloatBar.Visibility = Visibility.Visible;
+        PositionFloatBar(x, y, w, h);
+    }
+
+    private void PositionFloatBar(double selX, double selY, double selW, double selH)
+    {
+        var sz = new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity);
+        FloatBar.Measure(sz);
+        FloatBar.Arrange(new Rect(FloatBar.DesiredSize));
+        var barW = FloatBar.DesiredSize.Width;
+        var barH = FloatBar.DesiredSize.Height;
+        const double gap = 8;
+        var screenW = ActualWidth;
+        var screenH = ActualHeight;
+
+        double barX, barY;
+        if (selW > barW && selH > barH)
+        {
+            barX = selX + selW - barW;
+            barY = selY + selH - barH;
+        }
+        else
+        {
+            barX = selX + selW + gap;
+            barY = selY + selH + gap;
+        }
+        barX = Math.Max(gap, Math.Min(barX, screenW - barW - gap));
+        barY = Math.Max(gap, Math.Min(barY, screenH - barH - gap));
+        Canvas.SetLeft(FloatBar, barX);
+        Canvas.SetTop(FloatBar, barY);
     }
 
     private void ConfirmBtn_Click(object sender, RoutedEventArgs e)
@@ -190,11 +191,12 @@ public partial class RegionOverlay : Window
         Close();
     }
 
-    private void Window_KeyDown(object sender, KeyEventArgs e)
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Escape) { Confirmed = false; Close(); return; }
-        if (e.Key == Key.Enter && SelectedRegion.HasValue) { ConfirmBtn_Click(this, new RoutedEventArgs()); return; }
-        if (e.Key == Key.F) { FullscreenBtn_Click(this, new RoutedEventArgs()); return; }
-        if (e.Key == Key.O) { OcrBtn_Click(this, new RoutedEventArgs()); return; }
+        if (e.Key == Key.F) { FullscreenBtn_Click(this, new RoutedEventArgs()); e.Handled = true; }
+        else if (e.Key == Key.O) { OcrBtn_Click(this, new RoutedEventArgs()); e.Handled = true; }
+        else if (e.Key == Key.Escape) { Confirmed = false; Close(); e.Handled = true; }
+        else if ((e.Key == Key.Enter || e.Key == Key.Space) && SelectedRegion.HasValue)
+        { ConfirmBtn_Click(this, new RoutedEventArgs()); e.Handled = true; }
     }
 }

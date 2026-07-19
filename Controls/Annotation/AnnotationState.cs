@@ -48,7 +48,7 @@ public sealed class AnnotationState
     /// <summary>Color and stroke width of the next stroke. Set
     /// by the color / size pickers in the annotation toolbar.</summary>
     public SKColor CurrentColor { get; set; } = SKColors.Red;
-    public float CurrentSize { get; set; } = 4f;
+    public float CurrentSize { get; set; } = 8f;
 
     /// <summary>Host-supplied DPI scale factor (1.0 at 96 DPI,
     /// 2.0 at 192 DPI, etc.). Used to scale the raw

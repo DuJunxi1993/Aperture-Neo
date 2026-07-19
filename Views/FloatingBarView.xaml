@@ -21,7 +21,7 @@
                     <StaticResource ResourceKey="ShadowDialog"/>
                 </Border.Effect>
                 <Slider x:Name="ZoomSlider" Width="160"
-                        Minimum="0.05" Maximum="10"
+                        Minimum="0.05" Maximum="5"
                         Style="{DynamicResource LinearSlider}"
                         IsMoveToPointEnabled="True"
                         ValueChanged="ZoomSlider_ValueChanged"/>
@@ -70,8 +70,8 @@
                         </ControlTemplate>
                     </ToggleButton.Template>
                     <TextBlock x:Name="ZoomTextBlock" Text="{Binding ZoomText}"
-                               FontFamily="{StaticResource FontMono}" FontSize="12" FontWeight="600"
-                               Foreground="{StaticResource TextPrimary}"
+                               FontFamily="{StaticResource FontMono}" FontSize="12" FontWeight="500"
+                               Foreground="{StaticResource TextSecondary}"
                                VerticalAlignment="Center" MinWidth="44" TextAlignment="Center"/>
                 </ToggleButton>
                 <Border Width="1" Background="{StaticResource BorderStandard}" Margin="6,6"/>

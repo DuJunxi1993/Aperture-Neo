@@ -402,27 +402,28 @@ public class SkiaImageViewer : FrameworkElement
     }
 
     /// <summary>
-    /// Set the zoom factor without animation. The image snaps to
-    /// the new scale and recentres so the bitmap stays in the
-    /// middle of the view as the user drags the slider. Used by
-    /// slider drag (where the user expects an instant response)
-    /// and by external code that needs a deterministic zoom value.
+    /// Set the zoom factor without animation. Zooms anchored at
+    /// the current viewport center (matching scroll-wheel behavior)
+    /// so the image doesn't jump to center when the user drags
+    /// the slider after panning.
     /// </summary>
     public void SetZoomImmediate(float zoom)
     {
         _targetZoom = Math.Clamp(zoom, 0.05f, 20f);
-        _zoom = _targetZoom;
         if (_animating)
         {
             _animating = false;
             CompositionTarget.Rendering -= OnRendering;
         }
-        // Recentre the bitmap: the user dragging the slider isn't
-        // pointing at any specific image point (unlike the wheel
-        // cursor-anchored zoom), so the natural behaviour is to
-        // keep the image centred at the new scale. Without this
-        // the bitmap drifts off-screen as the user zooms in.
-        CenterImage();
+        // Zoom anchored at viewport center, like ZoomAtPoint
+        // but targeting the middle of the view rather than the cursor.
+        var cx = ActualWidth / 2d;
+        var cy = ActualHeight / 2d;
+        var worldX = (float)((cx - _offsetX) / _zoom);
+        var worldY = (float)((cy - _offsetY) / _zoom);
+        _zoom = _targetZoom;
+        _targetOffsetX = (float)(cx - worldX * _targetZoom);
+        _targetOffsetY = (float)(cy - worldY * _targetZoom);
         _offsetX = _targetOffsetX;
         _offsetY = _targetOffsetY;
         _dirty = true;

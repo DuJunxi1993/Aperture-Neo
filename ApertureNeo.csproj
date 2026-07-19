@@ -35,7 +35,7 @@
          <InformationalVersion> and <AssemblyVersion>; <FileVersion>
          feeds the EXE/Win32 version tab. publish.ps1 overrides
          all three via -p: flags for the release build. -->
-    <Version>3.1.0</Version>
+    <Version>4.0.1</Version>
     <AssemblyVersion>$(Version).0</AssemblyVersion>
     <FileVersion>$(Version).0</FileVersion>
   </PropertyGroup>

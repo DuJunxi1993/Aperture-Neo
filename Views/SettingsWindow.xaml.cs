@@ -81,8 +81,12 @@ public partial class SettingsWindow : Window
     /// </summary>
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
+        // When Alt is held, WPF delivers e.Key = Key.System instead
+        // of the actual key; the real key is in e.SystemKey.
+        var actualKey = e.Key == Key.System ? e.SystemKey : e.Key;
+
         // Honor Escape first — always cancels regardless of mode.
-        if (e.Key == Key.Escape && _activeRecorder != null)
+        if (actualKey == Key.Escape && _activeRecorder != null)
         {
             _activeRecorder.IsRecording = false;
             _activeRecorder = null;
@@ -97,15 +101,15 @@ public partial class SettingsWindow : Window
         }
 
         // Ignore modifier-only presses (wait for the actual key).
-        if (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl ||
-            e.Key == Key.LeftAlt  || e.Key == Key.RightAlt  ||
-            e.Key == Key.LeftShift|| e.Key == Key.RightShift||
-            e.Key == Key.LWin     || e.Key == Key.RWin)
+        if (actualKey == Key.LeftCtrl || actualKey == Key.RightCtrl ||
+            actualKey == Key.LeftAlt  || actualKey == Key.RightAlt  ||
+            actualKey == Key.LeftShift|| actualKey == Key.RightShift||
+            actualKey == Key.LWin     || actualKey == Key.RWin)
         {
             return;
         }
 
-        var gesture = ToGestureString(e.Key);
+        var gesture = ToGestureString(actualKey);
         if (gesture == null)
         {
             // Unrecognised key — cancel so the user isn't stuck.

@@ -79,8 +79,7 @@ public partial class TitleBarViewModel : ObservableObject
         if (string.IsNullOrEmpty(folder)) return;
         if (FormatHelper.FolderHasImages(folder))
             _settingsStore.AddRecent(folder);
-        _navigation.LoadFolder(folder);
-        _navigation.NavigateTo(dialog.FileName);
+        _navigation.LoadFolder(folder, dialog.FileName);
     }
 
     [RelayCommand]

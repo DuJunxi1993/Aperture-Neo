@@ -48,8 +48,7 @@ public partial class MainWindow
         // drop a different file.)
         if (!FormatHelper.FolderHasImages(folder)) return;
         _settings.AddRecent(folder);
-        _navigation.LoadFolder(folder);
-        _navigation.NavigateTo(file);
+        _navigation.LoadFolder(folder, file);
     }
 
     // ---- Keyboard ----

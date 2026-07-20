@@ -118,6 +118,11 @@ Name: "desktopicon"; Description: "{cm:Task_DesktopIcon_Description}"; GroupDesc
 ; checked via the Check: AddToPathShouldBeChecked helper.
 Name: "addtopath"; Description: "{cm:Task_AddToPath_Description}"; GroupDescription: "{cm:Task_Group_Shell}"; Check: AddToPathShouldBeChecked
 
+; v4.0.1: per-user file associations for supported image formats.
+; Registers ApertureNeo.Image ProgID under HKCU\Software\Classes
+; and points .jpg/.png/… at it. Removed on uninstall.
+Name: "assocfiles"; Description: "{cm:Task_AssocFiles_Description}"; GroupDescription: "{cm:Task_Group_Shell}"; Check: AssocFilesShouldBeChecked
+
 [CustomMessages]
 ; All custom messages are defined here in one place. English entries
 ; without a `; Languages:` qualifier are the default; the
@@ -159,6 +164,9 @@ Task_Group_Shortcuts=快捷方式:; Languages: chinesesimp
 Task_AddToPath_Description=Add install dir to &PATH (use 'aperture' command from any terminal)
 Task_AddToPath_Description=将安装目录添加到 &PATH(任意终端可用 `aperture` 命令); Languages: chinesesimp
 
+Task_AssocFiles_Description=Register &Aperture Neo as the default image viewer
+Task_AssocFiles_Description=将 Aperture Neo 注册为默认图片查看器(&A); Languages: chinesesimp
+
 Task_Group_Shell=Shell integration:
 Task_Group_Shell=系统集成:; Languages: chinesesimp
 
@@ -195,6 +203,27 @@ Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:Run_Launch_Description}"; Flags: nowait postinstall skipifsilent
+
+[Registry]
+; v4.0.1: per-user file associations. Registers the ProgID and
+; sets each supported image extension to open with Aperture Neo.
+; All keys are removed on uninstall (uninsdeletekey for ProgID,
+; uninsdeletevalue for extension defaults). Tasks: assocfiles so
+; the user can opt out.
+Root: HKCU; Subkey: "Software\Classes\ApertureNeo.Image"; ValueType: string; ValueName: ""; ValueData: "Aperture Neo Image"; Flags: uninsdeletekey; Tasks: assocfiles
+Root: HKCU; Subkey: "Software\Classes\ApertureNeo.Image\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\ApertureNeo.exe,0"; Tasks: assocfiles
+Root: HKCU; Subkey: "Software\Classes\ApertureNeo.Image\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\ApertureNeo.exe"" ""%1"""; Tasks: assocfiles
+Root: HKCU; Subkey: "Software\Classes\.jpg"; ValueType: string; ValueName: ""; ValueData: "ApertureNeo.Image"; Flags: uninsdeletevalue; Tasks: assocfiles
+Root: HKCU; Subkey: "Software\Classes\.jpeg"; ValueType: string; ValueName: ""; ValueData: "ApertureNeo.Image"; Flags: uninsdeletevalue; Tasks: assocfiles
+Root: HKCU; Subkey: "Software\Classes\.png"; ValueType: string; ValueName: ""; ValueData: "ApertureNeo.Image"; Flags: uninsdeletevalue; Tasks: assocfiles
+Root: HKCU; Subkey: "Software\Classes\.bmp"; ValueType: string; ValueName: ""; ValueData: "ApertureNeo.Image"; Flags: uninsdeletevalue; Tasks: assocfiles
+Root: HKCU; Subkey: "Software\Classes\.gif"; ValueType: string; ValueName: ""; ValueData: "ApertureNeo.Image"; Flags: uninsdeletevalue; Tasks: assocfiles
+Root: HKCU; Subkey: "Software\Classes\.tiff"; ValueType: string; ValueName: ""; ValueData: "ApertureNeo.Image"; Flags: uninsdeletevalue; Tasks: assocfiles
+Root: HKCU; Subkey: "Software\Classes\.tif"; ValueType: string; ValueName: ""; ValueData: "ApertureNeo.Image"; Flags: uninsdeletevalue; Tasks: assocfiles
+Root: HKCU; Subkey: "Software\Classes\.webp"; ValueType: string; ValueName: ""; ValueData: "ApertureNeo.Image"; Flags: uninsdeletevalue; Tasks: assocfiles
+Root: HKCU; Subkey: "Software\Classes\.heic"; ValueType: string; ValueName: ""; ValueData: "ApertureNeo.Image"; Flags: uninsdeletevalue; Tasks: assocfiles
+Root: HKCU; Subkey: "Software\Classes\.heif"; ValueType: string; ValueName: ""; ValueData: "ApertureNeo.Image"; Flags: uninsdeletevalue; Tasks: assocfiles
+Root: HKCU; Subkey: "Software\Classes\.avif"; ValueType: string; ValueName: ""; ValueData: "ApertureNeo.Image"; Flags: uninsdeletevalue; Tasks: assocfiles
 
 [Code]
 const
@@ -292,6 +321,11 @@ end;
 // [Tasks] `Flags: checked` parameter triggers an ISCC 6.7.1 parser
 // bug ("Parameter 'Flags' includes an unknown flag") that we can't
 function AddToPathShouldBeChecked(): Boolean;
+begin
+  Result := True;
+end;
+
+function AssocFilesShouldBeChecked(): Boolean;
 begin
   Result := True;
 end;

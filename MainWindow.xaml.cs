@@ -91,6 +91,7 @@ public partial class MainWindow : FluentWindow
     // lives in the plugin shell VM; MainWindow only holds the
     // VM reference for the App to call SetAvailablePlugins on.
     private PluginShellViewModel? _pluginShell;
+    private bool _hasStartupFile;
 
     /// <summary>Static reference to the live MainWindow so
     /// non-window code paths (e.g. <see cref="App.OpenSettingsWindow"/>)
@@ -359,6 +360,7 @@ public partial class MainWindow : FluentWindow
             {
                 UpdateOverlayVisibility();
 
+                if (_hasStartupFile) return;
                 var recent = _settings.Recent;
                 if (recent.Count > 0 && Directory.Exists(recent[0].Path))
                 {
@@ -658,13 +660,13 @@ public partial class MainWindow : FluentWindow
     {
         if (File.Exists(filePath))
         {
+            _hasStartupFile = true;
             var folder = Path.GetDirectoryName(filePath);
             if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
             {
                 if (FormatHelper.FolderHasImages(folder))
                     _settings.AddRecent(folder);
-                    _navigation.LoadFolder(folder);
-                    _navigation.NavigateTo(filePath);
+                _navigation.LoadFolder(folder, filePath);
             }
         }
     }

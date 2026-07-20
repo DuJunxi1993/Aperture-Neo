@@ -68,7 +68,7 @@ public class NavigationService : INavigationService
     /// worker task; the constructed list is published back to the
     /// ObservableCollection on the UI thread.
     /// </summary>
-    public void LoadFolder(string folderPath)
+    public void LoadFolder(string folderPath, string? selectFile = null)
     {
         if (!Directory.Exists(folderPath)) return;
 
@@ -134,7 +134,15 @@ public class NavigationService : INavigationService
                 try
                 {
                     foreach (var item in list) _items.Add(item);
-                    _currentIndex = _items.Count > 0 ? 0 : -1;
+                    if (selectFile != null)
+                    {
+                        var idx = _items.IndexOfFirst(selectFile);
+                        _currentIndex = idx >= 0 ? idx : (_items.Count > 0 ? 0 : -1);
+                    }
+                    else
+                    {
+                        _currentIndex = _items.Count > 0 ? 0 : -1;
+                    }
                 }
                 finally { CollectionChanged = saved; }
                 CollectionChanged?.Invoke();

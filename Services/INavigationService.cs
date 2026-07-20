@@ -35,8 +35,11 @@ public interface INavigationService
     /// <summary>Path of the currently loaded folder (empty before LoadFolder).</summary>
     string CurrentFolder { get; }
 
-    /// <summary>Asynchronously enumerate <paramref name="folderPath"/> and replace the current list.</summary>
-    void LoadFolder(string folderPath);
+    /// <summary>Asynchronously enumerate <paramref name="folderPath"/> and replace the current list.
+    /// If <paramref name="selectFile"/> is provided, the enumeration callback selects that file
+    /// instead of defaulting to the first image. Use to avoid the race condition between
+    /// LoadFolder + NavigateTo on startup.</summary>
+    void LoadFolder(string folderPath, string? selectFile = null);
 
     /// <summary>Load <paramref name="filePath"/>'s parent folder and set the current image to that file.</summary>
     void NavigateTo(string filePath);

@@ -51,6 +51,7 @@ public class SkiaImageViewer : FrameworkElement
     private int _cachedHeight;
     private bool _isPanning;
 
+    private int _rotation;
     private float _animOpacity = 1f;
     private DateTime _animStart;
     private float _animFromZoom, _animFromOffX, _animFromOffY;
@@ -108,9 +109,28 @@ public class SkiaImageViewer : FrameworkElement
     /// render size. Zero if no bitmap is loaded.</summary>
     public float FitScale => _fitScale;
 
-    /// <summary>Dimensions of the loaded bitmap, or (0,0) if none.</summary>
+    /// <summary>Clockwise rotation in degrees (0 / 90 / 180 / 270).
+    /// Setting this triggers a fit-to-screen so the image is
+    /// re-centred at the new orientation.</summary>
+    public int Rotation
+    {
+        get => _rotation;
+        set
+        {
+            var r = ((value % 360) + 360) % 360;
+            r = (r / 90) * 90;
+            if (_rotation == r) return;
+            _rotation = r;
+            FitToScreen();
+        }
+    }
+
+    /// <summary>Dimensions of the loaded bitmap considering
+    /// the current rotation, or (0,0) if none.</summary>
     public SKSize BitmapSize => _bitmap != null
-        ? new SKSize(_bitmap.Width, _bitmap.Height)
+        ? (_rotation == 90 || _rotation == 270)
+            ? new SKSize(_bitmap.Height, _bitmap.Width)
+            : new SKSize(_bitmap.Width, _bitmap.Height)
         : SKSize.Empty;
 
     /// <summary>
@@ -223,6 +243,7 @@ public class SkiaImageViewer : FrameworkElement
                     _bitmap = result.Bitmap;
                     _dirty = true;
                     _animOpacity = 0f;
+                    _rotation = 0;
 
                     // Tell the world a new image is loaded. Subscribers can
                     // copy Width/Height into bound models (ImageItem) so the
@@ -348,7 +369,13 @@ public class SkiaImageViewer : FrameworkElement
             return;
         }
 
-        _fitScale = Math.Min(w / _bitmap.Width, h / _bitmap.Height);
+        float dispW = _bitmap.Width, dispH = _bitmap.Height;
+        if (_rotation == 90 || _rotation == 270)
+        {
+            dispW = _bitmap.Height;
+            dispH = _bitmap.Width;
+        }
+        _fitScale = Math.Min(w / dispW, h / dispH);
         _targetZoom = _fitScale;
         _targetOffsetX = (w - _bitmap.Width * _targetZoom) / 2f;
         _targetOffsetY = (h - _bitmap.Height * _targetZoom) / 2f;
@@ -383,6 +410,18 @@ public class SkiaImageViewer : FrameworkElement
         CenterImage();
         StartZoomAnim();
         ZoomChanged?.Invoke(_targetZoom);
+    }
+
+    public void RotateLeft()
+    {
+        if (_bitmap == null) return;
+        Rotation = (_rotation - 90 + 360) % 360;
+    }
+
+    public void RotateRight()
+    {
+        if (_bitmap == null) return;
+        Rotation = (_rotation + 90) % 360;
     }
 
     public void ZoomIn()
@@ -494,6 +533,7 @@ public class SkiaImageViewer : FrameworkElement
         _bitmap = bitmap;
         _wbmp = null;
         _dirty = true;
+        _rotation = 0;
         _overlayBitmap = null;
 
         // Snap to fit (no animation) so the editor opens at a
@@ -561,6 +601,12 @@ public class SkiaImageViewer : FrameworkElement
             canvas.Save();
             canvas.Translate(_offsetX, _offsetY);
             canvas.Scale(_zoom);
+            if (_rotation != 0)
+            {
+                canvas.Translate(_bitmap.Width / 2f, _bitmap.Height / 2f);
+                canvas.RotateDegrees(_rotation);
+                canvas.Translate(-_bitmap.Width / 2f, -_bitmap.Height / 2f);
+            }
             canvas.DrawBitmap(_bitmap, 0, 0, _paintNew);
             canvas.Restore();
         }
@@ -575,6 +621,12 @@ public class SkiaImageViewer : FrameworkElement
             canvas.Save();
             canvas.Translate(_offsetX, _offsetY);
             canvas.Scale(_zoom);
+            if (_rotation != 0)
+            {
+                canvas.Translate(_bitmap.Width / 2f, _bitmap.Height / 2f);
+                canvas.RotateDegrees(_rotation);
+                canvas.Translate(-_bitmap.Width / 2f, -_bitmap.Height / 2f);
+            }
             canvas.DrawBitmap(_overlayBitmap, 0, 0, _paintNew);
             canvas.Restore();
         }

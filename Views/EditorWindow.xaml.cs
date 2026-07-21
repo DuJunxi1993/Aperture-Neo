@@ -39,9 +39,9 @@ namespace ApertureNeo.Views;
 public partial class EditorWindow : Window
 {
     private readonly Bitmap _originalBitmap;
-    private readonly SKBitmap _originalSkBitmap;
-    private readonly AnnotationState _annotationState;
-    private readonly int _width, _height;
+    private SKBitmap _originalSkBitmap;
+    private AnnotationState _annotationState;
+    private int _width, _height;
     private readonly ISettingsStore? _settings;
 
     /// <summary>Set true before Show() to auto-trigger OCR ~50ms
@@ -85,7 +85,7 @@ public partial class EditorWindow : Window
     private SKPoint _mosaicStart;
     private SKPoint _mosaicCurrent;
     private bool _isDraggingMosaic;
-    private readonly List<(SKRectI Rect, byte[] OriginalData)> _mosaicHistory = new();
+    private List<(SKRectI Rect, byte[] OriginalData)> _mosaicHistory = new();
 
     // Template parts cached for maximize visual adjust
     private Grid? _contentGrid;
@@ -464,6 +464,8 @@ public partial class EditorWindow : Window
     private void FitBtn_Click(object sender, RoutedEventArgs e) => SkiaViewer.FitToScreen();
     private void ZoomInBtn_Click(object sender, RoutedEventArgs e) => SkiaViewer.ZoomIn();
     private void ZoomOutBtn_Click(object sender, RoutedEventArgs e) => SkiaViewer.ZoomOut();
+    private void RotateLeft_Click(object sender, RoutedEventArgs e) => RotateImage(-90);
+    private void RotateRight_Click(object sender, RoutedEventArgs e) => RotateImage(90);
 
     // ------------------------------------------------------------------
     //  Pen tools: pen toggle, color, size, clear, undo
@@ -1030,4 +1032,40 @@ public partial class EditorWindow : Window
     }
 
     private static string FormatZoom(float zoom) => $"{Math.Round(zoom * 100)}%";
+
+    private void RotateImage(int angle)
+    {
+        if (angle == 90)
+            _originalBitmap.RotateFlip(RotateFlipType.Rotate90FlipNone);
+        else if (angle == -90)
+            _originalBitmap.RotateFlip(RotateFlipType.Rotate270FlipNone);
+        else
+            return;
+
+        int newW = _originalBitmap.Width;
+        int newH = _originalBitmap.Height;
+
+        _originalSkBitmap.Dispose();
+        _originalSkBitmap = ToSkBitmap(_originalBitmap);
+
+        var savedColor = _annotationState.CurrentColor;
+        var savedSize = _annotationState.CurrentSize;
+
+        _annotationState = new AnnotationState(newW, newH);
+        _annotationState.RedrawRequested += (_, _) => SkiaViewer.InvalidateOverlay();
+        _annotationState.CurrentColor = savedColor;
+        _annotationState.CurrentSize = savedSize;
+
+        _width = newW;
+        _height = newH;
+        _strokeCount = 0;
+        _mosaicHistory.Clear();
+        _isDraggingMosaic = false;
+        MosaicPreviewRect.Visibility = Visibility.Collapsed;
+
+        SkiaViewer.LoadBitmap(_originalSkBitmap);
+        SkiaViewer.OverlayBitmap = _annotationState.OverlayBitmap;
+
+        UpdateStatus();
+    }
 }

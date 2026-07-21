@@ -106,6 +106,12 @@ public partial class FloatingBarViewModel : ObservableObject
     private void ZoomToOriginal() => _viewer?.ZoomToOriginal();
 
     [RelayCommand]
+    private void RotateLeft() => _viewer?.RotateLeft();
+
+    [RelayCommand]
+    private void RotateRight() => _viewer?.RotateRight();
+
+    [RelayCommand]
     private void ToggleSlideshow()
     {
         _uiState.IsSlideshowRunning = !_uiState.IsSlideshowRunning;

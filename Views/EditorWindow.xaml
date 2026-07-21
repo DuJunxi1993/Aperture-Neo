@@ -245,6 +245,13 @@
 
                     <Rectangle Style="{DynamicResource LinearToolbarSeparator}"/>
 
+                    <Button Content="↺90°" Style="{DynamicResource LinearToolButton}"
+                            Click="RotateLeft_Click" ToolTip="向左旋转"/>
+                    <Button Content="↻90°" Style="{DynamicResource LinearToolButton}"
+                            Margin="3,0,0,0" Click="RotateRight_Click" ToolTip="向右旋转"/>
+
+                    <Rectangle Style="{DynamicResource LinearToolbarSeparator}"/>
+
                     <Button Content="清空" Style="{DynamicResource LinearToolButton}"
                             Click="Clear_Click"/>
                     <Button Content="撤销" Style="{DynamicResource LinearToolButton}"

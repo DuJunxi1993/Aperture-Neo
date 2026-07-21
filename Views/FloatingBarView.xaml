@@ -77,6 +77,19 @@
                 <Border Width="1" Background="{StaticResource BorderStandard}" Margin="6,6"/>
 
                 <Button Style="{StaticResource LinearFloatingButton}"
+                        Command="{Binding RotateLeftCommand}"
+                        IsHitTestVisible="True"
+                        ToolTip="向左旋转">
+                    <ui:SymbolIcon Symbol="ArrowCounterclockwise20" FontSize="14"/>
+                </Button>
+                <Button Style="{StaticResource LinearFloatingButton}"
+                        Command="{Binding RotateRightCommand}"
+                        Margin="2,0,0,0"
+                        IsHitTestVisible="True"
+                        ToolTip="向右旋转">
+                    <ui:SymbolIcon Symbol="ArrowClockwise20" FontSize="14"/>
+                </Button>
+                <Button Style="{StaticResource LinearFloatingButton}"
                         Command="{Binding ToggleSlideshowCommand}"
                         IsHitTestVisible="True">
                     <ui:SymbolIcon Symbol="{Binding SlideshowIcon}" FontSize="12"/>

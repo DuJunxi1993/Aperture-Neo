@@ -123,7 +123,7 @@ public sealed class UpdateChecker
         foreach (var asset in root.GetProperty("assets").EnumerateArray())
         {
             var name = asset.GetProperty("name").GetString() ?? "";
-            if (name.StartsWith("ApertureNeo-Setup-") && name.EndsWith(".exe"))
+            if (name.StartsWith("ApertureNeo-Setup") && name.EndsWith(".exe"))
             {
                 url = asset.GetProperty("browser_download_url").GetString() ?? "";
                 size = asset.GetProperty("size").GetInt64();

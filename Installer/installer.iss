@@ -123,6 +123,12 @@ Name: "addtopath"; Description: "{cm:Task_AddToPath_Description}"; GroupDescript
 ; and points .jpg/.png/… at it. Removed on uninstall.
 Name: "assocfiles"; Description: "{cm:Task_AssocFiles_Description}"; GroupDescription: "{cm:Task_Group_Shell}"; Check: AssocFilesShouldBeChecked
 
+; v4.0.5: optional cleanup of old per-user app data (thumbnails,
+; settings, recent files). Useful for fresh-start scenarios when
+; migrating to a new machine or troubleshooting launch issues.
+; Default unchecked — the user must explicitly opt in.
+Name: "cleandata"; Description: "{cm:Task_CleanData_Description}"; GroupDescription: "{cm:Task_Group_Shell}"
+
 [CustomMessages]
 ; All custom messages are defined here in one place. English entries
 ; without a `; Languages:` qualifier are the default; the
@@ -166,6 +172,9 @@ Task_AddToPath_Description=将安装目录添加到 &PATH(任意终端可用 `ap
 
 Task_AssocFiles_Description=Register &Aperture Neo as the default image viewer
 Task_AssocFiles_Description=将 Aperture Neo 注册为默认图片查看器(&A); Languages: chinesesimp
+
+Task_CleanData_Description=Clear old &app data (thumbnails, settings, recent files)
+Task_CleanData_Description=清除旧的应用程序数据(&A)(缩略图、设置、最近文件); Languages: chinesesimp
 
 Task_Group_Shell=Shell integration:
 Task_Group_Shell=系统集成:; Languages: chinesesimp
@@ -691,8 +700,49 @@ begin
   Result := True;
 end;
 
+// v4.0.5: delete old per-user app data (thumbnails, settings,
+// recent files). Runs before the new files are installed. The
+// thumbnail cache sits in %TEMP%\ApertureNeo\thumbs\cache.db;
+// settings + recents live under %APPDATA%\ApertureNeo\. Both
+// are recreated by the app on next launch.
+procedure CleanOldUserData();
+var
+  TempDir: string;
+  AppDataDir: string;
+begin
+  Log('Cleaning old per-user app data (task: cleandata)...');
+
+  // Resolve %TEMP% via environment variable rather than {tmp}
+  // (which points inside an is-xxxxx.tmp subfolder).
+  TempDir := GetEnv('TEMP');
+  if TempDir <> '' then
+  begin
+    TempDir := AddBackslash(TempDir) + 'ApertureNeo';
+    Log('Deleting thumbnail cache: ' + TempDir);
+    DelTree(TempDir, True, True, True);
+  end;
+
+  // Resolve %APPDATA% via {userappdata} constant.
+  AppDataDir := ExpandConstant('{userappdata}\ApertureNeo');
+  Log('Deleting app data: ' + AppDataDir);
+  DelTree(AppDataDir, True, True, True);
+
+  Log('Old per-user app data cleared.');
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
+  if CurStep = ssInstall then
+  begin
+    // v4.0.5: clear old app data if the user checked the
+    // `cleandata` task. Runs before the new files are written
+    // to {app}, so the old EXE is still running-space safe
+    // (the KillAppProcess in RemovePreviousVersion already
+    // terminated it).
+    if WizardIsTaskSelected('cleandata') then
+      CleanOldUserData();
+  end;
+
   if CurStep = ssPostInstall then
   begin
     // v3.1.0: per-user PATH integration. Only runs if the user

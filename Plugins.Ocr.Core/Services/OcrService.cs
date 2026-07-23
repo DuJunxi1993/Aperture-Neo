@@ -59,8 +59,17 @@ public sealed class OcrService : IDisposable
             await _inferLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                // P5 fix: OpenCvSharp's Cv2.ImRead(string) marshals the
+                // path as LPStr (ANSI), which throws "Cannot marshal:
+                // Encountered unmappable character" for Unicode chars
+                // outside the system code page. Read bytes via FileStream
+                // (UTF-16 Win32 API, no encoding issues) and decode via
+                // ImDecode to bypass the ANSI marshaling entirely.
+                var imageBytes = System.IO.File.ReadAllBytes(imagePath);
+                using var mat = OpenCvSharp.Cv2.ImDecode(imageBytes, OpenCvSharp.ImreadModes.Color);
+
                 var sw = System.Diagnostics.Stopwatch.StartNew();
-                var raw = engine.RecognizeText(imagePath);
+                var raw = engine.RecognizeText(mat, null);
                 sw.Stop();
 
                 var lines = new List<OcrLine>();

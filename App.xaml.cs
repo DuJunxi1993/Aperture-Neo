@@ -536,7 +536,12 @@ public partial class App : Application
                 try
                 {
                     var nav = AppHost.Services?.GetService<INavigationService>();
-                    nav?.NavigateTo(targetFile);
+                    if (nav != null)
+                    {
+                        var folder = Path.GetDirectoryName(targetFile);
+                        if (!string.IsNullOrEmpty(folder))
+                            nav.LoadFolder(folder, targetFile);
+                    }
                 }
                 catch (Exception ex)
                 {

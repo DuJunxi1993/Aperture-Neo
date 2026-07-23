@@ -378,6 +378,9 @@ public class SettingsStore : ISettingsStore
             string json;
             lock (_saveLock)
             {
+                var dir = Path.GetDirectoryName(SettingsPath);
+                if (!string.IsNullOrEmpty(dir))
+                    System.IO.Directory.CreateDirectory(dir);
                 json = JsonSerializer.Serialize(
                 new SettingsData
                 {

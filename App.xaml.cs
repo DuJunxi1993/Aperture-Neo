@@ -317,7 +317,15 @@ public partial class App : Application
         // only call site outside MainWindow that needs the instance.
         var settings = AppHost.Services!.GetRequiredService<ISettingsStore>();
         string? startupFile = null;
-        if (e.Args.Length > 0 && File.Exists(e.Args[0]) && FormatHelper.IsSupported(e.Args[0]))
+        // True only when the user opened the app by double-clicking an
+        // image file (file association passes the path as argv[0]).
+        // The LastOpenedImage resume path below must NOT count: a plain
+        // icon launch resumes the last image but keeps the three-column
+        // layout, while an image-click launch starts in viewer-only mode.
+        bool openedFromFile = e.Args.Length > 0
+            && File.Exists(e.Args[0])
+            && FormatHelper.IsSupported(e.Args[0]);
+        if (openedFromFile)
         {
             startupFile = e.Args[0];
         }
@@ -329,7 +337,7 @@ public partial class App : Application
         }
 
         var mainWindow = startupFile != null
-            ? new MainWindow(startupFile)
+            ? new MainWindow(startupFile, openedFromFile)
             : new MainWindow();
 
         mainWindow.Show();

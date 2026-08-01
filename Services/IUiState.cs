@@ -47,4 +47,12 @@ public interface IUiState : INotifyPropertyChanged
     /// reset to false on app restart.
     /// </summary>
     bool IsAnnotating { get; set; }
+
+    /// <summary>
+    /// Transient status message shown as a toast over the viewer
+    /// (decode failures, invalid open selections, ...). Any VM can
+    /// publish one; the image viewer VM mirrors it for display and
+    /// auto-clears it after a few seconds. Empty string = hidden.
+    /// </summary>
+    string StatusText { get; set; }
 }

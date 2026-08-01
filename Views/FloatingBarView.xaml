@@ -5,7 +5,10 @@
              mc:Ignorable="d"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             d:DesignHeight="48" d:DesignWidth="320">
+             d:DesignHeight="72" d:DesignWidth="320"
+             MouseEnter="OnGroupMouseEnter"
+             MouseLeave="OnGroupMouseLeave"
+             MouseMove="OnGroupMouseMove">
     <Grid>
         <Popup x:Name="ZoomSliderPopup" Placement="Top"
                PlacementTarget="{Binding ElementName=ZoomTextBlock}"
@@ -28,11 +31,21 @@
             </Border>
         </Popup>
 
+        <!-- Control bar. Collapsed by default: scaled down to a point
+             just above the handle and fully transparent. ExpandBar /
+             CollapseBar animate Scale + Opacity from the
+             RenderTransformOrigin (0.5, 1.1) so the bar grows out of /
+             shrinks back onto the handle below. -->
         <Border x:Name="FloatingBarContent"
                 Background="{StaticResource SurfaceFloating}" BorderBrush="{StaticResource BorderStandard}" BorderThickness="1"
                 CornerRadius="{StaticResource RadiusPanel}" Padding="6,4"
-                IsHitTestVisible="True"
+                VerticalAlignment="Bottom" Margin="0,0,0,22"
+                Opacity="0" IsHitTestVisible="False"
+                RenderTransformOrigin="0.5,1.1"
                 Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}, FallbackValue=Visible}">
+            <Border.RenderTransform>
+                <ScaleTransform x:Name="BarScale" ScaleX="0" ScaleY="0"/>
+            </Border.RenderTransform>
             <Border.Effect>
                 <StaticResource ResourceKey="ShadowDialog"/>
             </Border.Effect>
@@ -100,6 +113,18 @@
                     <ui:SymbolIcon Symbol="FullScreenMaximize24" FontSize="14"/>
                 </Button>
             </StackPanel>
+        </Border>
+
+        <!-- iOS-style handle: a small pill at the bottom center. The
+             invisible strip around it is the proximity hot zone —
+             hovering it (or the pill) expands the bar. -->
+        <Border x:Name="HandleHotZone" Width="140" Height="20"
+                HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                Background="Transparent"
+                Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}, FallbackValue=Visible}">
+            <Border x:Name="HandlePill" Width="40" Height="5" CornerRadius="2.5"
+                    Background="#33000000"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Border>
     </Grid>
 </UserControl>

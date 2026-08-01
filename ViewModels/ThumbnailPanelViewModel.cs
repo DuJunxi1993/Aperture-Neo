@@ -52,9 +52,6 @@ public partial class ThumbnailPanelViewModel : ObservableObject
     private void OnCurrentImageChanged(ImageItem? item)
     {
         OnPropertyChanged(nameof(SelectedItem));
-        // The View subscribes to this event and calls
-        // ThumbGrid.ScrollSelectedIntoView(); the VM doesn't
-        // reach the grid directly.
         RequestScrollIntoView?.Invoke(this, EventArgs.Empty);
     }
 
@@ -64,20 +61,11 @@ public partial class ThumbnailPanelViewModel : ObservableObject
         get => _navigation.Current;
         set
         {
-            // P1 fix: setter required for TwoWay binding.
-            // The binding writes the target's SelectedItem
-            // back to the source on every change; without a
-            // setter the binding fails at activation
-            // ("read-only property 'SelectedItem' cannot be
-            // TwoWay-bound"). Forward to NavigationService
-            // so the underlying state matches what the user
-            // clicked. The value==current guard prevents
-            // re-entrant NavigateTo calls when the binding
-            // round-trips the same value back (binding →
-            // setter → NavigateTo → CurrentImageChanged →
-            // PropertyChanged → binding → setter is a no-op).
-            if (value != null && value != _navigation.Current)
-                _navigation.NavigateTo(value.FilePath);
+            // Setter required for TwoWay binding. Navigation is
+            // handled by ThumbClicked (for clicks) or MoveTo/NavigateTo
+            // (keyboard) — the binding only needs to write the
+            // property without re-entering NavigateTo.
+            OnPropertyChanged();
         }
     }
 

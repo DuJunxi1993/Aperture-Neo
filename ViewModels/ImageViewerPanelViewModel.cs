@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,7 +37,14 @@ public partial class ImageViewerPanelViewModel : ObservableObject
     private readonly INavigationService _navigation;
     private readonly IUiState _uiState;
     private readonly ISettingsStore? _settings;
+    private readonly IImageLoader _imageLoader;
     private SkiaImageViewer? _viewer;
+
+    // Pre-decode cache for adjacent images. For each decoded
+    // SKBitmap we also store the source dimensions (original
+    // file width/height) so the info pill is correct.
+    private readonly Dictionary<string, ImageLoadResult> _preDecodeCache = new();
+    private CancellationTokenSource? _preDecodeCts;
     // P1 fix: timestamp of the last double-click action. Used to
     // debounce rapid additional clicks that WPF reports as part
     // of the same click sequence (ClickCount=3, 4, 5...). Without
@@ -60,10 +70,21 @@ public partial class ImageViewerPanelViewModel : ObservableObject
     // the AnnotationOverlay's State DP via XAML.
     [ObservableProperty] private AnnotationState? _annotationState;
 
-    public ImageViewerPanelViewModel(INavigationService navigation, IUiState uiState, ISettingsStore? settings = null)
+    // Transient status toast (decode failures, invalid open
+    // selections). Mirrors IUiState.StatusText — other VMs
+    // (e.g. TitleBarViewModel) publish through the shared state,
+    // the viewer's own StatusChanged event publishes directly.
+    // Auto-clears after StatusToastMs.
+    [ObservableProperty] private string _statusText = "";
+    [ObservableProperty] private bool _hasStatus;
+    private static readonly TimeSpan StatusToastMs = TimeSpan.FromSeconds(3);
+    private readonly DispatcherTimer _statusTimer;
+
+    public ImageViewerPanelViewModel(INavigationService navigation, IUiState uiState, IImageLoader imageLoader, ISettingsStore? settings = null)
     {
         _navigation = navigation;
         _uiState = uiState;
+        _imageLoader = imageLoader;
         _settings = settings;
         // P2: ImageViewerPanelViewModel is the writer of
         // IUiState.CurrentImage — every navigation change
@@ -82,7 +103,18 @@ public partial class ImageViewerPanelViewModel : ObservableObject
         {
             if (e.PropertyName == nameof(IUiState.IsAnnotating))
                 IsAnnotating = _uiState.IsAnnotating;
+            else if (e.PropertyName == nameof(IUiState.StatusText))
+                StatusText = _uiState.StatusText;
         };
+        _statusTimer = new DispatcherTimer { Interval = StatusToastMs };
+        _statusTimer.Tick += (_, _) => { _statusTimer.Stop(); _uiState.StatusText = ""; };
+    }
+
+    partial void OnStatusTextChanged(string value)
+    {
+        HasStatus = !string.IsNullOrEmpty(value);
+        _statusTimer.Stop();
+        if (HasStatus) _statusTimer.Start();
     }
 
     /// <summary>Called by the View in its Loaded handler.</summary>
@@ -90,8 +122,12 @@ public partial class ImageViewerPanelViewModel : ObservableObject
     {
         if (_viewer != null) return;
         _viewer = viewer;
+        // Inject the WIC-based decoder so the viewer uses
+        // hardware-accelerated decode + adaptive resolution.
+        _viewer.ImageLoader = _imageLoader;
         _viewer.ZoomChanged += z => _uiState.CurrentZoom = z;
         _viewer.ImageLoaded += OnViewerImageLoaded;
+        _viewer.StatusChanged += msg => _uiState.StatusText = msg;
         // P2: handle the viewer double-click fit↔zoom toggle here
         // instead of routing through the host MainWindow's
         // Viewer_PreviewMouseLeftButtonDown controller method.
@@ -160,7 +196,27 @@ public partial class ImageViewerPanelViewModel : ObservableObject
 
     private void OnCurrentImageChanged(ImageItem? item)
     {
-        _viewer?.LoadImage(item?.FilePath ?? string.Empty);
+        if (item == null) return;
+
+        // Check the pre-decode cache first — if the adjacent
+        // loader already decoded this path, skip I/O + WIC
+        // decode entirely and display the cached bitmap
+        // directly (instant navigation).
+        ImageLoadResult? cached;
+        lock (_preDecodeCache)
+        {
+            _preDecodeCache.TryGetValue(item.FilePath, out cached);
+            if (cached != null) _preDecodeCache.Remove(item.FilePath);
+        }
+        if (cached != null)
+        {
+            _viewer?.LoadPreDecoded(cached);
+        }
+        else
+        {
+            _viewer?.LoadImage(item.FilePath);
+        }
+
         // Mirror the current image to IUiState so the InfoPill /
         // InfoPopover VMs (which observe IUiState.CurrentImage
         // and refresh on change) re-read their data. P2
@@ -172,13 +228,104 @@ public partial class ImageViewerPanelViewModel : ObservableObject
         // PropertyChanged (Width / Height) so they re-read
         // the dimensions after the image is decoded.
         _uiState.CurrentImage = item;
+
+        // Schedule background pre-decode of adjacent images
+        // (prev and next, within 1 position) so the next
+        // keyboard navigation is instant.
+        PreDecodeAdjacent();
+    }
+
+    /// <summary>
+    /// Decode the previous and next image (if any) in the
+    /// background and store the results in the pre-decode cache.
+    /// Cancels any in-flight pre-decode first so rapid
+    /// navigation doesn't queue stale work.
+    /// </summary>
+    private void PreDecodeAdjacent()
+    {
+        var old = _preDecodeCts;
+        if (old != null) { old.Cancel(); old.Dispose(); }
+        _preDecodeCts = new CancellationTokenSource();
+        var ct = _preDecodeCts.Token;
+
+        int idx = _navigation.CurrentIndex;
+        var items = _navigation.Items;
+
+        // Snapshot the candidate paths on the UI thread. The
+        // ObservableCollection is not thread-safe — a folder
+        // change clears/repopulates it on the UI thread while
+        // the worker would be indexing it below.
+        var paths = new List<string>(2);
+        if (idx + 1 < items.Count) paths.Add(items[idx + 1].FilePath);
+        if (idx - 1 >= 0) paths.Add(items[idx - 1].FilePath);
+        if (paths.Count == 0) return;
+
+        // Match the viewer's adaptive decode target (2× display
+        // size, clamped to [1080, 3840]) so a cached result is
+        // exactly what the viewer would decode for this viewport.
+        // Fall back to the 3840 cap if the viewer is unmeasured.
+        double vw = _viewer?.ActualWidth ?? 0;
+        double vh = _viewer?.ActualHeight ?? 0;
+        int targetW = vw < 10 ? 3840 : (int)Math.Clamp(vw * 2, 1080, 3840);
+        int targetH = vh < 10 ? 3840 : (int)Math.Clamp(vh * 2, 1080, 3840);
+
+        _ = Task.Run(async () =>
+        {
+            foreach (var path in paths)
+            {
+                if (ct.IsCancellationRequested) return;
+                await PreDecodeOne(path, targetW, targetH, ct);
+            }
+        }, ct);
+    }
+
+    private async Task PreDecodeOne(string path, int targetW, int targetH, CancellationToken ct)
+    {
+        // Avoid double-caching if the user navigates fast
+        // and the previous pre-decode just wrote this entry.
+        lock (_preDecodeCache)
+        {
+            if (_preDecodeCache.ContainsKey(path)) return;
+        }
+
+        // Decode at the same adaptive target the viewer uses
+        // (viewer's LoadImage target for the current viewport),
+        // so the cached bitmap is shown directly on the next
+        // navigation without re-decode.
+        var result = await _imageLoader.LoadAsync(path, targetW, targetH, ct).ConfigureAwait(false);
+        if (ct.IsCancellationRequested || !result.IsSuccess || result.Bitmap == null) return;
+
+        lock (_preDecodeCache)
+        {
+            // Cap the cache at 3 entries (current is consumed,
+            // so the cache holds prev-1, prev, next or similar).
+            if (_preDecodeCache.Count >= 3)
+            {
+                var key = _preDecodeCache.Keys.First();
+                if (_preDecodeCache.TryGetValue(key, out var old))
+                    old.Bitmap?.Dispose();
+                _preDecodeCache.Remove(key);
+            }
+            _preDecodeCache[path] = result;
+        }
     }
 
     private void OnViewerImageLoaded(ImageLoadResult result)
     {
-        var item = _navigation.Items.FirstOrDefault(i => i.FilePath == result.FilePath);
+        // The result always corresponds to the current image
+        // (stale decodes are cancelled before ApplyResult), so
+        // resolve it in O(1) via the navigation pointer. Fall
+        // back to a scan if the pointers are out of sync.
+        var item = _navigation.Current?.FilePath == result.FilePath
+            ? _navigation.Current
+            : _navigation.Items.FirstOrDefault(i => i.FilePath == result.FilePath);
         if (item == null) return;
-        item.SetDimensions(result.Width, result.Height);
+        // Use SourceWidth/SourceHeight (the original file
+        // dimensions) for the info pill — the decoded Width/Height
+        // may be smaller due to adaptive resolution downscale.
+        int srcW = result.SourceWidth > 0 ? result.SourceWidth : result.Width;
+        int srcH = result.SourceHeight > 0 ? result.SourceHeight : result.Height;
+        item.SetDimensions(srcW, srcH);
 
         // P5: rebuild the AnnotationState for the new image. The
         // OverlayBitmap is sized to the source image; the
@@ -186,7 +333,7 @@ public partial class ImageViewerPanelViewModel : ObservableObject
         // annotation mode would otherwise write to a stale
         // bitmap (or NRE if the new image is smaller than the
         // old).
-        AnnotationState = new AnnotationState(result.Width, result.Height);
+        AnnotationState = new AnnotationState(srcW, srcH);
         // Set the source bitmap so mosaic mode can read original
         // image pixels instead of averaging the transparent overlay.
         AnnotationState.SourceBitmap = result.Bitmap;

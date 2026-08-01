@@ -26,6 +26,17 @@ public class ThumbnailLoadCoordinator : IDisposable
     private CancellationTokenSource? _cts;
     private bool _disposed;
 
+    // Round 69: in-memory cache of fully-decoded BitmapSource
+    // objects. Avoids SQLite read + JPEG re-decode on the UI
+    // thread when the user scrolls back to a recently-viewed
+    // thumbnail. FIFO eviction at MemoryCacheMax entries.
+    // Cleared on folder navigation (LoadForFolder/Cancel);
+    // survives MoveTo/EnsureVisible within the same folder.
+    private const int MemoryCacheMax = 500;
+    private readonly Dictionary<string, BitmapSource> _memoryCache = new();
+    private readonly Queue<string> _memoryCacheOrder = new();
+    private readonly object _memoryCacheLock = new();
+
     public int MaxConcurrent { get; }
     public int Size { get; }
     public int ThumbnailErrorLimit { get; set; } = 5;
@@ -79,11 +90,24 @@ public class ThumbnailLoadCoordinator : IDisposable
     public void LoadForFolder(IEnumerable<ImageItem> items, int currentIndex, Action<string>? onError = null)
     {
         Cancel();
+        ClearMemoryCache();
         _cts = new CancellationTokenSource();
         var ct = _cts.Token;
         // Priority-load items near the current index; the rest are loaded
         // on demand by EnsureVisible().
         var snapshot = items.ToList();
+        // Round 71: clear stale error flags so items that failed in
+        // a previous load (e.g. before the WIC fallback existed)
+        // are retried on this folder load instead of keeping the
+        // red dot forever (EnsureVisible skips errored items).
+        foreach (var item in snapshot)
+        {
+            if (item.HasThumbnailError)
+            {
+                item.HasThumbnailError = false;
+                item.ThumbnailErrorMessage = null;
+            }
+        }
         var indexed = snapshot.Select((it, idx) => (it, dist: Math.Abs(idx - currentIndex))).ToList();
         var priority = indexed.Where(x => x.dist <= PriorityWindow).OrderBy(x => x.dist).Select(x => x.it).ToList();
         var remaining = indexed.Where(x => x.dist > PriorityWindow).OrderBy(x => x.dist).Select(x => x.it).ToList();
@@ -187,6 +211,16 @@ public class ThumbnailLoadCoordinator : IDisposable
     private async Task LoadOneAsync(ImageItem item, CancellationToken ct, Action<string>? onError)
     {
         if (item == null || item.Thumbnail != null) return;
+
+        // Round 69: check the in-memory cache first. This avoids
+        // SQLite read + JPEG re-decode on the UI thread for
+        // thumbnails that were decoded earlier in this session.
+        if (TryGetCachedThumbnail(item.FilePath, out var cached))
+        {
+            item.Thumbnail = cached;
+            return;
+        }
+
         try { await _semaphore.WaitAsync(ct); }
         catch (OperationCanceledException) { return; }
         try
@@ -234,6 +268,7 @@ public class ThumbnailLoadCoordinator : IDisposable
                     bmp.EndInit();
                     bmp.Freeze();
                     item.Thumbnail = bmp;
+                    CacheThumbnail(item.FilePath, bmp);
                 }
                 catch (Exception ex)
                 {
@@ -263,11 +298,41 @@ public class ThumbnailLoadCoordinator : IDisposable
     /// </summary>
     public void Cancel()
     {
+        ClearMemoryCache();
         var old = _cts;
         if (old == null) return;
         old.Cancel();
         old.Dispose();
         _cts = null;
+    }
+
+    private bool TryGetCachedThumbnail(string path, out BitmapSource bmp)
+    {
+        lock (_memoryCacheLock)
+            return _memoryCache.TryGetValue(path, out bmp);
+    }
+
+    private void CacheThumbnail(string path, BitmapSource bmp)
+    {
+        lock (_memoryCacheLock)
+        {
+            if (!_memoryCache.ContainsKey(path) && _memoryCache.Count >= MemoryCacheMax)
+            {
+                var oldest = _memoryCacheOrder.Dequeue();
+                _memoryCache.Remove(oldest);
+            }
+            _memoryCacheOrder.Enqueue(path);
+            _memoryCache[path] = bmp;
+        }
+    }
+
+    private void ClearMemoryCache()
+    {
+        lock (_memoryCacheLock)
+        {
+            _memoryCache.Clear();
+            _memoryCacheOrder.Clear();
+        }
     }
 
     public void Dispose()

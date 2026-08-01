@@ -10,13 +10,12 @@
     <!-- ============================================================ -->
     <!-- ThumbnailItem code-behind resource lookups (consumed by      -->
     <!-- ThumbnailGrid.cs via Application.Current.Resources[...]).
-         Both keys must exist in BOTH DesignTokens.xaml (Dark) and
-         DesignTokens.Light.xaml so a theme switch never leaves a
-         "resource not found" hole for these brushes. Values mirror
-         the canonical token series; Light overrides them.            -->
+         Light-mode values — mirror the DesignTokens selection/hover
+         tints (CardBgSelected #E0E1FF, CardBgHover #F0EEFF) so a
+         selected card reads as an indigo-tinted square.              -->
     <!-- ============================================================ -->
-    <SolidColorBrush x:Key="ThumbnailSelectedBg"  Color="#FF1f2024"/>
-    <SolidColorBrush x:Key="ThumbnailHoverBg"     Color="#FF1c1d22"/>
+    <SolidColorBrush x:Key="ThumbnailSelectedBg"  Color="#FFE0E1FF"/>
+    <SolidColorBrush x:Key="ThumbnailHoverBg"     Color="#FFF0EEFF"/>
 
     <!-- ============================================================ -->
     <!-- Linear-themed ScrollBar (subtle, draggable)                   -->

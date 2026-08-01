@@ -131,23 +131,33 @@ public class ThumbnailGrid : ListBox
         ItemClicked?.Invoke(item);
     }
 
+    private bool _scrollPending;
+
     /// <summary>
     /// Scroll the currently-selected item into the visible band.
-    /// Deferred to <see cref="DispatcherPriority.Background"/> so
-    /// the container's <c>ActualWidth</c>/<c>ActualHeight</c> are
-    /// available when <c>BringIntoView</c> runs. No-op if nothing
-    /// is selected or the item isn't in the items source.
+    /// Coalesced: at most one scroll request is in flight — the
+    /// callback re-reads <see cref="SelectedItem"/>, so the latest
+    /// selection wins and intermediate requests are dropped instead
+    /// of piling up. Runs at <see cref="DispatcherPriority.Normal"/>
+    /// (not Background) so the scroll follows rapid navigation in
+    /// real time rather than executing only when the dispatcher
+    /// idles (which made the highlight look "stuck" while holding
+    /// an arrow key). No-op if nothing is selected.
     /// </summary>
     public void ScrollSelectedIntoView()
     {
-        if (SelectedItem == null) return;
-        var idx = Items.IndexOf(SelectedItem);
-        if (idx < 0) return;
+        if (SelectedItem == null || _scrollPending) return;
+        _scrollPending = true;
         Dispatcher.BeginInvoke(new Action(() =>
         {
-            var container = ItemContainerGenerator.ContainerFromIndex(idx) as FrameworkElement;
-            container?.BringIntoView();
-        }), System.Windows.Threading.DispatcherPriority.Background);
+            _scrollPending = false;
+            if (SelectedItem is ImageItem item)
+            {
+                var idx = Items.IndexOf(item);
+                if (idx >= 0 && ItemContainerGenerator.ContainerFromIndex(idx) is FrameworkElement container)
+                    container.BringIntoView();
+            }
+        }), System.Windows.Threading.DispatcherPriority.Normal);
     }
 
     private void UpdateSelection()

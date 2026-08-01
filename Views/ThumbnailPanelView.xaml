@@ -10,6 +10,7 @@
     <Border x:Name="ThumbPanel" Background="{StaticResource SurfacePanel}">
         <Grid>
             <controls:ThumbnailGrid x:Name="ThumbGrid" FocusVisualStyle="{x:Null}"
+                                    Background="{StaticResource SurfacePanel}"
                                     ItemTemplate="{StaticResource LinearThumbnailTemplate}"
                                     ItemsSource="{Binding Items}"
                                     SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
@@ -32,7 +33,7 @@
                     <ui:SymbolIcon Symbol="Image32" FontSize="24" Foreground="{StaticResource TextQuat}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
-                <TextBlock Text="{DynamicResource Thumb_EmptyStateTitle}" FontSize="13" FontWeight="700"
+                <TextBlock Text="{DynamicResource Thumb_EmptyStateTitle}" FontSize="13" FontWeight="600"
                            Foreground="{StaticResource TextSecondary}" Margin="0,14,0,2"
                            HorizontalAlignment="Center"/>
                 <TextBlock Text="{DynamicResource Thumb_EmptyStateFormats}" FontSize="11" FontWeight="400"

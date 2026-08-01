@@ -69,6 +69,29 @@ public class NavigationService : INavigationService
     /// ObservableCollection on the UI thread.
     /// </summary>
     public void LoadFolder(string folderPath, string? selectFile = null)
+        => LoadFolderCore(folderPath, selectFile, fallbackIndex: -1);
+
+    /// <summary>
+    /// Re-enumerate the currently loaded folder and re-select the
+    /// current image. Unlike <see cref="LoadFolder"/>, this is a
+    /// *refresh* of the same folder (FileSystemWatcher-triggered):
+    /// the invariant is that a refresh never loses the current
+    /// image. If the current file was deleted, the item at the old
+    /// index is selected instead (enumeration order is stable, so
+    /// the old index points at the file that took its place); only
+    /// if the folder is now empty does the selection reset.
+    /// </summary>
+    public void ReloadCurrentFolder()
+    {
+        if (_currentFolder.Length == 0) return;
+        // Capture before LoadFolderCore clears _items.
+        string? keep = Current?.FilePath;
+        int fallback = _currentIndex;
+        DebugLog.Write("Nav", $"ReloadCurrentFolder: {_currentFolder} keep={keep ?? "(none)"} fallback={fallback}");
+        LoadFolderCore(_currentFolder, keep, fallback);
+    }
+
+    private void LoadFolderCore(string folderPath, string? selectPath, int fallbackIndex)
     {
         if (!Directory.Exists(folderPath)) return;
 
@@ -85,6 +108,7 @@ public class NavigationService : INavigationService
         var ct = _loadCts.Token;
 
         _currentFolder = folderPath;
+        DebugLog.Write("Nav", $"LoadFolder: {folderPath} select={selectPath ?? "(none)"}");
 
         // Clear current items synchronously so the UI updates immediately.
         foreach (var item in _items) item.Thumbnail = null;
@@ -134,10 +158,16 @@ public class NavigationService : INavigationService
                 try
                 {
                     foreach (var item in list) _items.Add(item);
-                    if (selectFile != null)
+                    if (selectPath != null)
                     {
-                        var idx = _items.IndexOfFirst(selectFile);
-                        _currentIndex = idx >= 0 ? idx : (_items.Count > 0 ? 0 : -1);
+                        var idx = _items.IndexOfFirst(selectPath);
+                        // Prefer the requested file; if it no longer
+                        // exists (deleted between dialog and reload),
+                        // fall back to the old index (stable
+                        // enumeration order), then to the first item.
+                        _currentIndex = idx >= 0 ? idx
+                            : (fallbackIndex >= 0 && fallbackIndex < _items.Count) ? fallbackIndex
+                            : (_items.Count > 0 ? 0 : -1);
                     }
                     else
                     {
@@ -199,7 +229,8 @@ public class NavigationService : INavigationService
             _fswDebounceTimer.Tick += (_, _) =>
             {
                 _fswDebounceTimer.Stop();
-                LoadFolder(_currentFolder);
+                // Refresh, don't navigate: preserve the current image.
+                ReloadCurrentFolder();
             };
         }
         _fswDebounceTimer.Stop();

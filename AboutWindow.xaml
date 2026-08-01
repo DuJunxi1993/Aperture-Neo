@@ -34,7 +34,7 @@
                     MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid>
                     <TextBlock Text="{DynamicResource TitleBar_About}" VerticalAlignment="Center" HorizontalAlignment="Center"
-                               Foreground="{StaticResource TextTertiary}" FontSize="12" FontWeight="700"/>
+                               Foreground="{StaticResource TextTertiary}" FontSize="12" FontWeight="600"/>
                     <Button x:Name="BtnClose" HorizontalAlignment="Right" Width="28" Height="28" Margin="0,0,8,0"
                             Style="{StaticResource LinearWindowButton}" Click="BtnClose_Click">
                         <ui:SymbolIcon Symbol="Dismiss24" FontSize="14"/>

@@ -36,10 +36,10 @@
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Bd" Property="Background" Value="#1F000000"/>
+                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource BtnBgHover}"/>
                                 </Trigger>
                                 <Trigger Property="IsSelected" Value="True">
-                                    <Setter TargetName="Bd" Property="Background" Value="#FFE0E1FF"/>
+                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource SelectionBg}"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -107,7 +107,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="设置"
-                           FontSize="14" FontWeight="700"
+                           FontSize="14" FontWeight="600"
                            Foreground="{StaticResource TextPrimary}"
                            VerticalAlignment="Center"
                            HorizontalAlignment="Center"/>
@@ -194,8 +194,8 @@
                                 <DataTemplate>
                                     <Border Margin="0,0,0,8"
                                             Padding="12,8"
-                                            Background="#FFF6F6F8"
-                                            BorderBrush="#12000000"
+                                            Background="{StaticResource SurfaceCardHover}"
+                                            BorderBrush="{StaticResource BorderSubtle}"
                                             BorderThickness="1"
                                             CornerRadius="6">
                                         <Grid>
@@ -208,8 +208,8 @@
                                             <TextBlock Grid.Column="0" Text="{Binding Label}"
                                                        Style="{StaticResource RowLabel}"/>
                                             <Border Grid.Column="1"
-                                                    Background="#FFFFFFFF"
-                                                    BorderBrush="#FF3a4099"
+                                                    Background="{StaticResource SurfaceElevated}"
+                                                    BorderBrush="{StaticResource SelectionFg}"
                                                     BorderThickness="1"
                                                     CornerRadius="4"
                                                     Padding="10,4"
@@ -217,7 +217,7 @@
                                                 <TextBlock Text="{Binding CurrentDisplay}"
                                                            FontSize="13"
                                                            HorizontalAlignment="Center"
-                                                           Foreground="#FF1a1a1a"/>
+                                                           Foreground="{StaticResource TextPrimary}"/>
                                             </Border>
                                             <Button Grid.Column="2"
                                                     Content="录制"
@@ -302,8 +302,8 @@
                                 <DataTemplate>
                                     <Border Margin="0,0,0,8"
                                             Padding="12,10"
-                                            Background="#FFF6F6F8"
-                                            BorderBrush="#12000000"
+                                            Background="{StaticResource SurfaceCardHover}"
+                                            BorderBrush="{StaticResource BorderSubtle}"
                                             BorderThickness="1"
                                             CornerRadius="6">
                                         <Grid>

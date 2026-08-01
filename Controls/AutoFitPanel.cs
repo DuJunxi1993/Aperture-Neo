@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace ApertureNeo.Controls;
 
@@ -78,6 +79,28 @@ public class AutoFitPanel : Panel
     /// Each cell is now a pure square (itemWidth × itemWidth).
     /// </summary>
 
+    // Round 69: viewport culling. The owning ScrollViewer's
+    // offset and viewport height determine which children are
+    // visible. Only visible children (plus a buffer zone) get
+    // full measure/arrange; the rest get zero size so their
+    // visual trees are effectively invisible and don't
+    // participate in layout. Found on visual-tree connect via
+    // OnVisualParentChanged; null before first connect (measure
+    // falls back to "all children visible").
+    private ScrollViewer? _scrollViewer;
+    // Cached visible range from the last scroll-invalidation.
+    // Prevents redundant InvalidateMeasure when the band hasn't
+    // shifted. (-1, -1) = unknown / uninitialised.
+    private int _lastVisibleFirst = -1;
+    private int _lastVisibleLast = -1;
+
+    // Round 69: extra rows above and below the visible band
+    // that still get full measure/arrange. Prevents blank cells
+    // during fast fling scrolling — the scroll event may be
+    // throttled by WPF's layout queue, so the buffer absorbs
+    // the velocity until the next layout pass catches up.
+    private const int VisibleBufferRows = 4;
+
     // Cached last-measure layout values. Panel re-enters
     // MeasureOverride on width changes (column count changes)
     // and on items-changed events, so we recompute these every
@@ -119,6 +142,59 @@ public class AutoFitPanel : Panel
         return (firstIdx, lastIdx);
     }
 
+    protected override void OnVisualParentChanged(DependencyObject oldParent)
+    {
+        base.OnVisualParentChanged(oldParent);
+        FindScrollViewer();
+    }
+
+    private void FindScrollViewer()
+    {
+        if (_scrollViewer != null)
+            _scrollViewer.ScrollChanged -= OnScrollChanged;
+
+        _scrollViewer = FindAncestor<ScrollViewer>(this);
+
+        if (_scrollViewer != null)
+        {
+            _scrollViewer.ScrollChanged += OnScrollChanged;
+            _lastVisibleFirst = -1;
+            _lastVisibleLast = -1;
+        }
+    }
+
+    private void OnScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        if (_cols <= 0 || _itemWidth <= 0) return;
+        int count = InternalChildren.Count;
+        if (count == 0) return;
+
+        var (first, last) = GetVisibleIndexRange(
+            e.VerticalOffset, e.ViewportHeight, count);
+        if (first < 0) return;
+
+        int extra = VisibleBufferRows * _cols;
+        first = Math.Max(0, first - extra);
+        last = Math.Min(count - 1, last + extra);
+
+        if (first != _lastVisibleFirst || last != _lastVisibleLast)
+        {
+            _lastVisibleFirst = first;
+            _lastVisibleLast = last;
+            InvalidateMeasure();
+        }
+    }
+
+    private static T? FindAncestor<T>(DependencyObject obj) where T : DependencyObject
+    {
+        while (obj != null)
+        {
+            if (obj is T match) return match;
+            obj = VisualTreeHelper.GetParent(obj);
+        }
+        return null;
+    }
+
     protected override Size MeasureOverride(Size availableSize)
     {
         var width = double.IsInfinity(availableSize.Width) ? 1000 : availableSize.Width;
@@ -135,18 +211,38 @@ public class AutoFitPanel : Panel
         // square even if the panel's measured size drifts.
         _itemHeight = _itemWidth;
 
-        // Plain Panel — measure every realized child with the
-        // same square-card-plus-label extent. The owning
-        // ListBox realizes all containers up front (no
-        // virtualization), so InternalChildren.Count matches
-        // Items.Count after the first measure.
-        var childSize = new Size(_itemWidth, _itemHeight);
-        foreach (UIElement child in InternalChildren)
+        int itemCount = InternalChildren.Count;
+
+        // Round 69: viewport culling. Determine which children
+        // are in or near the visible band. Non-visible children
+        // get (0,0) measure so their visual trees are
+        // effectively invisible and don't participate in layout.
+        // Fall back to "all visible" when the ScrollViewer
+        // hasn't been found yet (initial connect).
+        int firstVisible = 0;
+        int lastVisible = itemCount - 1;
+        if (_scrollViewer != null && itemCount > 0)
         {
-            child.Measure(childSize);
+            var (first, last) = GetVisibleIndexRange(
+                _scrollViewer.VerticalOffset,
+                _scrollViewer.ViewportHeight,
+                itemCount);
+            if (first >= 0)
+            {
+                int extra = VisibleBufferRows * _cols;
+                firstVisible = Math.Max(0, first - extra);
+                lastVisible = Math.Min(itemCount - 1, last + extra);
+            }
         }
 
-        int itemCount = InternalChildren.Count;
+        var fullSize = new Size(_itemWidth, _itemHeight);
+        var zeroSize = new Size(0, 0);
+        for (int i = 0; i < itemCount; i++)
+        {
+            var child = InternalChildren[i];
+            child.Measure(i >= firstVisible && i <= lastVisible ? fullSize : zeroSize);
+        }
+
         int rowCount = itemCount == 0 ? 0 : (itemCount + _cols - 1) / _cols;
         double totalHeight = rowCount * _itemHeight + Math.Max(0, rowCount - 1) * Spacing;
         return new Size(width, totalHeight);
@@ -154,18 +250,16 @@ public class AutoFitPanel : Panel
 
     protected override Size ArrangeOverride(Size finalSize)
     {
-        // Plain Panel — children are in 1:1 order with the
-        // items, so index N in InternalChildren corresponds to
-        // item index N. Compute (col, row) from the index and
-        // place each child at that coordinate.
         int count = InternalChildren.Count;
+
         for (int i = 0; i < count; i++)
         {
             int col = i % _cols;
             int row = i / _cols;
-            double x = col * (_itemWidth + Spacing);
-            double y = row * (_itemHeight + Spacing);
-            InternalChildren[i].Arrange(new Rect(x, y, _itemWidth, _itemHeight));
+            InternalChildren[i].Arrange(new Rect(
+                col * (_itemWidth + Spacing),
+                row * (_itemHeight + Spacing),
+                _itemWidth, _itemHeight));
         }
         return finalSize;
     }

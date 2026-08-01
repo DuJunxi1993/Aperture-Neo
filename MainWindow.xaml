@@ -49,21 +49,72 @@
                 <ColumnDefinition x:Name="TreeColumn" Width="1*" MinWidth="180"/>
                 <ColumnDefinition x:Name="TreeSplitterColumn" Width="Auto"/>
                 <ColumnDefinition x:Name="ThumbColumn" Width="1*" MinWidth="160"/>
-                <ColumnDefinition x:Name="ThumbSplitterColumn" Width="6"/>
+                <ColumnDefinition x:Name="ThumbSplitterColumn" Width="Auto"/>
                 <ColumnDefinition x:Name="ViewerColumnDef" Width="4*" MinWidth="400"/>
             </Grid.ColumnDefinitions>
 
             <views:FolderTreePanelView Grid.Column="0" x:Name="TreePanelView"/>
 
+            <!-- The splitter band is painted with the adjacent panels'
+                 exact background colors (left half = tree's SurfaceElevated,
+                 right half = thumbnails' SurfacePanel) so the divider reads
+                 as two panels meeting at a centered 1px hairline — no
+                 window-background gap showing through. Inline template
+                 overrides the shared one in Styles/Splitter.xaml because
+                 the neighbor colors differ per splitter. -->
             <GridSplitter Grid.Column="1" x:Name="TreeSplitter" HorizontalAlignment="Stretch"
-                          Background="Transparent" ShowsPreview="False"/>
+                          Background="Transparent" ShowsPreview="False">
+                <GridSplitter.Template>
+                    <ControlTemplate TargetType="GridSplitter">
+                        <Grid Width="8" SnapsToDevicePixels="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="4"/>
+                                <ColumnDefinition Width="4"/>
+                            </Grid.ColumnDefinitions>
+                            <Rectangle Grid.Column="0" Fill="{StaticResource SurfaceElevated}"/>
+                            <Rectangle Grid.Column="1" Fill="{StaticResource SurfacePanel}"/>
+                            <Rectangle Grid.ColumnSpan="2" Width="1" HorizontalAlignment="Center" Fill="{StaticResource BorderSubtle}"/>
+                            <Border x:Name="HoverLine" Grid.ColumnSpan="2" Width="0" HorizontalAlignment="Center"
+                                    Background="{StaticResource FocusRing}" Opacity="0"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="HoverLine" Property="Width" Value="1"/>
+                                <Setter TargetName="HoverLine" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </GridSplitter.Template>
+            </GridSplitter>
 
             <views:ThumbnailPanelView Grid.Column="2" x:Name="ThumbPanelView"/>
 
             <GridSplitter Grid.Column="3" x:Name="ThumbSplitter"
                           HorizontalAlignment="Stretch"
                           Background="Transparent"
-                          ShowsPreview="False"/>
+                          ShowsPreview="False">
+                <GridSplitter.Template>
+                    <ControlTemplate TargetType="GridSplitter">
+                        <Grid Width="8" SnapsToDevicePixels="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="4"/>
+                                <ColumnDefinition Width="4"/>
+                            </Grid.ColumnDefinitions>
+                            <Rectangle Grid.Column="0" Fill="{StaticResource SurfacePanel}"/>
+                            <Rectangle Grid.Column="1" Fill="{StaticResource SurfaceElevated}"/>
+                            <Rectangle Grid.ColumnSpan="2" Width="1" HorizontalAlignment="Center" Fill="{StaticResource BorderSubtle}"/>
+                            <Border x:Name="HoverLine" Grid.ColumnSpan="2" Width="0" HorizontalAlignment="Center"
+                                    Background="{StaticResource FocusRing}" Opacity="0"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="HoverLine" Property="Width" Value="1"/>
+                                <Setter TargetName="HoverLine" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </GridSplitter.Template>
+            </GridSplitter>
 
             <!-- Image viewer + its floating overlays (the viewer is
                  a pure SkiaImageViewer; the overlays sit at
@@ -78,6 +129,19 @@
                 <Grid x:Name="FloatingOverlayHost" Panel.ZIndex="10">
                     <views:FloatingBarView x:Name="FloatingBar"
                                             HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,18"/>
+
+                    <!-- Transient status toast (decode failures,
+                         invalid open selections). Lives in the
+                         overlay layer (like the floating bar) so it
+                         renders above the viewer surface; auto-cleared
+                         by the VM's timer; never intercepts input. -->
+                    <Border HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                            Margin="0,0,0,66" Padding="16,9" CornerRadius="8"
+                            Background="#E6202020" IsHitTestVisible="False"
+                            Visibility="{Binding ElementName=ViewerPanel, Path=DataContext.HasStatus, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="{Binding ElementName=ViewerPanel, Path=DataContext.StatusText}"
+                                   Foreground="#FFFFFFFF" FontSize="12"/>
+                    </Border>
 
                     <views:InfoPillView x:Name="InfoPill"
                                          HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,14,14,0"

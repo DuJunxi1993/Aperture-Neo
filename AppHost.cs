@@ -96,7 +96,16 @@ public static class AppHost
         // it singleton so existing single-instance state survives
         // across the few partial-class controllers that touch it.
         services.AddSingleton<INavigationService, NavigationService>();
-        services.AddSingleton<IImageLoader, ImageLoader>();
+        // Benchmark-driven engine order: SkiaSharp decodes JPEG ~4x
+        // faster than WIC (libjpeg-turbo vs the Windows JPEG decoder,
+        // which also has 350-400ms slow-path spikes on some files).
+        // Skia runs first; WIC covers formats Skia can't handle
+        // (HEIC, TIFF, RAW, ...) via CompositeImageLoader.
+        services.AddSingleton<ImageLoader>();
+        services.AddSingleton<WicImageLoader>();
+        services.AddSingleton<IImageLoader>(sp => new CompositeImageLoader(
+            sp.GetRequiredService<ImageLoader>(),
+            sp.GetRequiredService<WicImageLoader>()));
 
         // Cross-VM shared state (current image, fullscreen flag,
         // etc.). Singleton because all VMs observe the same

@@ -1,7 +1,9 @@
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Media.Imaging;
 using Microsoft.Data.Sqlite;
 using SkiaSharp;
 
@@ -175,6 +177,17 @@ public class ThumbnailCache : IThumbnailCache, IDisposable
             return (null, $"生成缩略图失败: {ex.Message}", 0, 0);
         }
         var (bytes, w, h) = genResult;
+        if (bytes == null)
+        {
+            // Round 71: SkiaSharp has no codecs for HEIC/HEIF/AVIF
+            // (and some TIFF/CMYK variants) — fall back to WIC
+            // before declaring failure. The viewer already opens
+            // these via CompositeImageLoader's WIC fallback, so
+            // without this their thumbnails would show the red
+            // error dot while the full image displays fine.
+            genResult = await GenerateThumbnailWicFallbackAsync(path, effectiveSize, ct);
+            (bytes, w, h) = genResult;
+        }
         if (bytes == null)
         {
             DebugLog.Write("Thumb", $"generate returned null: {Path.GetFileName(path)}");
@@ -351,8 +364,135 @@ public class ThumbnailCache : IThumbnailCache, IDisposable
         finally { _writeLock.Release(); }
     }
 
-    private static (byte[]? data, int w, int h) GenerateThumbnail(string path, int size)
+    // Round 71: dedicated STA thread for the WIC thumbnail fallback.
+    // WPF's BitmapDecoder requires STA apartment state; the cache
+    // runs on ThreadPool threads (MTA). Created lazily so caches
+    // that never hit an unsupported format don't pay for the thread.
+    private static SingleStaThread? _staThread;
+    private static readonly object _staThreadLock = new();
+
+    private static SingleStaThread? GetStaThread()
     {
+        if (_staThread != null) return _staThread;
+        lock (_staThreadLock)
+        {
+            if (_staThread != null) return _staThread;
+            try { _staThread = new SingleStaThread(); }
+            catch (Exception ex)
+            {
+                DebugLog.Write("Thumb", "STA thread create fail", ex);
+            }
+        }
+        return _staThread;
+    }
+
+    private static async Task<(byte[]? data, int w, int h)> GenerateThumbnailWicFallbackAsync(string path, int size, CancellationToken ct)
+    {
+        var sta = GetStaThread();
+        if (sta == null) return (null, 0, 0);
+        try
+        {
+            return await sta.RunAsync(() =>
+            {
+                ct.ThrowIfCancellationRequested();
+                var (data, w, h) = DecodeThumbnailWic(path, size);
+                if (data != null)
+                    DebugLog.Write("Thumb", $"WIC fallback ok: {Path.GetFileName(path)} ({data.Length} bytes, {w}x{h})");
+                return (data, w, h);
+            });
+        }
+        catch (OperationCanceledException) { return (null, 0, 0); }
+        catch (Exception ex)
+        {
+            DebugLog.Write("Thumb", $"WIC fallback fail: {Path.GetFileName(path)}", ex);
+            return (null, 0, 0);
+        }
+    }
+
+    /// <summary>
+    /// Decode a thumbnail via the Windows Imaging Component (WPF
+    /// BitmapDecoder on the STA thread). Covers formats SkiaSharp
+    /// lacks codecs for (HEIC/HEIF/AVIF, some TIFF/CMYK variants).
+    /// WIC scales during decode so memory stays bounded for large
+    /// sources. Returns JPEG bytes + decoded dimensions, or
+    /// (null, 0, 0) on failure.
+    /// </summary>
+    private static (byte[]? data, int w, int h) DecodeThumbnailWic(string path, int size)
+    {
+        byte[] fileBytes;
+        try { fileBytes = File.ReadAllBytes(path); }
+        catch (Exception ex)
+        {
+            DebugLog.Write("Thumb", $"WIC fallback read fail: {Path.GetFileName(path)}", ex);
+            return (null, 0, 0);
+        }
+
+        using var ms = new MemoryStream(fileBytes);
+        int srcW, srcH;
+        try
+        {
+            var decoder = BitmapDecoder.Create(ms, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None);
+            var frame = decoder.Frames[0];
+            srcW = frame.PixelWidth;
+            srcH = frame.PixelHeight;
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write("Thumb", $"WIC fallback probe fail: {Path.GetFileName(path)}", ex);
+            return (null, 0, 0);
+        }
+
+        // Fit the long edge to `size` (same policy as the Skia path).
+        double ratio = Math.Min(1.0, size / (double)Math.Max(1, Math.Max(srcW, srcH)));
+        int decodeW = Math.Max(1, (int)(srcW * ratio));
+        int decodeH = Math.Max(1, (int)(srcH * ratio));
+
+        var bmp = new BitmapImage();
+        try
+        {
+            ms.Position = 0;
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.StreamSource = ms;
+            if (decodeW < srcW || decodeH < srcH)
+            {
+                bmp.DecodePixelWidth = decodeW;
+                bmp.DecodePixelHeight = decodeH;
+            }
+            bmp.EndInit();
+            bmp.Freeze();
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write("Thumb", $"WIC fallback decode fail: {Path.GetFileName(path)}", ex);
+            return (null, 0, 0);
+        }
+
+        try
+        {
+            // Copy the decoded pixels into a managed buffer and hand
+            // them to SkiaSharp so the JPEG-encode path stays shared.
+            int aw = bmp.PixelWidth, ah = bmp.PixelHeight;
+            int stride = aw * 4;
+            var pixels = new byte[stride * ah];
+            bmp.CopyPixels(pixels, stride, 0);
+
+            using var skBitmap = new SKBitmap(aw, ah, SKColorType.Bgra8888, SKAlphaType.Premul);
+            Marshal.Copy(pixels, 0, skBitmap.GetPixels(), pixels.Length);
+
+            using var image = SKImage.FromBitmap(skBitmap);
+            using var data = image.Encode(SKEncodedImageFormat.Jpeg, 75);
+            if (data == null) return (null, 0, 0);
+            return (data.ToArray(), aw, ah);
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write("Thumb", $"WIC fallback encode fail: {Path.GetFileName(path)}", ex);
+            return (null, 0, 0);
+        }
+    }
+
+    private static (byte[]? data, int w, int h) GenerateThumbnail(string path, int size)    {
         SKBitmap? source = null;
         SKBitmap? resized = null;
         try
@@ -366,7 +506,44 @@ public class ThumbnailCache : IThumbnailCache, IDisposable
                 return (null, 0, 0);
             }
 
-            source = SKBitmap.Decode(codec);
+            // Round 70: scaled decode — decode at ≈2× the thumbnail
+            // size instead of full source resolution. The old
+            // SKBitmap.Decode(codec) fully decoded an 8K source
+            // (≈130MB alloc + 100-300ms CPU) to produce a ~200px
+            // thumbnail; with 8 concurrent workers (see
+            // ThumbnailLoadCoordinator) that saturated all cores and
+            // starved the full-image WIC decode, making the viewer
+            // lag on large folders. The codec's scaled decode (DCT
+            // downsampling for JPEG) is ~20× cheaper; the headroom +
+            // linear resize below keeps visual quality.
+            int srcW = codec.Info.Width;
+            int srcH = codec.Info.Height;
+            int cap = Math.Max(MinThumbnailSize, size * 2);
+            if (srcW > cap || srcH > cap)
+            {
+                // Snap the target to a size the codec actually
+                // supports: libjpeg-turbo only scales JPEGs by the
+                // fixed DCT factors (1/8..7/8), so requesting an
+                // arbitrary size makes GetPixels return InvalidScale
+                // (SKBitmap.Decode → null). GetScaledDimensions
+                // returns the closest supported size for the codec
+                // (PNG/WebP allow arbitrary sampling).
+                var scaled = codec.GetScaledDimensions(Math.Min((float)cap / srcW, (float)cap / srcH));
+                if (scaled.Width > 0 && scaled.Height > 0 &&
+                    (scaled.Width < srcW || scaled.Height < srcH))
+                {
+                    source = SKBitmap.Decode(codec, new SKImageInfo(scaled.Width, scaled.Height, SKColorType.Rgba8888));
+                }
+                // Fall back to a full decode if the codec can't scale
+                // (rare formats) — full decode + resize below is the
+                // pre-Round-70 behavior and always works.
+                if (source == null)
+                    source = SKBitmap.Decode(codec);
+            }
+            else
+            {
+                source = SKBitmap.Decode(codec);
+            }
             if (source == null)
             {
                 DebugLog.Write("Thumb", $"source decode fail: {Path.GetFileName(path)}");
@@ -435,5 +612,6 @@ public class ThumbnailCache : IThumbnailCache, IDisposable
         catch { }
         _readLock.Dispose();
         _writeLock.Dispose();
+        try { _staThread?.Dispose(); } catch { }
     }
 }

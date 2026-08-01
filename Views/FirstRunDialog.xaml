@@ -49,7 +49,7 @@
 
         <TextBlock Grid.Row="0"
                    Text="欢迎使用 Aperture Neo"
-                   FontSize="18" FontWeight="700"
+                   FontSize="18" FontWeight="600"
                    Foreground="{StaticResource TextPrimary}"
                    Margin="0,0,0,8"/>
 

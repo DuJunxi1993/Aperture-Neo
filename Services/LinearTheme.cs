@@ -35,7 +35,7 @@ public sealed class LinearTheme : ITheme
     private const string SurfaceElevatedHex = "#FFFFFFFF";
     private const string StatusGreenHex = "#FF16a34a";
     private const string StatusRedHex = "#FFdc2626";
-    private const string TextTertiaryHex = "#FF6b7280";
+    private const string TextTertiaryHex = "#FF8a8f98";
 
     public Brush SurfaceBlack => Freeze((Brush)Converter.ConvertFromString(SurfaceBlackHex)!);
     public Brush SurfaceElevated => Freeze((Brush)Converter.ConvertFromString(SurfaceElevatedHex)!);

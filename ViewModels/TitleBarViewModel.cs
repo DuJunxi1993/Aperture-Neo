@@ -75,11 +75,31 @@ public partial class TitleBarViewModel : ObservableObject
             RestoreDirectory = true,
         };
         if (dialog.ShowDialog() != true) return;
-        var folder = Path.GetDirectoryName(dialog.FileName);
+        // Round 71: prefer FileNames[0] over FileName. The WPF common
+        // dialog can close via double-click without refreshing the
+        // FileName property (it keeps the previous selection), while
+        // FileNames always reflects the file that actually closed the
+        // dialog — clicking 打开 (OK) worked every time, but
+        // double-clicking a file would re-open the previously picked
+        // image. Log both so the diagnostic is in the debug log.
+        var picked = dialog.FileNames.Length > 0 ? dialog.FileNames[0] : dialog.FileName;
+        DebugLog.Write("Open", $"picked={picked} (FileName={dialog.FileName}, FileNames={dialog.FileNames.Length})");
+        if (string.IsNullOrEmpty(picked)) return;
+        var folder = Path.GetDirectoryName(picked);
         if (string.IsNullOrEmpty(folder)) return;
+        // The dialog's "所有文件" filter lets the user pick a file
+        // the app cannot browse. Navigating anyway would silently
+        // fall back to the first image in the folder — the user's
+        // intent must not be silently rewritten. Surface the
+        // rejection as a toast and keep the current folder.
+        if (!FormatHelper.IsSupported(picked))
+        {
+            _uiState.StatusText = $"无法打开: {Path.GetFileName(picked)} (不支持的图片格式)";
+            return;
+        }
         if (FormatHelper.FolderHasImages(folder))
             _settingsStore.AddRecent(folder);
-        _navigation.LoadFolder(folder, dialog.FileName);
+        _navigation.LoadFolder(folder, picked);
     }
 
     [RelayCommand]

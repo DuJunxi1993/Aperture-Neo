@@ -186,6 +186,7 @@ public partial class MainWindow
             TitleBarArea.Visibility = Visibility.Collapsed;
             TitleBarRow.Height = new GridLength(0);
             FloatingBarContent.Visibility = Visibility.Collapsed;
+            FloatingBarHandle.Visibility = Visibility.Collapsed;
             InfoPillContent.Visibility = Visibility.Collapsed;
             // Edge nav is left in whatever state it was — entering
             // fullscreen shows it via ShowEdgeNav (on the
@@ -197,7 +198,12 @@ public partial class MainWindow
             TitleBarArea.Visibility = Visibility.Visible;
             TitleBarRow.Height = new GridLength(44);
             FloatingBarContent.Visibility = Visibility.Visible;
+            FloatingBarHandle.Visibility = Visibility.Visible;
             InfoPillContent.Visibility = Visibility.Visible;
+            // Leaving fullscreen: if the pointer isn't over the bar,
+            // collapse it back onto its handle (it may have been left
+            // expanded when fullscreen was entered).
+            FloatingBar.CollapseIfPointerAway();
             // Leaving fullscreen: hide the edge nav UserControls
             // so they don't show over the restored chrome. The
             // controller's _edgeNavVisible is set false on the
@@ -254,7 +260,7 @@ public partial class MainWindow
             ThumbColumn.Width = new GridLength(0);
         }
         ThumbColumn.MinWidth = _isThumbVisible ? 160 : 0;
-        ThumbSplitterColumn.Width = _isThumbVisible ? new GridLength(6) : new GridLength(0);
+        ThumbSplitterColumn.Width = _isThumbVisible ? new GridLength(1, GridUnitType.Auto) : new GridLength(0);
         ThumbSplitter.Visibility = _isThumbVisible ? Visibility.Visible : Visibility.Collapsed;
         TreeHotZone.Visibility = _isTreeVisible ? Visibility.Collapsed : Visibility.Visible;
         if (_isTreeVisible) TreeFloatingPopup.IsOpen = false;

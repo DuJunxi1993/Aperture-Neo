@@ -308,15 +308,11 @@ public partial class MainWindow : FluentWindow
         // bound to FloatingBarViewModel properties. The VM
         // subscribes to ImageViewer.ZoomChanged and
         // NavigationService events and updates those properties
-        // — no MainWindow wiring needed here. ImageLoaded still
-        // needs MainWindow's reach (it updates ImageItem
-        // dimensions + the info pill).
-        ViewerPanel.ImageViewerRef.ImageLoaded += result =>
-        {
-            var item = _navigation.Items.FirstOrDefault(i => i.FilePath == result.FilePath);
-            if (item == null) return;
-            item.SetDimensions(result.Width, result.Height);
-        };
+        // — no MainWindow wiring needed here. ImageItem
+        // dimensions + the info pill are updated by
+        // ImageViewerPanelViewModel.OnViewerImageLoaded (which
+        // also rebuilds AnnotationState), so no ImageLoaded
+        // subscription is needed here either.
 
         // P2: FolderTreePanelVM now owns the folder-selection
         // side effects (recent-add + FolderNavigationRequested
@@ -619,6 +615,7 @@ public partial class MainWindow : FluentWindow
     // deleted at the end of P2 along with this block.
     private System.Windows.Controls.Border TitleBarArea => TitleBar.TitleBarAreaRef;
     private System.Windows.Controls.Border FloatingBarContent => FloatingBar.FloatingBarContentRef;
+    private System.Windows.Controls.Border FloatingBarHandle => FloatingBar.HandleRef;
     private System.Windows.Controls.Border InfoPillContent => InfoPill.InfoPillContentRef;
     private System.Windows.Controls.Border InfoPillDot => InfoPill.InfoPillDotRef;
     // P2: ImageInfo's Text is bound to InfoPillViewModel.ImageInfo;
@@ -656,7 +653,17 @@ public partial class MainWindow : FluentWindow
     private ApertureNeo.Controls.ThumbnailGrid ThumbGrid => ThumbPanelView.ThumbGridRef;
     private System.Windows.Controls.StackPanel ThumbEmpty => ThumbPanelView.ThumbEmptyRef;
 
-    public MainWindow(string filePath) : this()
+    /// <summary>
+    /// Startup with a specific image file. When the user opens the app
+    /// by double-clicking an image (file association passes the path
+    /// as argv[0]), <paramref name="viewerOnlyStartup"/> is true and
+    /// the tree + thumbnail columns start collapsed so only the image
+    /// viewer shows; a plain icon launch that resumes LastOpenedImage
+    /// passes false and keeps the normal three-column layout. The
+    /// column state is transient (IUiState, not persisted), so the
+    /// next normal launch is three-column again.
+    /// </summary>
+    public MainWindow(string filePath, bool viewerOnlyStartup = false) : this()
     {
         if (File.Exists(filePath))
         {
@@ -667,6 +674,16 @@ public partial class MainWindow : FluentWindow
                 if (FormatHelper.FolderHasImages(folder))
                     _settings.AddRecent(folder);
                 _navigation.LoadFolder(folder, filePath);
+            }
+            if (viewerOnlyStartup)
+            {
+                // The base ctor already subscribed to IUiState.
+                // PropertyChanged, so flipping these flags fires
+                // ApplyColumnVisibility synchronously and collapses
+                // both side columns before the window is shown.
+                var uiState = AppHost.Services!.GetRequiredService<IUiState>();
+                uiState.IsTreeVisible = false;
+                uiState.IsThumbVisible = false;
             }
         }
     }

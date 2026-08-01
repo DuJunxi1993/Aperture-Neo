@@ -20,8 +20,8 @@
          popovers) → L4 Hover. The luminance step between L1 and L2
          is the primary depth indicator; the 1px border is the
          secondary indicator. -->
-    <SolidColorBrush x:Key="SurfaceCanvas"     Color="#FFfafafa"/>
-    <SolidColorBrush x:Key="SurfacePanel"      Color="#FFf4f4f5"/>
+    <SolidColorBrush x:Key="SurfaceCanvas"     Color="#FFf7f7f7"/>
+    <SolidColorBrush x:Key="SurfacePanel"      Color="#FFf6f6f6"/>
     <SolidColorBrush x:Key="SurfaceElevated"   Color="#FFFFFFFF"/>
     <SolidColorBrush x:Key="SurfaceCardHover"  Color="#FFF6F6F8"/>
     <SolidColorBrush x:Key="SurfaceFloating"   Color="#CCFFFFFF"/>

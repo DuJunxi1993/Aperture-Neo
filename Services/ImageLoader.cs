@@ -30,14 +30,10 @@ public class ImageLoader : IImageLoader
         set => _maxDecodeDimension = Math.Clamp(value, 1080, 7680);
     }
 
-    /// <summary>
-    /// Decode <paramref name="path"/> to an <see cref="ImageLoadResult"/>
-    /// on a worker thread. Honors the cancellation token at
-    /// pre-decode (after FileInfo) and at post-decode (after codec
-    /// open) checkpoints. Never throws — failure modes are returned
-    /// in <see cref="ImageLoadResult.ErrorMessage"/>.
-    /// </summary>
     public Task<ImageLoadResult> LoadAsync(string path, CancellationToken ct = default)
+        => LoadAsync(path, 0, 0, ct);
+
+    public Task<ImageLoadResult> LoadAsync(string path, int targetW, int targetH, CancellationToken ct = default)
     {
         return Task.Run(() =>
         {
@@ -50,13 +46,35 @@ public class ImageLoader : IImageLoader
                     return ImageLoadResult.Failed(path, "无法解码");
 
                 var info = codec.Info;
-                var maxDim = Math.Max(info.Width, info.Height);
-                var scale = maxDim > _maxDecodeDimension ? (float)_maxDecodeDimension / maxDim : 1f;
-                var decodeW = Math.Max(1, (int)(info.Width * scale));
-                var decodeH = Math.Max(1, (int)(info.Height * scale));
+                int srcW = info.Width;
+                int srcH = info.Height;
+
+                // Clamp decode dimensions. When targetW/targetH are 0,
+                // the existing MaxDecodeDimension cap is used instead.
+                if (targetW <= 0) targetW = srcW;
+                if (targetH <= 0) targetH = srcH;
+
+                var scale = 1f;
+                scale = Math.Min(scale, (float)targetW / srcW);
+                scale = Math.Min(scale, (float)targetH / srcH);
+                scale = Math.Min(scale, (float)_maxDecodeDimension / Math.Max(srcW, srcH));
+                scale = Math.Clamp(scale, 0.01f, 1f);
+
+                // Snap to a codec-supported size: libjpeg-turbo only
+                // scales JPEGs by fixed DCT factors (1/8..7/8), so
+                // arbitrary dimensions make GetPixels fail
+                // (InvalidScale). GetScaledDimensions returns the
+                // closest supported size for the codec.
+                var scaled = codec.GetScaledDimensions(scale);
 
                 ct.ThrowIfCancellationRequested();
-                var bitmap = SKBitmap.Decode(codec, new SKImageInfo(decodeW, decodeH, SKColorType.Rgba8888));
+                var bitmap = SKBitmap.Decode(codec, new SKImageInfo(scaled.Width, scaled.Height, SKColorType.Rgba8888));
+                if (bitmap == null)
+                {
+                    // Codec can't scale (rare) — full-res decode,
+                    // same as pre-adaptive behavior.
+                    bitmap = SKBitmap.Decode(codec);
+                }
                 if (bitmap == null)
                     return ImageLoadResult.Failed(path, "解码失败");
 
@@ -66,6 +84,8 @@ public class ImageLoader : IImageLoader
                     Bitmap = bitmap,
                     Width = bitmap.Width,
                     Height = bitmap.Height,
+                    SourceWidth = srcW,
+                    SourceHeight = srcH,
                     IsSuccess = true
                 };
             }

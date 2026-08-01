@@ -41,7 +41,7 @@
             <!-- Center: app name -->
             <TextBlock Grid.Column="1" Text="Aperture Neo"
                        VerticalAlignment="Center" HorizontalAlignment="Center"
-                       Foreground="{StaticResource TextSecondary}" FontSize="15" FontWeight="700"
+                       Foreground="{StaticResource TextSecondary}" FontSize="15" FontWeight="600"
                        IsHitTestVisible="False"/>
 
             <!-- Right: overflow menu + window controls. Menu items
@@ -67,8 +67,8 @@
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{DynamicResource TitleBar_About}" VerticalAlignment="Center"/>
                                         <TextBlock x:Name="AboutUpdateSuffix" Text="{DynamicResource TitleBar_UpdateAvailableSuffix}"
-                                                   Margin="8,0,0,0" FontSize="11" FontWeight="700"
-                                                   Foreground="#FF16a34a" VerticalAlignment="Center">
+                                                   Margin="8,0,0,0" FontSize="11" FontWeight="600"
+                                                   Foreground="{StaticResource StatusGreen}" VerticalAlignment="Center">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Visibility" Value="Collapsed"/>

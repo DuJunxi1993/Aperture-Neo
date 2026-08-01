@@ -99,7 +99,7 @@
             <Grid>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
                             HorizontalAlignment="Left" Margin="20,0,0,0">
-                    <TextBlock Text="{DynamicResource HeadlessOcr_Heading}" FontSize="12" FontWeight="700"
+                    <TextBlock Text="{DynamicResource HeadlessOcr_Heading}" FontSize="12" FontWeight="600"
                                Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
                     <TextBlock x:Name="HeaderCount" Text="" FontSize="12" FontWeight="400"
                                Foreground="{StaticResource TextTertiary}" VerticalAlignment="Center"

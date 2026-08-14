@@ -72,6 +72,10 @@ public class SkiaImageViewer : FrameworkElement
     // instead of being dropped (see HandleViewportResized).
     private bool _pendingRefit;
     private const float AnimDuration = 0.18f;
+    // Image-switch cross-fade duration. Kept short and linear for a
+    // snappy next/prev feel (no ease — a linear ramp reads as "snap"
+    // rather than a soft blend).
+    private const float CrossFadeDuration = 0.15f;
 
     /// <summary>
     /// The decoder used to load image files. Defaults to
@@ -388,15 +392,9 @@ public class SkiaImageViewer : FrameworkElement
             FitToScreen();
             DebugLog.Write("FS", $"ApplyResult: after fit src={result.SourceWidth}x{result.SourceHeight} bmp={_bitmap.Width}x{_bitmap.Height} zoom={_zoom:F4} fitScale={_fitScale:F4} viewport={ActualWidth:F0}x{ActualHeight:F0}");
 
-            if (_oldBitmap != null && _targetZoom > 0.1f)
-            {
-                float pulseZoom = _targetZoom * 0.96f;
-                _zoom = pulseZoom;
-                _offsetX = _targetOffsetX + (_bitmap.Width * (_targetZoom - pulseZoom)) / 2f;
-                _offsetY = _targetOffsetY + (_bitmap.Height * (_targetZoom - pulseZoom)) / 2f;
-                StartZoomAnim();
-            }
-
+            // No zoom pulse on image switch — the new image is drawn
+            // at its fitted transform immediately; only the cross-fade
+            // below animates the transition.
             var fadeStart = DateTime.UtcNow;
             EventHandler? handler = null;
             handler = (s, e) =>
@@ -407,7 +405,7 @@ public class SkiaImageViewer : FrameworkElement
                     _activeCrossFade = null;
                     return;
                 }
-                var ft = (float)(DateTime.UtcNow - fadeStart).TotalSeconds / 0.25f;
+                var ft = (float)(DateTime.UtcNow - fadeStart).TotalSeconds / CrossFadeDuration;
                 _animOpacity = Math.Clamp(ft, 0f, 1f);
                 _dirty = true;
                 InvalidateVisual();

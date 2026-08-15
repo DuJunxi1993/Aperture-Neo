@@ -32,6 +32,7 @@
 // When bumping the version: update ApertureNeo.csproj FIRST, then
 // update the strings below to match.
 //
+// v4.1.0 (bump): AssemblyVersion 4.0.7.0 → 4.1.0.0, InformationalVersion 4.0.7 → 4.1.0.
 // v3.1.0 (bump): AssemblyVersion 3.0.0.0 → 3.1.0.0, InformationalVersion 3.0.0 → 3.1.0.
 // Bug: the previous hard-coded 3.0.0.0 leaked into the v3.1.0
 // publish (csproj was at 3.1.0 but this file was 3.0.0.0), so
@@ -41,6 +42,6 @@
 
 using System.Reflection;
 
-[assembly: AssemblyVersion("4.0.7.0")]
-[assembly: AssemblyFileVersion("4.0.7.0")]
-[assembly: AssemblyInformationalVersion("4.0.7")]
+[assembly: AssemblyVersion("4.1.0.0")]
+[assembly: AssemblyFileVersion("4.1.0.0")]
+[assembly: AssemblyInformationalVersion("4.1.0")]

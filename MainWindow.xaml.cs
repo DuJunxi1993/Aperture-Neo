@@ -318,14 +318,43 @@ public partial class MainWindow : FluentWindow
         // side effects (recent-add + FolderNavigationRequested
         // event). The View forwards FolderTree.FolderSelected
         // into the VM; MainWindow subscribes to FolderNavigation
-        // Requested and calls NavigationService.LoadFolder.
+        // Requested, passes the browse-history flag through to
+        // NavigationService.LoadFolder (Round Z: history is
+        // recorded at LoadFolder — the single funnel every
+        // navigation source passes through — not in the tree).
         // Drill-mode visibility is bound to FolderTreePanelVM
         // .IsDrillMode via XAML; DrillModeChanged wiring moved
         // out of MainWindow along with the dead UpdateReturnTo
         // RootVisibility controller method.
+        //
+        // Round Z: Back/Forward are orchestrated here too — the
+        // cursor lives in NavigationService, so MainWindow moves
+        // it (GoBack/GoForward, which load the restored folder
+        // without re-recording) and then re-drills the tree to
+        // the restored path so the sidebar follows + highlights
+        // it (Explorer-style tree sync).
         if (TreePanelView.DataContext is FolderTreePanelViewModel treeVm)
         {
-            treeVm.FolderNavigationRequested += (_, path) => _navigation.LoadFolder(path);
+            treeVm.FolderNavigationRequested += (_, req) =>
+                _navigation.LoadFolder(req.Path, recordHistory: req.RecordHistory);
+            treeVm.BackRequested += (_, _) =>
+            {
+                var target = _navigation.GoBack();
+                if (target == null) return;
+                // Round AA: the first history position is the home
+                // sentinel (empty string) — Back past the first real
+                // folder returns to the root view instead of
+                // drilling into anything.
+                if (target.Length == 0) FolderTree.ReturnToRoot();
+                else FolderTree.ReDrillToPath(target);
+            };
+            treeVm.ForwardRequested += (_, _) =>
+            {
+                var target = _navigation.GoForward();
+                if (target == null) return;
+                if (target.Length == 0) FolderTree.ReturnToRoot();
+                else FolderTree.ReDrillToPath(target);
+            };
         }
         // P2: ThumbGrid.ItemClicked is now wired by
         // ThumbnailPanelView directly to ThumbnailPanelViewModel
@@ -360,7 +389,10 @@ public partial class MainWindow : FluentWindow
                 var recent = _settings.Recent;
                 if (recent.Count > 0 && Directory.Exists(recent[0].Path))
                 {
-                    _navigation.LoadFolder(recent[0].Path);
+                    // Round Z: startup restore is a starting
+                    // position, not a visit — Explorer shows its
+                    // last location with an empty back stack.
+                    _navigation.LoadFolder(recent[0].Path, recordHistory: false);
                 }
             }), DispatcherPriority.Loaded);
         };
@@ -498,10 +530,14 @@ public partial class MainWindow : FluentWindow
 
     // P2: WireTreePanelEvents is gone. FolderTreePanelView
     // forwards FolderTree events into FolderTreePanelVM and
-    // VM Back/ReturnToRoot events into FolderTree method
-    // calls. MainWindow only subscribes to FolderNavigation
-    // Requested (see Loaded-time wiring below) and calls
-    // NavigationService.LoadFolder(path).
+    // VM Up/ReturnToRoot events into FolderTree method calls.
+    // Round Z: VM Back/Forward events are routed HERE instead
+    // (NavigationService.GoBack/GoForward + FolderTree.
+    // ReDrillToPath — the browse-history cursor lives in the
+    // service, not the tree). MainWindow also subscribes to
+    // FolderNavigationRequested (see Loaded-time wiring below)
+    // and calls NavigationService.LoadFolder with the
+    // browse-history flag the tree attached.
 
     private void WireThumbPanelEvents()
     {
@@ -648,6 +684,15 @@ public partial class MainWindow : FluentWindow
     private System.Windows.Controls.Grid ViewerColumn => ViewerPanel.ViewerColumnRef;
     private ApertureNeo.Controls.SkiaImageViewer ImageViewer => ViewerPanel.ImageViewerRef;
     private ApertureNeo.Controls.FolderTree.FolderTreeView FolderTree => TreePanelView.FolderTreeRef;
+    // Round X/Y/Z: BtnTreeBack is the resource-manager-style
+    // BACK button (browse-history cursor move, now in
+    // NavigationService), not the directory-parent "up"
+    // button. The "up" button is BtnTreeUpRef on the panel
+    // view; this alias is kept under its old name because no
+    // external code currently consumes it (it was a dead-code
+    // convenience property) but if a future caller wires
+    // something here it should match the semantic the name now
+    // implies (history back, not dir-up).
     private System.Windows.Controls.Button BtnTreeBack => TreePanelView.BtnTreeBackRef;
     private System.Windows.Controls.Button BtnReturnToRoot => TreePanelView.BtnReturnToRootRef;
     private ApertureNeo.Controls.ThumbnailGrid ThumbGrid => ThumbPanelView.ThumbGridRef;
@@ -673,7 +718,10 @@ public partial class MainWindow : FluentWindow
             {
                 if (FormatHelper.FolderHasImages(folder))
                     _settings.AddRecent(folder);
-                _navigation.LoadFolder(folder, filePath);
+                // Round Z: file-association launch is a starting
+                // position, not a browse-session visit — keep the
+                // back stack empty so Back is disabled on launch.
+                _navigation.LoadFolder(folder, filePath, recordHistory: false);
             }
             if (viewerOnlyStartup)
             {

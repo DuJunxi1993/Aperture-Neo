@@ -548,7 +548,9 @@ public partial class App : Application
                     {
                         var folder = Path.GetDirectoryName(targetFile);
                         if (!string.IsNullOrEmpty(folder))
-                            nav.LoadFolder(folder, targetFile);
+                            // Round Z: second-instance launch is a
+                            // starting position, keep Back disabled.
+                            nav.LoadFolder(folder, targetFile, recordHistory: false);
                     }
                 }
                 catch (Exception ex)

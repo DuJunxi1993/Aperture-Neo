@@ -19,6 +19,15 @@ namespace ApertureNeo.Services;
 /// the UI thread via <see cref="CollectionChanged"/>. A
 /// <see cref="FileSystemWatcher"/> reloads on file
 /// create/delete/rename in the watched folder.
+///
+/// Round Z: owns the browse history used by the tree panel's
+/// back/forward chips. Explorer-style "visit list + cursor"
+/// model (see <see cref="RecordVisit"/>), replacing the two
+/// stacks that used to live inside <see cref="FolderTreeView"/>
+/// — recording here means every navigation source (tree click,
+/// favorites/recent jump, page-up/down, Ctrl+O, drag-drop)
+/// funnels through <see cref="LoadFolder"/> and lands in
+/// history uniformly.
 /// </summary>
 public class NavigationService : INavigationService
 {
@@ -26,6 +35,27 @@ public class NavigationService : INavigationService
     private int _currentIndex = -1;
     private string _currentFolder = "";
     private FileSystemWatcher? _watcher;
+    private const int MaxHistoryDepth = 100;
+
+    /// <summary>
+    /// Sentinel for the "home" view (the folder-tree root:
+    /// Favorites / Recent / ThisPC) as a browse-history visit.
+    /// Lives at index 0 of <see cref="_visits"/> so Back from the
+    /// first real folder returns to home — the file-tree
+    /// analogue of Explorer's "Desktop" first position. Empty
+    /// strings can't collide with real folder paths. Back/Forward
+    /// return it to the caller (MainWindow routes it to
+    /// <c>FolderTreeView.ReturnToRoot</c>); it is never passed to
+    /// <see cref="LoadFolderCore"/>.
+    /// </summary>
+    public const string HomeFolder = "";
+
+    /// <summary>Visit list seeded with the home sentinel at index 0
+    /// (so Back always has a home to return to); cursor starts at
+    /// home. Real folder visits append beyond it and the cap
+    /// trimming never touches index 0.</summary>
+    private readonly List<string> _visits = new() { HomeFolder };
+    private int _cursor = 0;
     // P0 fix: cancel any in-flight enumeration when the user
     // navigates to a new folder. Without this, two rapid
     // folder-switches could leave Items[0..N-1] from folder A
@@ -38,12 +68,16 @@ public class NavigationService : INavigationService
 
     public event Action? CollectionChanged;
     public event Action<ImageItem>? CurrentImageChanged;
+    public event Action? HistoryChanged;
 
     public int Count => _items.Count;
     public int CurrentIndex => _currentIndex;
     public ImageItem? Current => _currentIndex >= 0 && _currentIndex < _items.Count ? _items[_currentIndex] : null;
     public IReadOnlyList<ImageItem> Items => _items;
     public string CurrentFolder => _currentFolder;
+
+    public bool CanGoBack => _cursor > 0;
+    public bool CanGoForward => _cursor >= 0 && _cursor < _visits.Count - 1;
 
     public NavigationService()
     {
@@ -68,8 +102,98 @@ public class NavigationService : INavigationService
     /// worker task; the constructed list is published back to the
     /// ObservableCollection on the UI thread.
     /// </summary>
-    public void LoadFolder(string folderPath, string? selectFile = null)
-        => LoadFolderCore(folderPath, selectFile, fallbackIndex: -1);
+    public void LoadFolder(string folderPath, string? selectFile = null, bool recordHistory = true)
+    {
+        if (recordHistory) RecordVisit(folderPath);
+        LoadFolderCore(folderPath, selectFile, fallbackIndex: -1);
+    }
+
+    /// <summary>
+    /// Record <paramref name="path"/> as a browse-history visit using
+    /// the Explorer-style "visit list + cursor" model:
+    ///   - the cursor marks the folder currently shown;
+    ///   - index 0 is always the <see cref="HomeFolder"/> sentinel, so
+    ///     Back from the first real visit returns to the root view;
+    ///   - re-visiting the folder at the cursor is a no-op (dedup);
+    ///   - any other visit truncates the forward tail (entries after the
+    ///     cursor) and appends the path — mirroring Explorer's rule that
+    ///     taking a new path kills the redo trail;
+    ///   - "back" / "forward" move the cursor (see
+    ///     <see cref="GoBack"/> / <see cref="GoForward"/>) — this is what
+    ///     makes "Up one level, then Back" return to the child directory:
+    ///     Up records the parent as a fresh visit, so Back lands on the
+    ///     child the user just came from.
+    /// The list is capped at <see cref="MaxHistoryDepth"/> real entries
+    /// (oldest dropped, home sentinel kept) to keep memory predictable
+    /// on long browsing sessions.
+    /// </summary>
+    private void RecordVisit(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return;
+
+        if (_cursor >= 0 && _cursor < _visits.Count
+            && _visits[_cursor].Equals(path, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        bool canForwardBefore = CanGoForward;
+        bool canBackBefore = CanGoBack;
+
+        if (_cursor >= 0 && _cursor < _visits.Count - 1)
+        {
+            _visits.RemoveRange(_cursor + 1, _visits.Count - _cursor - 1);
+        }
+        _visits.Add(path);
+        _cursor = _visits.Count - 1;
+
+        if (_visits.Count > MaxHistoryDepth + 1)
+        {
+            // Drop the oldest REAL visit (index 1) — the home
+            // sentinel at index 0 must survive so Back can always
+            // return to the root view.
+            _visits.RemoveAt(1);
+            _cursor--;
+        }
+
+        if (canForwardBefore != CanGoForward || canBackBefore != CanGoBack)
+            HistoryChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Explorer-style back. Moves the history cursor one visit backwards
+    /// and loads that folder WITHOUT re-recording it (the restore is the
+    /// consequence of the user pressing Back, not a fresh navigation).
+    /// The folder-tree panel combines this with a tree re-drill so the
+    /// restored folder is visible and highlighted in the sidebar.
+    /// </summary>
+    public string? GoBack()
+    {
+        if (!CanGoBack) return null;
+        _cursor--;
+        HistoryChanged?.Invoke();
+        var target = _visits[_cursor];
+        // Home sentinel: the caller (MainWindow) restores the root
+        // tree view itself; nothing to load.
+        if (target.Length > 0) LoadFolder(target, recordHistory: false);
+        return target;
+    }
+
+    /// <summary>
+    /// Explorer-style forward: mirror of <see cref="GoBack"/>. Moves the
+    /// cursor one visit forwards and loads that folder without recording.
+    /// The home sentinel can never sit ahead of the cursor (it's at index
+    /// 0), so Forward always lands on a real folder.
+    /// </summary>
+    public string? GoForward()
+    {
+        if (!CanGoForward) return null;
+        _cursor++;
+        HistoryChanged?.Invoke();
+        var target = _visits[_cursor];
+        if (target.Length > 0) LoadFolder(target, recordHistory: false);
+        return target;
+    }
 
     /// <summary>
     /// Re-enumerate the currently loaded folder and re-select the

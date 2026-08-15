@@ -10,27 +10,60 @@
     <Border x:Name="TreePanel" Background="{StaticResource SurfaceElevated}">
         <Grid>
             <Grid.RowDefinitions>
+                <!-- Row 0 hosts all four navigation chips (back /
+                     forward left, "up one level" + home right, all
+                     icon-only). Row 1 is the tree itself. Round AA:
+                     the home chip moved UP from the bottom row into
+                     the right chip group, so Row 2 is gone. -->
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Floating "back" chip (drill mode only). P2:
-                 Visibility binds to FolderTreePanelViewModel.IsDrillMode
-                 (the View forwards FolderTree.DrillModeChanged into the
-                 VM). The chip is Collapsed outside drill mode, Visible
-                 inside. -->
-            <Button Grid.Row="0" x:Name="BtnTreeBack"
-                    Command="{Binding BackCommand}"
-                    Margin="8,8,8,4" Cursor="Hand"
-                    Style="{StaticResource LinearFloatingChip}"
-                    HorizontalAlignment="Left"
-                    Visibility="{Binding IsDrillMode, Converter={StaticResource BoolToVisibility}}">
+            <!-- Floating chips row (Round AA): all four navigation
+                 actions as ICON-ONLY buttons — back/forward on the
+                 LEFT, "up one level" + "home" on the RIGHT — with
+                 hover ToolTips carrying the human-readable labels.
+                 Visibility predicates are unchanged:
+                   - "back"    = CanGoBack   (browse history != home)
+                   - "forward" = CanGoForward (a Back can be retraced)
+                   - "up"      = IsDrillMode
+                   - "home"    = IsDrillMode (same group as up) -->
+            <Grid Grid.Row="0" Margin="8,8,8,4">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                    <ui:SymbolIcon Symbol="ArrowLeft24" FontSize="13"/>
-                    <TextBlock Text="{DynamicResource FolderTree_DrillChipBack}" Margin="6,0,0,0" FontSize="12" FontWeight="600" VerticalAlignment="Center"/>
+                    <Button x:Name="BtnTreeBack"
+                            Command="{Binding BackCommand}"
+                            Style="{StaticResource LinearFloatingChip}"
+                            Visibility="{Binding CanGoBack, Converter={StaticResource BoolToVisibility}}"
+                            ToolTip="{DynamicResource FolderTree_DrillChipBack}">
+                        <ui:SymbolIcon Symbol="ArrowLeft24" FontSize="14"/>
+                    </Button>
+                    <Button x:Name="BtnTreeForward"
+                            Command="{Binding ForwardCommand}"
+                            Margin="6,0,0,0"
+                            Style="{StaticResource LinearFloatingChip}"
+                            Visibility="{Binding CanGoForward, Converter={StaticResource BoolToVisibility}}"
+                            ToolTip="{DynamicResource FolderTree_DrillChipForward}">
+                        <ui:SymbolIcon Symbol="ArrowRight24" FontSize="14"/>
+                    </Button>
                 </StackPanel>
-            </Button>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="BtnTreeUp"
+                            Command="{Binding UpCommand}"
+                            Style="{StaticResource LinearFloatingChip}"
+                            Visibility="{Binding IsDrillMode, Converter={StaticResource BoolToVisibility}}"
+                            ToolTip="{DynamicResource FolderTree_DrillChipUp}">
+                        <ui:SymbolIcon Symbol="ArrowUp24" FontSize="14"/>
+                    </Button>
+                    <Button x:Name="BtnReturnToRoot"
+                            Command="{Binding ReturnToRootCommand}"
+                            Margin="6,0,0,0"
+                            Style="{StaticResource LinearFloatingChip}"
+                            Visibility="{Binding IsDrillMode, Converter={StaticResource BoolToVisibility}}"
+                            ToolTip="{DynamicResource FolderTree_DrillChipReturnToRoot}">
+                        <ui:SymbolIcon Symbol="Home24" FontSize="14"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
 
             <ScrollViewer Grid.Row="1" Background="Transparent"
                           VerticalScrollBarVisibility="Auto">
@@ -112,20 +145,6 @@
                     </tree:FolderTreeView.ItemContainerStyle>
                 </tree:FolderTreeView>
             </ScrollViewer>
-
-            <!-- Floating "return to root" chip (drill mode only). P2:
-                 Visibility driven by IsDrillMode (see BtnTreeBack above). -->
-            <Button Grid.Row="2" x:Name="BtnReturnToRoot"
-                    Command="{Binding ReturnToRootCommand}"
-                    Margin="8,6,8,8" Cursor="Hand"
-                    Style="{StaticResource LinearFloatingChip}"
-                    HorizontalAlignment="Left"
-                    Visibility="{Binding IsDrillMode, Converter={StaticResource BoolToVisibility}}">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                    <ui:SymbolIcon Symbol="ArrowLeft24" FontSize="13"/>
-                    <TextBlock Text="{DynamicResource FolderTree_DrillChipReturnToRoot}" Margin="6,0,0,0" FontSize="12" FontWeight="600" VerticalAlignment="Center"/>
-                </StackPanel>
-            </Button>
         </Grid>
     </Border>
 </UserControl>

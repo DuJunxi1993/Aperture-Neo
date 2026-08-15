@@ -80,7 +80,14 @@ public static class SR
 
     public static string Fullscreen_ExitHint => Get("Fullscreen_ExitHint", "退出全屏 (Esc / Ctrl+F)");
 
-    public static string FolderTree_DrillChipBack => Get("FolderTree_DrillChipBack", "返回上一层");
+    // Round X (tree-stack split): the previous "返回上一层" button
+    // became "上一级" (drill-stack pop, strictly directory parent)
+    // and a separate "后退" button (history-stack pop, previous
+    // browsing location) was added. Round Y adds a matching
+    // "前进" (forward) button retracing a "后退" step.
+    public static string FolderTree_DrillChipUp => Get("FolderTree_DrillChipUp", "上一级");
+    public static string FolderTree_DrillChipBack => Get("FolderTree_DrillChipBack", "后退");
+    public static string FolderTree_DrillChipForward => Get("FolderTree_DrillChipForward", "前进");
     public static string FolderTree_DrillChipReturnToRoot => Get("FolderTree_DrillChipReturnToRoot", "返回主页");
     public static string FolderTree_Favorites => Get("FolderTree_Favorites", "收藏夹");
     public static string FolderTree_Recent => Get("FolderTree_Recent", "最近访问");

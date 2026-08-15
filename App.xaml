@@ -90,7 +90,14 @@
             <sys:String x:Key="InfoPill_Lens">镜头</sys:String>
             <sys:String x:Key="InfoPill_DateTaken">拍摄</sys:String>
             <sys:String x:Key="Fullscreen_ExitHint">退出全屏 (Esc / Ctrl+F)</sys:String>
-            <sys:String x:Key="FolderTree_DrillChipBack">返回上一层</sys:String>
+            <!-- Round X (tree-stack split): the previous
+                 "返回上一层" button is now "上一级" (drill-stack pop,
+                 strictly directory parent) and a separate "后退"
+                 button was added (history-stack pop, previous
+                 browsing location). -->
+            <sys:String x:Key="FolderTree_DrillChipUp">上一级</sys:String>
+            <sys:String x:Key="FolderTree_DrillChipBack">后退</sys:String>
+            <sys:String x:Key="FolderTree_DrillChipForward">前进</sys:String>
             <sys:String x:Key="FolderTree_DrillChipReturnToRoot">返回主页</sys:String>
             <sys:String x:Key="FolderTree_Favorites">收藏夹</sys:String>
             <sys:String x:Key="FolderTree_Recent">最近访问</sys:String>

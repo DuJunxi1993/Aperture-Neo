@@ -91,7 +91,13 @@
 
   <data name="Fullscreen_ExitHint" xml:space="preserve"><value>退出全屏 (Esc / Ctrl+F)</value></data>
 
-  <data name="FolderTree_DrillChipBack" xml:space="preserve"><value>返回上一层</value></data>
+  <!-- Round X (tree-stack split): three distinct buttons, each
+       with its own label. "上一级" pops the tree-stack (directory
+       parent); "后退" pops the history stack (previous browsing
+       location); "返回主页" clears everything. -->
+  <data name="FolderTree_DrillChipUp" xml:space="preserve"><value>上一级</value></data>
+  <data name="FolderTree_DrillChipBack" xml:space="preserve"><value>后退</value></data>
+  <data name="FolderTree_DrillChipForward" xml:space="preserve"><value>前进</value></data>
   <data name="FolderTree_DrillChipReturnToRoot" xml:space="preserve"><value>返回主页</value></data>
   <data name="FolderTree_Favorites" xml:space="preserve"><value>收藏夹</value></data>
   <data name="FolderTree_Recent" xml:space="preserve"><value>最近访问</value></data>

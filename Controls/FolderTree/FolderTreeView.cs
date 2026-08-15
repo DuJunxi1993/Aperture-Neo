@@ -41,13 +41,26 @@ public enum FolderSource
 public class FolderTreeView : ItemsControl
 {
     public new ObservableCollection<TreeNodeBase> Items { get; } = new();
-    // P2 fix: the second slot now carries the folder whose images
-    // were loaded BEFORE the drill — i.e. the folder the user was
-    // viewing when they drilled into the current level. NavigateBack
-    // reads this to reload the previous folder's images. Previously
-    // the slot was hard-coded to null, which made it impossible to
-    // restore the parent folder's images on back-navigation.
-    private readonly Stack<(List<TreeNodeBase> items, string? loadedFolder)> _navStack = new();
+    // Round X (tree-stack split): the second slot now carries the
+    // directory-tree PARENT path — the directory the user is about to
+    // drill INTO, which becomes the parent of the new Items view.
+    // NavigateBack reads this to load that parent folder's images so
+    // the thumbnail grid stays in sync with the tree. Previously the
+    // slot was (items, loadedFolder) and NavigateBack loaded the
+    // folder the user was viewing BEFORE the drill — which is a
+    // history-stack semantics (resource-manager "back") leaking into
+    // the "up one level" button.
+    // Round Z: the browse history (back/forward) now lives in
+    // NavigationService (visit list + cursor, see RecordVisit + GoBack
+    // / GoForward) — recording inside this control could only ever see
+    // tree-initiated navigation, while NavigationService.LoadFolder is
+    // the funnel every navigation source passes through. This control
+    // is now pure UI: it emits FolderSelected with a recordHistory flag
+    // that the host threads through to LoadFolder. Back/Forward are
+    // driven by MainWindow (GoBack/GoForward + ReDrillToPath) and the
+    // "up" button re-records the parent as a fresh visit so Back after
+    // Up returns to the child.
+    private readonly Stack<(List<TreeNodeBase> items, string? parentPath)> _navStack = new();
 
     /// <summary>
     /// Pop the drill stack back to the top-level
@@ -64,6 +77,11 @@ public class FolderTreeView : ItemsControl
     {
         bool wasInDrill = _navStack.Count > 0;
         _navStack.Clear();
+        // Round Z: home no longer clears the browse history —
+        // Explorer keeps its back/forward trail when the user returns
+        // to a top-level location, so Back stays available after
+        // home and after a favorites jump. The "home = fresh start"
+        // behaviour (clear first drill stack only) lives here.
         _pendingRecentRefresh = false;
         Init(skipAutoSelect);
         if (wasInDrill) DrillModeChanged?.Invoke();
@@ -75,15 +93,27 @@ public class FolderTreeView : ItemsControl
         // header click is a no-op per HandleClick, so no
         // FolderSelected would fire. We fire explicitly here
         // using SettingsStore.Recent[0] (newest first), guarded
-        // on wasInDrill so an out-of-drill programmatic call
-        // (e.g. JumpToDirectory's pre-clear) doesn't clobber
-        // the currently-loaded folder.
-        if (wasInDrill && !skipAutoSelect)
+        // on skipAutoSelect so an out-of-drill programmatic call
+        // (e.g. JumpToDirectory's pre-clear, which passes
+        // skipAutoSelect:true) doesn't clobber the
+        // currently-loaded folder. Round AA: the wasInDrill gate
+        // is gone — Back into the home view arrives with the
+        // drill stack already reset (ReDrillToPath), so the
+        // "most recent = last genuine visit" restore must run
+        // regardless of drill state.
+        //
+        // Round X: do NOT record this in the browse history — it's
+        // an automatic restore that mirrors what the user just saw
+        // before drilling, so pushing it would let "back" send them
+        // right back into the drill they just exited (no-op loop).
+        // It also never counts as a recent visit (trackRecent:false)
+        // — only genuine user navigations enter the recent list.
+        if (!skipAutoSelect)
         {
             var mostRecent = _settingsStore.Recent.FirstOrDefault();
             if (mostRecent != null && Directory.Exists(mostRecent.Path))
             {
-                FolderSelected?.Invoke(FolderSource.Recent, mostRecent.Path);
+                NavigateTo(FolderSource.Recent, mostRecent.Path, recordHistory: false, trackRecent: false);
             }
         }
     }
@@ -147,16 +177,37 @@ public class FolderTreeView : ItemsControl
 
     private void RefreshContainerSelection()
     {
+        bool missingContainer = false;
         for (int i = 0; i < Items.Count; i++)
         {
-            if (ItemContainerGenerator.ContainerFromIndex(i) is FolderItemContainer fc)
-                fc.IsSelected = (fc.DataContext == SelectedNode);
+            if (ItemContainerGenerator.ContainerFromIndex(i) is not FolderItemContainer fc)
+            {
+                // Not realized yet — schedule one follow-up pass so a
+                // lazily realized container still picks up the current
+                // selection.
+                missingContainer = true;
+                continue;
+            }
+            fc.IsSelected = (fc.DataContext == SelectedNode);
         }
-        Dispatcher.BeginInvoke(new Action(RefreshContainerSelection),
-            System.Windows.Threading.DispatcherPriority.Background);
+        if (missingContainer)
+        {
+            Dispatcher.BeginInvoke(new Action(RefreshContainerSelection),
+                System.Windows.Threading.DispatcherPriority.Background);
+        }
     }
 
-    public event Action<FolderSource, string>? FolderSelected;
+    /// <summary>
+    /// Raised on every emitted folder change. Parameters:
+    /// source, path, <c>recordHistory</c> (history recording in
+    /// NavigationService via LoadFolder) and <c>trackRecent</c>
+    /// (whether the folder counts as a genuine user visit for the
+    /// "最近访问" list — mouse clicks, hotkey navigation, jumps;
+    /// NOT Up/Back/Forward restores, which are excluded so the
+    /// recent list + home highlight reflect only what the user
+    /// chose to browse).
+    /// </summary>
+    public event Action<FolderSource, string, bool, bool>? FolderSelected;
 
     /// <summary>
     /// WPF / XAML instantiation path. Delegates to the
@@ -191,7 +242,7 @@ public class FolderTreeView : ItemsControl
         // runs before the external subscribers (FolderTreePanelVM,
         // MainWindow) when FolderSelected fires — the external
         // handlers see CurrentLoadedFolder already updated.
-        FolderSelected += (_, path) => CurrentLoadedFolder = path;
+        FolderSelected += (_, path, _, _) => CurrentLoadedFolder = path;
     }
 
     private readonly ISettingsStore _settingsStore;
@@ -246,34 +297,80 @@ public class FolderTreeView : ItemsControl
         // Favorites / Recent items or leaf directories — direct load, no drill
         if (!IsInDrillMode && !(node is DriveItemNode))
         {
-            FolderSelected?.Invoke(ResolveSourceForNode(node), node.Path!);
+            NavigateTo(ResolveSourceForNode(node), node.Path!, recordHistory: true, trackRecent: true);
             return;
         }
 
         // Leaf directories — load images without drilling
         if (!HasSubdirectories(node.Path))
         {
-            // P2 fix: in drill mode, the leaf click is a
-            // "virtual drill" — push a frame so back-navigation
-            // returns to the current drill level (e.g.
-            // /level1/level2), not the level before the drill
-            // started (e.g. /level1). The at-root leaf /
-            // Recent / Favorite case is handled by the first if
-            // (gated on !IsInDrillMode), so this push only fires
-            // when the user is genuinely inside a drill
-            // hierarchy. Without this, clicking back from a
-            // leaf that's the deepest in the drill chain would
-            // skip one level (e.g. /level1/level2/level3 leaf
-            // → back → /level1 instead of /level1/level2).
+            // Round X (tree-stack split): in drill mode, the leaf
+            // click is a "virtual drill" — push a frame whose
+            // parentPath is the leaf's parent (= the directory the
+            // user is currently looking at) so that "up one level"
+            // returns here. Previously the parentPath slot held
+            // loadedFolder (history semantics) which made "up one
+            // level" sometimes skip the actual parent. The at-root
+            // leaf / Recent / Favorite case is handled by the first
+            // if (gated on !IsInDrillMode), so this push only fires
+            // when the user is genuinely inside a drill hierarchy.
             if (IsInDrillMode)
             {
                 _navStack.Push((Items.ToList(), CurrentLoadedFolder));
             }
-            FolderSelected?.Invoke(ResolveSourceForNode(node), node.Path!);
+            NavigateTo(ResolveSourceForNode(node), node.Path!, recordHistory: true, trackRecent: true);
             return;
         }
 
         NavigateInto(node);
+    }
+
+    /// <summary>
+    /// Single funnel for all FolderSelected emissions. Routes
+    /// through <see cref="FolderSelected"/> and carries two flags
+    /// to the host:
+    ///   - <paramref name="recordHistory"/>: whether
+    ///     <c>NavigationService.LoadFolder</c> records this as a
+    ///     browse-history visit (true = user navigation / Up;
+    ///     false = automatic restore by Back / Forward / home);
+    ///   - <paramref name="trackRecent"/>: whether this counts as
+    ///     a genuine user visit for the "最近访问" list (true =
+    ///     tree clicks, drills, jumps, PageUp/Down; false = Up
+    ///     parent restore and Back/Forward re-drills — a button-
+    ///     navigated folder must not become a "recent visit").
+    ///
+    /// Round Z: this control no longer records history itself — the
+    /// visit list + cursor lives in NavigationService and every
+    /// navigation source funnels through its LoadFolder, so a tree-
+    /// local stack could only ever see a subset of navigations.
+    /// </summary>
+    private void NavigateTo(FolderSource source, string path, bool recordHistory, bool trackRecent)
+    {
+        FolderSelected?.Invoke(source, path, recordHistory, trackRecent);
+    }
+
+    /// <summary>
+    /// Rebuild the tree so <paramref name="path"/> becomes the
+    /// current browse location: tree drilled to the target's parent
+    /// level with the target node selected + scrolled into view and
+    /// the target's images loaded through <see cref="FolderSelected"/>
+    /// (recordHistory:false — retracing must not re-record). Called by
+    /// the host (MainWindow) after
+    /// <c>NavigationService.GoBack()</c> / <c>GoForward()</c>, which
+    /// own the browse-history cursor (Round Z). When the target can't
+    /// be re-drilled (deleted folder, UNC path with no drive tree) the
+    /// tree falls back to the root view but the folder is STILL loaded
+    /// — Explorer opens such folders too, it just can't sync the tree.
+    /// </summary>
+    public bool ReDrillToPath(string path)
+    {
+        // ResetTreeForDrill must NOT touch the folder navigation —
+        // history is external now, but the drill stack reset + root
+        // view are still this control's job.
+        ResetTreeForDrill();
+        bool drilled = DrillToPathSelectable(path);
+        NavigateTo(FolderSource.Subdirectory, path, recordHistory: false, trackRecent: false);
+        return drilled;
     }
 
     private static bool HasSubdirectories(string path)
@@ -289,15 +386,15 @@ public class FolderTreeView : ItemsControl
     private void NavigateInto(TreeNodeBase node, bool fireFolderSelected = true)
     {
         SelectedNode = node;
-        // P2 fix: push the currently-loaded folder (not null) so
-        // NavigateBack can restore the previous loaded folder
-        // along with the previous tree view. The slot's old
-        // "parentPath" name was misleading — what we actually
-        // want is the folder whose images were loaded BEFORE
-        // this drill, which is tracked by CurrentLoadedFolder
-        // and stays accurate across all fire paths thanks to
-        // the self-subscription in the ctor.
-        _navStack.Push((Items.ToList(), CurrentLoadedFolder));
+        // Round X (tree-stack split): push a frame whose parentPath
+        // is the directory being drilled INTO (= the new view's
+        // parent in tree terms). NavigateBack loads that path on
+        // pop so "up one level" lands on the actual directory-tree
+        // parent, regardless of what the user was viewing before
+        // the drill. Previous behavior used CurrentLoadedFolder
+        // (history semantics) which let "up one level" skip the
+        // parent.
+        _navStack.Push((Items.ToList(), node.Path));
         Items.Clear();
         // "Back" is no longer injected as a fake tree node — the
         // floating chip in the sidebar (BtnTreeBack) handles the
@@ -308,7 +405,7 @@ public class FolderTreeView : ItemsControl
         var path = node.Path;
         if (path != null && fireFolderSelected)
         {
-            FolderSelected?.Invoke(FolderSource.Subdirectory, path);
+            NavigateTo(FolderSource.Subdirectory, path, recordHistory: true, trackRecent: true);
         }
         DrillModeChanged?.Invoke();
     }
@@ -332,10 +429,39 @@ public class FolderTreeView : ItemsControl
         if (string.IsNullOrEmpty(path)) return;
         if (!Directory.Exists(path)) return;
 
+        // Jump = fresh drill from the root view. Round Z: the browse
+        // history is NOT cleared — Explorer keeps the trail when the
+        // user jumps to a favorite, so Back returns to the location
+        // before the jump. The final NavigateTo(recordHistory:true)
+        // records the target as a normal visit via LoadFolder.
         ReturnToRoot(skipAutoSelect: true);
 
+        if (DrillToPathSelectable(path))
+        {
+            // Load the target folder's images into the main viewer.
+            // Use the original path so casing/whitespace is preserved.
+            NavigateTo(FolderSource.Subdirectory, path, recordHistory: true, trackRecent: true);
+        }
+    }
+
+    /// <summary>
+    /// Rebuild the ''navStack'' drill chain so that
+    /// <paramref name="path"/> becomes the selected, visible node:
+    /// from the (already-reset) root view, drill through the drive
+    /// and every path segment except the last, then select the
+    /// target and push the final frame. Does NOT fire
+    /// <see cref="FolderSelected"/> for the target — the caller
+    /// does (once, with its own recordHistory flag). Returns false
+    /// when the path is unreachable (missing drive, deleted
+    /// segment, drive root with no images), leaving the tree in
+    /// whatever drill state the failure allowed.
+    /// </summary>
+    private bool DrillToPathSelectable(string path)
+    {
+        if (string.IsNullOrEmpty(path) || !Directory.Exists(path)) return false;
+
         var driveRoot = Path.GetPathRoot(path);
-        if (string.IsNullOrEmpty(driveRoot)) return;
+        if (string.IsNullOrEmpty(driveRoot)) return false;
 
         DriveItemNode? driveNode = null;
         foreach (var item in Items)
@@ -361,9 +487,9 @@ public class FolderTreeView : ItemsControl
             }
             catch { /* unknown drive letter / IO error — give up */ }
         }
-        if (driveNode == null) return;
+        if (driveNode == null) return false;
 
-        if (!HasSubdirectories(driveNode.Path!)) return;
+        if (!HasSubdirectories(driveNode.Path!)) return false;
         NavigateInto(driveNode, fireFolderSelected: false);
 
         var relative = path.Substring(driveRoot.Length)
@@ -379,7 +505,7 @@ public class FolderTreeView : ItemsControl
             // Target is the drive root itself (e.g. "C:\"). Nothing
             // to highlight — the drive is no longer in Items after
             // the drill, and a drive root has no images to load.
-            return;
+            return false;
         }
 
         // Drill through every segment EXCEPT the last. After this
@@ -392,7 +518,9 @@ public class FolderTreeView : ItemsControl
         // For a 1-segment path (e.g. "C:\Users") the loop body
         // never runs; the target sits in Items as a direct child
         // of the drive, which is the same Items we just drilled
-        // into above. Same outcome.
+        // into above. Same outcome. In that case parentMatchForLastPush
+        // stays null and we fall back to the drive root below.
+        string? parentMatchForLastPush = null;
         for (int i = 0; i < segments.Length - 1; i++)
         {
             var seg = segments[i];
@@ -406,8 +534,8 @@ public class FolderTreeView : ItemsControl
                     break;
                 }
             }
-            if (match == null) return;
-            if (!HasSubdirectories(match.Path!)) return;
+            if (match == null) return false;
+            if (!HasSubdirectories(match.Path!)) return false;
             NavigateInto(match, fireFolderSelected: false);
             // P2 fix: self-subscribe only updates
             // CurrentLoadedFolder when FolderSelected fires, but
@@ -417,20 +545,14 @@ public class FolderTreeView : ItemsControl
             // final target-push below) captures this drill
             // level as the "loaded folder" — i.e. the level
             // the user would have been viewing if the jump
-            // had been a manual drill. Without this, the
-            // pushed frames carry the previous
-            // CurrentLoadedFolder (whatever the user was
-            // viewing before JumpToDirectory) and
-            // back-navigation jumps to that unrelated folder
-            // instead of the target's parent. Matches
-            // 2aeeaf6's leaf-in-drill semantics: the drilled
-            // level is the implicit "currently loaded"
-            // folder at that tree depth.
+            // had been a manual drill.
             CurrentLoadedFolder = match.Path;
+            parentMatchForLastPush = match.Path;
         }
 
         // Find the target folder as a child of the current Items.
         var lastSeg = segments[segments.Length - 1];
+        bool targetFound = false;
         foreach (var item in Items)
         {
             if (item is FolderItemNode f &&
@@ -438,73 +560,119 @@ public class FolderTreeView : ItemsControl
             {
                 SelectedNode = f;
                 ScrollSelectedIntoView();
+                targetFound = true;
                 break;
             }
         }
+        if (!targetFound) return false;
 
         // P2 fix: push a virtual frame for the final target so
         // back-navigation from the target returns to the drill
         // level (the target's parent in the tree), not the
-        // level the loop just drilled into. The frame's
-        // loadedFolder is CurrentLoadedFolder at this point,
-        // which the loop's last iteration just set to the
-        // target's parent path (via the explicit assignment
-        // above). The subsequent FolderSelected fire below
-        // updates CurrentLoadedFolder to the target path
-        // itself, so forward navigation (clicking the target
-        // in the tree later) still works correctly. Mirrors
-        // 2aeeaf6's leaf-in-drill push: any "entry into a
-        // folder from the tree" leaves a back frame whose
-        // loadedFolder is the level the user was on just
-        // before.
-        _navStack.Push((Items.ToList(), CurrentLoadedFolder));
-
-        // Load the target folder's images into the main viewer. Use
-        // the original path so casing/whitespace is preserved.
-        FolderSelected?.Invoke(FolderSource.Subdirectory, path);
+        // level the loop just drilled into. Round X: the
+        // parentPath slot now holds the directory-tree parent of
+        // the target (= segments[last-1] when there are >=2
+        // segments, else the drive root). Mirrors 2aeeaf6's
+        // leaf-in-drill push: any "entry into a folder from the
+        // tree" leaves a back frame whose parentPath is the
+        // directory-tree parent.
+        _navStack.Push((Items.ToList(), parentMatchForLastPush ?? driveNode.Path));
+        return true;
     }
 
     /// <summary>
-    /// Pop one frame off the navigation stack and restore the previous
-    /// tree contents. Public so external controls (e.g. the sidebar
-    /// "Back" floating chip in MainWindow.xaml) can drive the same
-    /// back action without going through the deprecated BackNode tree
-    /// entry. Idempotent when called at the root (no-op).
+    /// Reset the tree-drill state to the root view WITHOUT touching
+    /// the folder navigation (the browse-history cursor lives in
+    /// NavigationService, Round Z). Shares <see cref="ReturnToRoot"/>'s
+    /// early steps but skips its most-recent-folder auto-restore —
+    /// used by <see cref="ReDrillToPath"/> so a Back/Forward re-drill
+    /// starts from a clean root view before drilling to the target.
     /// </summary>
-    public async void NavigateBack()
+    private void ResetTreeForDrill()
+    {
+        bool wasInDrill = _navStack.Count > 0;
+        _navStack.Clear();
+        _pendingRecentRefresh = false;
+        Init(skipAutoSelect: true);
+        if (wasInDrill) DrillModeChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Pop one frame off the navigation stack and restore the
+    /// previous tree contents. Public so external controls (e.g.
+    /// the sidebar "up one level" floating chip in MainWindow.xaml)
+    /// can drive the same action without going through the
+    /// deprecated BackNode tree entry. Idempotent when called at the
+    /// root (no-op).
+    /// </summary>
+    /// <remarks>
+    /// Round X: previously this method also re-loaded the folder the
+    /// user was viewing BEFORE the drill (history semantics — Round Z
+    /// moved that to NavigationService's browse-history cursor, with
+    /// Back/Forward orchestrated by MainWindow). Now it loads the
+    /// directory-tree PARENT (the node that was drilled INTO) so the
+    /// thumbnail grid stays in sync with the restored tree view.
+    /// The semantics is now strictly "up one directory level" rather
+    /// than the previous "back to where I was browsing from" (which
+    /// could skip levels when the user drilled into a sibling).
+    /// Round Y: the restored parent node is also SELECTED in the
+    /// restored view, so the tree highlights the folder whose
+    /// thumbnails are shown.
+    /// </remarks>
+    public void NavigateBack()
     {
         if (_navStack.Count == 0) return;
         var stackBefore = _navStack.Count;
-        var (previous, previouslyLoaded) = _navStack.Pop();
+        var (previous, parentPath) = _navStack.Pop();
         Items.Clear();
         SelectedNode = null;
         foreach (var r in previous) Items.Add(r);
         if (_pendingRecentRefresh) RefreshRecent();
         DrillModeChanged?.Invoke();
 
-        // P2 fix: re-load the folder that was loaded before this
-        // drill, so the thumbnail grid updates. Previously the
-        // back chip left the grid showing the drilled-in folder's
-        // images because nothing fired FolderSelected here. The
-        // stack now carries the pre-drill loaded folder and we
-        // restore it via FolderSelected — the same event the
-        // forward path uses, so the rest of the navigation chain
-        // (FolderTreePanelVM.OnFolderSelected → AddRecent →
-        // MainWindow → NavigationService.LoadFolder) handles it
-        // uniformly.
-        if (previouslyLoaded != null && Directory.Exists(previouslyLoaded))
+        // Load the directory-tree parent's images so the thumbnail
+        // grid follows the restored tree view. Round Z: recordHistory
+        // is TRUE — Explorer treats "up one level" as a fresh visit,
+        // so the next Back returns to the child directory the user
+        // just left instead of re-loading the same parent (no-op).
+        // The visit-list cursor in NavigationService dedupes when the
+        // parent is already at the cursor.
+        //
+        // Round Y: the parentPath node IS in the restored Items
+        // (it's the folder that was drilled INTO), so highlight it
+        // — the thumbnail grid then corresponds to the highlighted
+        // tree row. Previously selection was always nulled here
+        // (Round X stale logic from when the slot held the pre-drill
+        // folder, which was NOT in the restored view). Virtual
+        // leaf-drill frames have parentPath = the level being
+        // viewed, which has no row in its own children list — in
+        // that case leaving selection null matches the "viewing
+        // this folder's contents" state.
+        bool highlighted = false;
+        if (!string.IsNullOrEmpty(parentPath) && Directory.Exists(parentPath))
         {
-            FolderSelected?.Invoke(FolderSource.Subdirectory, previouslyLoaded);
+            foreach (var item in Items)
+            {
+                if (item.Path != null &&
+                    item.Path.Equals(parentPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedNode = item;
+                    ScrollSelectedIntoView();
+                    highlighted = true;
+                    break;
+                }
+            }
+            NavigateTo(FolderSource.Subdirectory, parentPath, recordHistory: true, trackRecent: false);
         }
 
         // Popped back to root view (stack now empty): run the same
         // Recent-priority auto-select that Init() uses, so the user
         // lands on the most-recent Recent node rather than a blank
-        // selection. Mid-drill pops (stack still non-empty after the
-        // pop) leave SelectedNode = null — the current folder isn't
-        // in the parent's children list, so there's nothing useful
-        // to highlight.
-        if (stackBefore == 1)
+        // selection — unless Up already highlighted the folder it
+        // returned to (e.g. drilling back out to the root from a
+        // drive: the drive node is in the root view and already
+        // selected above; SelectFirstNode would override it).
+        if (stackBefore == 1 && !highlighted)
         {
             // If drives never made it into the root view (because
             // LoadDrivesAsync bailed during the preceding drill),
@@ -744,7 +912,7 @@ public class FolderTreeView : ItemsControl
         SelectedNode = target;
         ScrollSelectedIntoView();
         var path = target.Path;
-        if (path != null) FolderSelected?.Invoke(ResolveSourceForNode(target), path);
+        if (path != null) NavigateTo(ResolveSourceForNode(target), path, recordHistory: true, trackRecent: true);
         return true;
     }
 

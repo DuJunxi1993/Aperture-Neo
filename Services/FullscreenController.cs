@@ -182,6 +182,18 @@ public class FullscreenController : IFullscreenController
             if (entering)
             {
                 _shell.Window.WindowStyle = WindowStyle.None;
+                // P3 fix: if the window is ALREADY maximized, assigning
+                // Maximized is a no-op — the maximized geometry was
+                // computed under the old framed style (which maximizes
+                // to the work area, above the taskbar) and changing the
+                // style does not re-run it, so the taskbar stays
+                // visible in fullscreen. Forcing a Normal → Maximized
+                // transition makes the OS re-maximize with the new
+                // popup style, covering the whole monitor. The swap
+                // happens while the viewer is at Opacity=0, so the
+                // brief re-maximize blink is invisible.
+                if (_shell.Window.WindowState == WindowState.Maximized)
+                    _shell.Window.WindowState = WindowState.Normal;
                 _shell.Window.WindowState = WindowState.Maximized;
             }
             else
@@ -363,7 +375,10 @@ public class FullscreenController : IFullscreenController
         _shell.EdgeNavRight.BeginAnimation(UIElement.OpacityProperty, null);
         _shell.EdgeNavLeft.Visibility = Visibility.Visible;
         _shell.EdgeNavRight.Visibility = Visibility.Visible;
-        var fadeIn = new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(200));
+        var fadeIn = new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
         _shell.EdgeNavLeft.BeginAnimation(UIElement.OpacityProperty, fadeIn);
         _shell.EdgeNavRight.BeginAnimation(UIElement.OpacityProperty, fadeIn);
         ResetOverlayHideTimer();
@@ -378,7 +393,10 @@ public class FullscreenController : IFullscreenController
     {
         if (!_edgeNavVisible) return;
         _edgeNavVisible = false;
-        var fadeOut = new DoubleAnimation(1d, 0d, TimeSpan.FromMilliseconds(200));
+        var fadeOut = new DoubleAnimation(1d, 0d, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+        };
         fadeOut.Completed += (_, _) =>
         {
             if (_edgeNavVisible) return;
@@ -410,7 +428,10 @@ public class FullscreenController : IFullscreenController
         _shell.ExitHint.Visibility = Visibility.Visible;
         _shell.ExitHint.BeginAnimation(UIElement.OpacityProperty, null);
         _shell.ExitHintTransform.BeginAnimation(TranslateTransform.YProperty, null);
-        var fadeIn = new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(200));
+        var fadeIn = new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
         var slideIn = new DoubleAnimation(-50d, 0d, TimeSpan.FromMilliseconds(200))
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
@@ -423,7 +444,10 @@ public class FullscreenController : IFullscreenController
     {
         _shell.ExitHint.BeginAnimation(UIElement.OpacityProperty, null);
         _shell.ExitHintTransform.BeginAnimation(TranslateTransform.YProperty, null);
-        var fadeOut = new DoubleAnimation(1d, 0d, TimeSpan.FromMilliseconds(200));
+        var fadeOut = new DoubleAnimation(1d, 0d, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+        };
         var slideOut = new DoubleAnimation(0d, -50d, TimeSpan.FromMilliseconds(200))
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }

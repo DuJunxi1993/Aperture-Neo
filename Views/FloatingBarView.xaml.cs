@@ -266,10 +266,13 @@ public partial class FloatingBarView : UserControl
         _expanded = false;
         FloatingBarContent.IsHitTestVisible = false;
         AnimateBar(0d, 0d, TimeSpan.FromMilliseconds(250), EasingMode.EaseIn);
+        // Handle fades back in in sync with the bar's 250ms
+        // collapse (EaseIn) so it emerges only once the bar has
+        // mostly settled — no "handle pops out first" jump.
         HandlePill.BeginAnimation(UIElement.OpacityProperty,
-            new DoubleAnimation(1d, TimeSpan.FromMilliseconds(200))
+            new DoubleAnimation(1d, TimeSpan.FromMilliseconds(250))
             {
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
             });
         _idleFallbackTimer?.Stop();
     }

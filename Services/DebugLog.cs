@@ -25,6 +25,38 @@ public static class DebugLog
     private static readonly string LogPath = Path.Combine(
         Path.GetTempPath(), "ApertureNeo", "debug.log");
     private static readonly object _lock = new();
+    private static bool _rotated;
+
+    /// <summary>
+    /// High-volume per-item trace categories (thumbnail cache
+    /// GetOrCreate / generated lines, grid selection-change logging)
+    /// write thousands of lines per folder load. They are gated
+    /// behind the <c>APERTURE_DEBUG_THUMB=1</c> environment
+    /// variable — set it only when diagnosing thumbnail-cache /
+    /// selection issues. Failure and lifecycle lines stay always-on
+    /// under their own categories (FS / Loader / Viewer / etc.).
+    /// </summary>
+    private static bool IsCategoryEnabled(string category)
+        => (category != "Thumb" && category != "ThumbGrid")
+           || Environment.GetEnvironmentVariable("APERTURE_DEBUG_THUMB") == "1";
+
+    /// <summary>Rotate the log once per process when it exceeds
+    /// ~1MB: the previous content is moved to <c>debug.log.old</c>
+    /// (overwriting any older copy) and a fresh log starts.</summary>
+    private static void RotateIfNeeded()
+    {
+        if (_rotated) return;
+        var info = new FileInfo(LogPath);
+        if (!info.Exists || info.Length < 1_000_000) return;
+        try
+        {
+            var old = LogPath + ".old";
+            if (File.Exists(old)) File.Delete(old);
+            File.Move(LogPath, old);
+        }
+        catch { /* rotate is best-effort; an in-use log stays put */ }
+        finally { _rotated = true; }
+    }
 
     /// <summary>Append a single line to the debug log. Each line
     /// is prefixed with the current time and a category tag
@@ -32,13 +64,17 @@ public static class DebugLog
     /// Thread-safe via a static lock.</summary>
     public static void Write(string category, string message)
     {
+        if (!IsCategoryEnabled(category)) return;
         try
         {
             var dir = Path.GetDirectoryName(LogPath);
             if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
             var line = $"[{DateTime.Now:HH:mm:ss.fff}] [{category}] {message}\n";
             lock (_lock)
+            {
+                RotateIfNeeded();
                 File.AppendAllText(LogPath, line);
+            }
         }
         catch (Exception ex)
         {

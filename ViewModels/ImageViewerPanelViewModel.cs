@@ -40,6 +40,14 @@ public partial class ImageViewerPanelViewModel : ObservableObject
     private readonly IImageLoader _imageLoader;
     private SkiaImageViewer? _viewer;
 
+    // Slide-transition direction tracking. The last index/folder an
+    // image was loaded for lets OnCurrentImageChanged derive which
+    // way the user navigated (Next/Previous for the viewer's
+    // touch-gallery slide). Cross-folder changes and index resets
+    // produce None (instant swap).
+    private int _lastLoadIndex = -1;
+    private string _lastLoadFolder = "";
+
     // Pre-decode cache for adjacent images. For each decoded
     // SKBitmap we also store the source dimensions (original
     // file width/height) so the info pill is correct.
@@ -198,6 +206,8 @@ public partial class ImageViewerPanelViewModel : ObservableObject
     {
         if (item == null) return;
 
+        var direction = ComputeTransitionDirection();
+
         // Check the pre-decode cache first — if the adjacent
         // loader already decoded this path, skip I/O + WIC
         // decode entirely and display the cached bitmap
@@ -210,12 +220,14 @@ public partial class ImageViewerPanelViewModel : ObservableObject
         }
         if (cached != null)
         {
-            _viewer?.LoadPreDecoded(cached);
+            _viewer?.LoadPreDecoded(cached, direction);
         }
         else
         {
-            _viewer?.LoadImage(item.FilePath);
+            _viewer?.LoadImage(item.FilePath, direction);
         }
+        _lastLoadIndex = _navigation.CurrentIndex;
+        _lastLoadFolder = _navigation.CurrentFolder;
 
         // Mirror the current image to IUiState so the InfoPill /
         // InfoPopover VMs (which observe IUiState.CurrentImage
@@ -233,6 +245,27 @@ public partial class ImageViewerPanelViewModel : ObservableObject
         // (prev and next, within 1 position) so the next
         // keyboard navigation is instant.
         PreDecodeAdjacent();
+    }
+
+    /// <summary>
+    /// Derive the slide direction for the next image load from the
+    /// index delta vs the last loaded image. Wrap-around (last → first)
+    /// is resolved via the <c>Count/2</c> rule so a wrap still slides
+    /// the short way. Folder switches and index resets return
+    /// <see cref="TransitionDirection.None"/> (instant swap).
+    /// </summary>
+    private TransitionDirection ComputeTransitionDirection()
+    {
+        var idx = _navigation.CurrentIndex;
+        if (idx < 0 || _lastLoadIndex < 0) return TransitionDirection.None;
+        if (_navigation.CurrentFolder != _lastLoadFolder) return TransitionDirection.None;
+        if (idx == _lastLoadIndex) return TransitionDirection.None;
+
+        var count = _navigation.Count;
+        var delta = idx - _lastLoadIndex;
+        if (count > 0 && delta > count / 2) delta -= count;
+        else if (count > 0 && delta < -(count / 2)) delta += count;
+        return delta > 0 ? TransitionDirection.Next : TransitionDirection.Previous;
     }
 
     /// <summary>

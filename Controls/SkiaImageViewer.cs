@@ -13,6 +13,23 @@ using SkiaSharp;
 namespace ApertureNeo.Controls;
 
 /// <summary>
+/// Direction hint for the image-switch slide transition.
+/// <see cref="Next"/> (enters from the right) and
+/// <see cref="Previous"/> (enters from the left) drive the
+/// touch-gallery style push. <see cref="None"/> replaces the
+/// bitmap instantly (startup loads, editor return, cross-folder
+/// or index-reset jumps). This is also the seam a future
+/// finger-drag swipe will feed: the slide renderer only needs
+/// the direction plus a progress value.
+/// </summary>
+public enum TransitionDirection
+{
+    None = 0,
+    Next = 1,
+    Previous = -1
+}
+
+/// <summary>
 /// Image-rendering surface. Loads via <see cref="ImageLoader"/>
 /// (off-thread decode), caches the result in a
 /// <see cref="WriteableBitmap"/>, and composites with
@@ -25,8 +42,6 @@ namespace ApertureNeo.Controls;
 public class SkiaImageViewer : FrameworkElement
 {
     private SKBitmap? _bitmap;
-    private SKBitmap? _oldBitmap;
-    private float _oldZoom, _oldOffX, _oldOffY;
     private float _zoom = 1f;
     private float _targetZoom = 1f;
     private float _offsetX, _offsetY;
@@ -56,26 +71,41 @@ public class SkiaImageViewer : FrameworkElement
     private bool _inRender;
     // Cached SK surface + paints — reallocated only when size changes (Fix#3: per-frame alloc)
     private SKSurface? _surface;
-    private SKPaint? _paintOld;
     private SKPaint? _paintNew;
     private int _cachedWidth;
     private int _cachedHeight;
     private bool _isPanning;
 
     private int _rotation;
-    private float _animOpacity = 1f;
+    // Direction of the pending image switch (set by the load API
+    // before CancelPending, consumed by ApplyResult).
+    private TransitionDirection _transitionDir = TransitionDirection.None;
+    // Image-switch slide transition (touch-gallery style) state.
+    // During a directional navigation the previous bitmap stays
+    // alive for ~420ms — it exits left/right while the new one
+    // slides in from the opposite edge — then is disposed when
+    // the slide completes (see OnRendering). Non-directional
+    // loads (startup, editor return, cross-folder jumps) replace
+    // the bitmap instantly and never set these.
+    private SKBitmap? _oldBitmap;
+    private float _oldZoom, _oldOffX, _oldOffY;
+    private int _oldRotation;
+    private bool _slideAnim;
+    private float _slideDir; // +1 = next (enter from right), -1 = previous
+    private float _slideShift; // px horizontal offset for the slide pair
     private DateTime _animStart;
     private float _animFromZoom, _animFromOffX, _animFromOffY;
     private bool _animating;
+    // Per-animation duration + easing: regular zoom/fit animations run
+    // 180ms smoothstep (snappy), while the image-switch slide runs
+    // 420ms ease-in-out-cubic (soft pick-up, smooth landing).
+    private float _animDuration = AnimDuration;
     // A viewport resize arrived while a fit animation or drag was in
     // flight. The refit is deferred to the end of the animation/drag
     // instead of being dropped (see HandleViewportResized).
     private bool _pendingRefit;
     private const float AnimDuration = 0.18f;
-    // Image-switch cross-fade duration. Kept short and linear for a
-    // snappy next/prev feel (no ease — a linear ramp reads as "snap"
-    // rather than a soft blend).
-    private const float CrossFadeDuration = 0.15f;
+    private const float SwitchAnimDuration = 0.42f;
 
     /// <summary>
     /// The decoder used to load image files. Defaults to
@@ -174,9 +204,46 @@ public class SkiaImageViewer : FrameworkElement
 
     private void StartZoomAnim()
     {
+        // Detach first — a second subscribe without unsubscribe would
+        // run OnRendering twice per frame and double the animation
+        // speed (reachable via wheel-zoom mid-fit-animation).
+        if (_animating) CompositionTarget.Rendering -= OnRendering;
         _animFromZoom = _zoom;
         _animFromOffX = _offsetX;
         _animFromOffY = _offsetY;
+        _slideAnim = false;
+        _slideShift = 0f;
+        _animDuration = AnimDuration;
+        _animStart = DateTime.UtcNow;
+        _animating = true;
+        _dirty = true;
+        CompositionTarget.Rendering += OnRendering;
+    }
+
+    /// <summary>
+    /// Start the image-switch slide transition. The caller has already
+    /// set the new bitmap's fit targets and retained the previous
+    /// bitmap as <see cref="_oldBitmap"/>. Both bitmaps keep their own
+    /// fit transforms from frame 1 — no cross-scale/offset lerp, so
+    /// the pair moves as a pure parallel conveyor (old exits one edge,
+    /// new enters the opposite edge at its final size, like iOS /
+    /// Google Photos). Ease-out-cubic (fast push, decelerating landing).
+    /// </summary>
+    private void StartSlideAnim()
+    {
+        if (_animating) CompositionTarget.Rendering -= OnRendering;
+        // Snap to the new image's own fit immediately: the zoom/offset
+        // lerp that follows must not run during the slide.
+        _zoom = _targetZoom;
+        _offsetX = _targetOffsetX;
+        _offsetY = _targetOffsetY;
+        _slideDir = _transitionDir == TransitionDirection.Next ? 1f : -1f;
+        _slideAnim = true;
+        // Seed the frame-1 shift so a render pass that happens before
+        // the first animation tick still shows the correct enter/exit
+        // positions (both bitmaps at the edges of the viewport).
+        _slideShift = _slideDir * Math.Max(1f, (float)ActualWidth);
+        _animDuration = SwitchAnimDuration;
         _animStart = DateTime.UtcNow;
         _animating = true;
         _dirty = true;
@@ -191,20 +258,46 @@ public class SkiaImageViewer : FrameworkElement
         if (_inRender) return;
 
         var elapsed = (float)(DateTime.UtcNow - _animStart).TotalSeconds;
-        var t = Math.Clamp(elapsed / AnimDuration, 0f, 1f);
-        t = t * t * (3f - 2f * t);
+        var t = Math.Clamp(elapsed / _animDuration, 0f, 1f);
+        // Slide: ease-in-out-cubic — velocity is zero at both ends
+        // (soft pick-up, smooth decelerating landing, iOS push feel).
+        // Regular zoom/fit animations keep the smoothstep snappiness.
+        t = _slideAnim
+            ? (t < 0.5f ? 4f * t * t * t : 1f - (float)Math.Pow(-2f * t + 2f, 3f) / 2f)
+            : t * t * (3f - 2f * t);
 
-        _zoom = _animFromZoom + (_targetZoom - _animFromZoom) * t;
-        _offsetX = _animFromOffX + (_targetOffsetX - _animFromOffX) * t;
-        _offsetY = _animFromOffY + (_targetOffsetY - _animFromOffY) * t;
+        // During a slide both bitmaps sit at their own fit transforms
+        // (snapped in StartSlideAnim) — only the horizontal push
+        // advances. The zoom/offset lerp below runs for regular
+        // zoom/fit animations only.
+        if (!_slideAnim)
+        {
+            _zoom = _animFromZoom + (_targetZoom - _animFromZoom) * t;
+            _offsetX = _animFromOffX + (_targetOffsetX - _animFromOffX) * t;
+            _offsetY = _animFromOffY + (_targetOffsetY - _animFromOffY) * t;
+        }
+        // Horizontal push: the new bitmap rides _slideShift (viewport
+        // width × (1-t)); the old bitmap is drawn at its captured fit
+        // minus the same shift in the renderer. Only meaningful while
+        // a slide is in flight — otherwise it stays zero so regular
+        // zoom/fit animations never pick up a stale shift.
+        _slideShift = _slideAnim
+            ? _slideDir * Math.Max(1f, (float)ActualWidth) * (1f - t)
+            : 0f;
 
         if (t >= 1f)
         {
             _zoom = _targetZoom;
             _offsetX = _targetOffsetX;
             _offsetY = _targetOffsetY;
+            _slideShift = 0f;
+            _slideDir = 0f;
+            _slideAnim = false;
             _animating = false;
             CompositionTarget.Rendering -= OnRendering;
+            // Release the slide-out layer now that nothing draws it.
+            _oldBitmap?.Dispose();
+            _oldBitmap = null;
             FinishPendingRefit();
         }
 
@@ -212,16 +305,21 @@ public class SkiaImageViewer : FrameworkElement
         InvalidateVisual();
     }
 
-    private EventHandler? _activeCrossFade;
-
     /// <summary>
     /// Load and display an image file. Decodes at an adaptive
     /// resolution (≈2× viewport size, capped at 4K) so the
     /// GPU / CPU doesn't waste memory decoding an 8K source
-    /// when the display can only show 4K.
+    /// when the display can only show 4K. No slide transition.
     /// </summary>
-    public void LoadImage(string path)
+    public void LoadImage(string path) => LoadImage(path, TransitionDirection.None);
+
+    /// <summary>
+    /// Load and display an image file, sliding in from the given
+    /// transition direction (touch-gallery style push).
+    /// </summary>
+    public void LoadImage(string path, TransitionDirection direction)
     {
+        _transitionDir = direction;
         CancelPending();
         var ct = _loadCts.Token;
         _currentPath = path;
@@ -251,12 +349,19 @@ public class SkiaImageViewer : FrameworkElement
     /// <summary>
     /// Display a pre-decoded image. The caller (typically the VM's
     /// pre-decode cache) has already loaded the SKBitmap; this
-    /// method applies it with the same cross-fade + FitToScreen
+    /// method applies it with the same slide + FitToScreen
     /// pipeline as <see cref="LoadImage"/> but without any decode
-    /// latency — navigation is instant.
+    /// latency — navigation is instant. No slide transition.
     /// </summary>
-    public void LoadPreDecoded(ImageLoadResult result)
+    public void LoadPreDecoded(ImageLoadResult result) => LoadPreDecoded(result, TransitionDirection.None);
+
+    /// <summary>
+    /// Display a pre-decoded image, sliding in from the given
+    /// transition direction.
+    /// </summary>
+    public void LoadPreDecoded(ImageLoadResult result, TransitionDirection direction)
     {
+        _transitionDir = direction;
         CancelPending();
         var ct = _loadCts.Token;
         ApplyResult(result, ct);
@@ -272,11 +377,21 @@ public class SkiaImageViewer : FrameworkElement
         if (upg != null) { upg.Cancel(); upg.Dispose(); _upgradeCts = null; }
         _upgradeTimer.Stop();
 
-        if (_activeCrossFade != null)
+        // Abort any in-flight slide and release its old-bitmap
+        // layer. The load that follows will start its own
+        // transition. Safe to dispose here — the animation handler
+        // is detached, and ApplyResult/LoadBitmap run between
+        // frames on the dispatcher thread, never mid-overdraw.
+        if (_animating)
         {
-            CompositionTarget.Rendering -= _activeCrossFade;
-            _activeCrossFade = null;
+            CompositionTarget.Rendering -= OnRendering;
+            _animating = false;
         }
+        _slideAnim = false;
+        _slideShift = 0f;
+        _slideDir = 0f;
+        _oldBitmap?.Dispose();
+        _oldBitmap = null;
     }
 
     private void MaybeScheduleUpgrade()
@@ -289,10 +404,10 @@ public class SkiaImageViewer : FrameworkElement
     private void MaybeUpgradeQuality()
     {
         if (_bitmap == null || _currentPath == null || _sourceW <= 0) return;
-        // Wait for any cross-fade to finish; re-check afterwards.
-        if (_animOpacity < 1f)
+        // Wait for any in-flight slide to finish; re-check afterwards.
+        if (_slideAnim)
         {
-            if (_activeCrossFade != null) _upgradeTimer.Start();
+            _upgradeTimer.Start();
             return;
         }
 
@@ -334,10 +449,9 @@ public class SkiaImageViewer : FrameworkElement
     private void ApplyUpgrade(ImageLoadResult result, bool refitToScreen)
     {
         DebugLog.Write("FS", $"ApplyUpgrade: {_bitmap.Width}x{_bitmap.Height} -> {result.Bitmap.Width}x{result.Bitmap.Height} zoom={_zoom:F4} fitScale={_fitScale:F4} viewport={ActualWidth:F0}x{ActualHeight:F0} refit={refitToScreen}");
-        // Same image, sharper. Preserve zoom/offset — no cross-fade
+        // Same image, sharper. Preserve zoom/offset — no transition
         // and no ImageLoaded (dimensions and bound models are
-        // unchanged). The old low-res bitmap is not referenced by
-        // the cross-fade (_oldBitmap is the previous image), so it
+        // unchanged). The old low-res bitmap is unreferenced, so it
         // can be disposed immediately.
         _bitmap.Dispose();
         _bitmap = result.Bitmap;
@@ -357,19 +471,24 @@ public class SkiaImageViewer : FrameworkElement
 
     private void ApplyResult(ImageLoadResult result, CancellationToken ct)
     {
-        // P0 fix: don't dispose the current bitmap if the
-        // fade-out animation is still drawing it. The previous
-        // code unconditionally disposed _oldBitmap, which could
-        // be the one being cross-faded in OnRender → crash. Now:
-        // if _activeCrossFade is still alive, the old bitmap will
-        // be disposed when the fade completes (see OnRender).
-        // The new bitmap takes ownership of _bitmap; if no fade
-        // is in flight, dispose the old one immediately.
-        if (_activeCrossFade == null) _oldBitmap?.Dispose();
-        _oldBitmap = _bitmap;
-        _oldZoom = _zoom;
-        _oldOffX = _offsetX;
-        _oldOffY = _offsetY;
+        // Directional navigation retains the current bitmap as the
+        // slide-out layer; it is disposed when the slide completes
+        // (see OnRendering) or by CancelPending/LoadBitmap. Skip the
+        // retention for non-directional loads — those replace the
+        // bitmap instantly. The old-bitmap slot is already empty here
+        // (CancelPending disposed any prior slide layer).
+        if (_transitionDir == TransitionDirection.None)
+        {
+            _bitmap?.Dispose();
+        }
+        else if (_bitmap != null)
+        {
+            _oldBitmap = _bitmap;
+            _oldZoom = _zoom;
+            _oldOffX = _offsetX;
+            _oldOffY = _offsetY;
+            _oldRotation = _rotation;
+        }
         _wbmp = null;
         _bitmap = null;
 
@@ -380,7 +499,6 @@ public class SkiaImageViewer : FrameworkElement
             _sourceW = result.SourceWidth > 0 ? result.SourceWidth : result.Width;
             _sourceH = result.SourceHeight > 0 ? result.SourceHeight : result.Height;
             _dirty = true;
-            _animOpacity = 0f;
             _rotation = 0;
 
             // Tell the world a new image is loaded. Subscribers can
@@ -389,43 +507,29 @@ public class SkiaImageViewer : FrameworkElement
             // without needing to re-read the file header themselves.
             ImageLoaded?.Invoke(result);
 
+            // FitToScreen computes the new image's fit targets. For a
+            // directional load StartSlideAnim snaps the viewer to
+            // the new fit immediately and drives the horizontal
+            // push on its own tick — no zoom lerp runs mid-slide
+            // (OnRendering skips the zoom/offset lerp while
+            // _slideAnim is set).
             FitToScreen();
-            DebugLog.Write("FS", $"ApplyResult: after fit src={result.SourceWidth}x{result.SourceHeight} bmp={_bitmap.Width}x{_bitmap.Height} zoom={_zoom:F4} fitScale={_fitScale:F4} viewport={ActualWidth:F0}x{ActualHeight:F0}");
+            DebugLog.Write("FS", $"ApplyResult: after fit src={result.SourceWidth}x{result.SourceHeight} bmp={_bitmap.Width}x{_bitmap.Height} zoom={_zoom:F4} fitScale={_fitScale:F4} viewport={ActualWidth:F0}x{ActualHeight:F0} dir={_transitionDir}");
 
-            // No zoom pulse on image switch — the new image is drawn
-            // at its fitted transform immediately; only the cross-fade
-            // below animates the transition.
-            var fadeStart = DateTime.UtcNow;
-            EventHandler? handler = null;
-            handler = (s, e) =>
-            {
-                if (ct.IsCancellationRequested)
-                {
-                    if (handler != null) CompositionTarget.Rendering -= handler;
-                    _activeCrossFade = null;
-                    return;
-                }
-                var ft = (float)(DateTime.UtcNow - fadeStart).TotalSeconds / CrossFadeDuration;
-                _animOpacity = Math.Clamp(ft, 0f, 1f);
-                _dirty = true;
-                InvalidateVisual();
-                if (_animOpacity >= 1f)
-                {
-                    CompositionTarget.Rendering -= handler;
-                    _activeCrossFade = null;
-                    _animOpacity = 1f;
-                    _oldBitmap?.Dispose();
-                    _oldBitmap = null;
-                }
-            };
-            _activeCrossFade = handler;
-            CompositionTarget.Rendering += handler;
+            if (_transitionDir != TransitionDirection.None)
+                StartSlideAnim();
         }
         else
         {
+            // Load failed — drop the retained slide layer and make
+            // sure the renderer isn't left mid-transition.
+            _oldBitmap?.Dispose();
+            _oldBitmap = null;
+            _slideAnim = false;
             DebugLog.Write("Viewer", $"load failed: {result.FilePath} → {result.ErrorMessage}");
             StatusChanged?.Invoke($"加载失败: {result.ErrorMessage}");
         }
+        _transitionDir = TransitionDirection.None;
         InvalidateVisual();
     }
 
@@ -462,29 +566,26 @@ public class SkiaImageViewer : FrameworkElement
     public bool IsAtFitScale => _bitmap != null && Math.Abs(_zoom - _fitScale) < 0.01f;
 
     /// <summary>
-    /// Cancel any in-flight cross-fade animation and detach
+    /// Cancel any in-flight animation and detach
     /// <see cref="CompositionTarget.Rendering"/> handlers. Called by
     /// the host window's <c>Closed</c> handler so the per-frame
     /// delegate (which captures this control via the lambda
     /// closure) is released before the window is GC'd. Without this
-    /// hook a window closed mid-fade leaks until the process exits.
+    /// hook a window closed mid-animation leaks until the process exits.
     /// </summary>
     public void AbortAnimations()
     {
         _upgradeTimer.Stop();
         var upg = _upgradeCts;
         if (upg != null) { upg.Cancel(); upg.Dispose(); _upgradeCts = null; }
-        if (_activeCrossFade != null)
-        {
-            CompositionTarget.Rendering -= _activeCrossFade;
-            _activeCrossFade = null;
-        }
         if (_animating)
         {
             CompositionTarget.Rendering -= OnRendering;
             _animating = false;
         }
-        _paintOld?.Dispose(); _paintOld = null;
+        _slideAnim = false;
+        _slideShift = 0f;
+        _oldBitmap?.Dispose(); _oldBitmap = null;
         _paintNew?.Dispose(); _paintNew = null;
         _surface?.Dispose(); _surface = null;
     }
@@ -709,16 +810,19 @@ public class SkiaImageViewer : FrameworkElement
         if (oldCts != null) { oldCts.Cancel(); oldCts.Dispose(); }
         _loadCts = null;
 
-        // Stop any cross-fade in progress
-        if (_activeCrossFade != null)
+        // Stop any animation in progress (no transition — the editor snaps)
+        if (_animating)
         {
-            CompositionTarget.Rendering -= _activeCrossFade;
-            _activeCrossFade = null;
+            CompositionTarget.Rendering -= OnRendering;
+            _animating = false;
         }
-
-        // Dispose the previous image (no fade-out)
+        _slideAnim = false;
+        _slideShift = 0f;
+        _transitionDir = TransitionDirection.None;
         _oldBitmap?.Dispose();
         _oldBitmap = null;
+
+        _bitmap?.Dispose();
 
         _bitmap = bitmap;
         _currentPath = null;
@@ -745,7 +849,7 @@ public class SkiaImageViewer : FrameworkElement
 
     private void RenderToWriteableBitmap()
     {
-        if (_bitmap == null && _oldBitmap == null) return;
+        if (_bitmap == null) return;
 
         var w = Math.Max(1, (int)RenderSize.Width);
         var h = Math.Max(1, (int)RenderSize.Height);
@@ -762,9 +866,16 @@ public class SkiaImageViewer : FrameworkElement
             _cachedHeight = h;
         }
 
-        // Lazy-init paints (Fix#3: avoid per-frame allocation)
-        _paintOld ??= new SKPaint { FilterQuality = SKFilterQuality.High, IsAntialias = true };
+        // Lazy-init paints (Fix#3: avoid per-frame allocation).
+        // Animation frames (slide / zoom / fit) draw with bilinear
+        // (Low) resampling — the CPU-side Skia cost halves vs the
+        // high-quality filter, which keeps fullscreen transitions
+        // inside the VSync frame budget; the resting frame snaps
+        // back to High quality. Tracked via _animating so every
+        // animation-exit path (completion, cancel, abort, dispose)
+        // restores High automatically without per-path cleanup.
         _paintNew ??= new SKPaint { FilterQuality = SKFilterQuality.High, IsAntialias = true };
+        _paintNew.FilterQuality = _animating ? SKFilterQuality.Low : SKFilterQuality.High;
 
         var canvas = _surface.Canvas;
         // Clear to fully transparent. Skia draws the image with pre-multiplied alpha;
@@ -773,25 +884,36 @@ public class SkiaImageViewer : FrameworkElement
         // through in the empty regions.
         canvas.Clear(SKColors.Transparent);
 
-        // Draw old bitmap (fades out, using its original zoom/offset)
-        if (_oldBitmap != null)
+        // During a slide the previous bitmap exits the edge opposite the
+        // entering one, starting from its own captured fit position:
+        // x(t) = oldOffX − dir·w + shift  →  t=0: oldOffX (on screen,
+        // where it was), t=1: oldOffX − dir·w (fully off-screen).
+        // (The old bitmap is disposed when the slide completes.)
+        if (_oldBitmap != null && _slideAnim)
         {
-            byte oldAlpha = (byte)(255 * (1f - _animOpacity));
-            _paintOld.Color = new SKColor(255, 255, 255, oldAlpha);
             canvas.Save();
-            canvas.Translate(_oldOffX, _oldOffY);
+            canvas.Translate(
+                _oldOffX - _slideDir * Math.Max(1f, (float)ActualWidth) + _slideShift,
+                _oldOffY);
             canvas.Scale(_oldZoom);
-            canvas.DrawBitmap(_oldBitmap, 0, 0, _paintOld);
+            if (_oldRotation != 0)
+            {
+                canvas.Translate(_oldBitmap.Width / 2f, _oldBitmap.Height / 2f);
+                canvas.RotateDegrees(_oldRotation);
+                canvas.Translate(-_oldBitmap.Width / 2f, -_oldBitmap.Height / 2f);
+            }
+            canvas.DrawBitmap(_oldBitmap, 0, 0, _paintNew);
             canvas.Restore();
         }
 
-        // Draw new bitmap (fades in)
+        // Draw the current bitmap. During a slide it rides _slideShift
+        // (viewport width × (1-t)) so it enters from the navigation
+        // direction's edge; it is already snapped to its own fit
+        // (StartSlideAnim), so no zoom/offset lerp runs mid-slide.
         if (_bitmap != null)
         {
-            byte alpha = (byte)(255 * _animOpacity);
-            _paintNew.Color = new SKColor(255, 255, 255, alpha);
             canvas.Save();
-            canvas.Translate(_offsetX, _offsetY);
+            canvas.Translate(_offsetX + _slideShift, _offsetY);
             canvas.Scale(_zoom);
             if (_rotation != 0)
             {
@@ -803,12 +925,11 @@ public class SkiaImageViewer : FrameworkElement
             canvas.Restore();
         }
 
-        // Draw overlay (e.g. pen strokes) on top of the new bitmap
-        // using the same transform. Only visible while the cross-fade
-        // is complete (_animOpacity ~ 1); during a transition the
-        // viewer is still loading a new image so the overlay is hidden
-        // to avoid showing it against the wrong source.
-        if (_overlayBitmap != null && _bitmap != null && _animOpacity > 0.99f)
+        // Draw overlay (e.g. pen strokes) on top of the current bitmap
+        // using the same transform. Only visible outside a slide
+        // transition (during navigation the overlay would belong to
+        // the wrong source image).
+        if (_overlayBitmap != null && _bitmap != null && !_slideAnim)
         {
             canvas.Save();
             canvas.Translate(_offsetX, _offsetY);

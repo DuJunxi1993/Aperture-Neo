@@ -25,6 +25,20 @@
 ;     task, default checked. Removed on uninstall.
 ;   - Fonts are bundled in-app (Fonts/), no system-level font
 ;     registration needed.
+;
+; v4.1.0 features:
+;   - .NET 10 Desktop Runtime detection now also probes the filesystem
+;     (Program Files\dotnet\shared\Microsoft.WindowsDesktop.App and
+;     %USERPROFILE%\.dotnet\shared\...). The registry-only check
+;     (SOFTWARE\dotnet\Setup\InstalledVersions\...\sharedfx) ends up
+;     EMPTY when the runtime was deployed without the official
+;     per-machine installer (e.g. SDK-managed, VS component, or a
+;     dotnet-install script) — on such machines a fully usable 10.x
+;     runtime was always "not found" and the ~57 MB bundled runtime
+;     got force-installed on every setup. The version folder on disk
+;     is authoritative; any 10.* WindowsDesktop runtime satisfies the
+;     requirement (the app targets net10.0 and rolls forward across
+;     patches, no specific patch is required).
 
 #define MyAppName "Aperture Neo"
 #define MyAppPublisher "DuJunxi1993"
@@ -546,15 +560,56 @@ begin
   Result := SetEnvVarValue(PathEnvVar, NewPath);
 end;
 
-// Detect whether .NET 10 Desktop Runtime is installed by checking the
-// registry under Microsoft.WindowsDesktop.App for any version starting
-// with "10.". We check both 64-bit and 32-bit views (though this
-// installer targets x64, the runtime may be registered in either hive).
-// Returns True if at least one 10.x runtime is found.
+// Detect whether a usable .NET 10 Desktop Runtime exists by probing a
+// shared-framework root (RootDir must end with a backslash, e.g.
+// "{pf64}\dotnet\shared\") for a Microsoft.WindowsDesktop.App\10.*
+// version folder. The version folders on disk are the actual runtime
+// installs and are authoritative — unlike the InstalledVersions
+// registry keys, they exist regardless of how the runtime was deployed.
+// Returns True if at least one 10.x runtime is present.
+function HasDotNet10FxFolder(const RootDir: string): Boolean;
+var
+  FindRec: TFindRec;
+begin
+  Result := False;
+  // Attribute bit $10 = FILE_ATTRIBUTE_DIRECTORY.
+  if FindFirst(RootDir + 'Microsoft.WindowsDesktop.App\10.*', FindRec) then
+  begin
+    try
+      repeat
+        if FindRec.Attributes and $10 <> 0 then
+        begin
+          Log('WindowsDesktop 10.x runtime found: ' + RootDir +
+              'Microsoft.WindowsDesktop.App\' + FindRec.Name);
+          Result := True;
+          break;
+        end;
+      until not FindNext(FindRec);
+    finally
+      FindClose(FindRec);
+    end;
+  end;
+end;
+
+// Detect whether .NET 10 Desktop Runtime is installed. Two detection
+// layers, in order:
+//   1. Registry — written by the official per-machine runtime
+//      installer (also populated by the .NET SDK and Visual Studio
+//      components). Checks both 64-bit and 32-bit views (though this
+//      installer targets x64, the runtime may live in either hive).
+//   2. Filesystem — the InstalledVersions keys are ONLY written by
+//      official installers; runtimes deployed another way (zipped
+//      layout, unpublished registrations, dotnet-install scripts)
+//      leave the keys missing while the runtime on disk works
+//      perfectly. Probe the standard shared-framework folders.
+// The app targets net10.0, which rolls forward across all 10.x
+// patches — any "10.*" WindowsDesktop runtime satisfies the
+// requirement, no specific patch version is needed.
 function IsDotNet10DesktopInstalled(): Boolean;
 var
   Names: TArrayOfString;
   I: Integer;
+  UserProfile: string;
 begin
   Result := False;
 
@@ -587,6 +642,32 @@ begin
         Result := True;
         Exit;
       end;
+    end;
+  end;
+
+  // Filesystem fallbacks (registry keys can be missing despite a
+  // usable runtime — see the function-level comment).
+  if HasDotNet10FxFolder(ExpandConstant('{pf64}\dotnet\shared\')) then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  if HasDotNet10FxFolder(ExpandConstant('{pf32}\dotnet\shared\')) then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  // dotnet-install.ps1 / user-local installs live under
+  // %USERPROFILE%\.dotnet — never registered in the registry at all.
+  UserProfile := GetEnv('USERPROFILE');
+  if UserProfile <> '' then
+  begin
+    if HasDotNet10FxFolder(AddBackslash(UserProfile) + '.dotnet\shared\') then
+    begin
+      Result := True;
+      Exit;
     end;
   end;
 
